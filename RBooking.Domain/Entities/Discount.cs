@@ -2,6 +2,8 @@ using System;
 
 namespace Rbooking.Domain.Entities;
 public abstract class Discount{
+
+    public string? DiscountType { get; set; }
     public int Id { get; set; }
     public string? Code { get; set; }
     public DateTime ExpirationDate { get; set; }
