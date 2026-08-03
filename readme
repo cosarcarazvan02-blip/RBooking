@@ -1,0 +1,13 @@
+sa te uiti cum sa creezi in git ssh key in contul tau si sa setezi pe masina ca sa poti da clone
+clonezi repositoriul de pe git pe calculator si mergi in folder
+creezi un proiect cu urmatoarele
+1. Solution (RBooking.sln)
+2. Project pentru API (RBooking.API.csproj)
+3. Project pentru Application layer (RBooking.Application.csproj)
+4. Project pentru Domain layer (RBooking.Domain.csproj)
+5. Project pentru Infrastructure layer (RBooking.Infrastructure.csproj)
+dependentile: adaugi in sln pe toate csprojurile, 
+dependenti API: Application
+dependentii Application: Domain, Infrastructure
+Domain: nimic
+Infrastructure: Domain
