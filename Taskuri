@@ -1,0 +1,16 @@
+# RBooking - Clean Architecture (.NET)
+
+Proiect dezvoltat în cadrul stagiului de practică. Aplicația este construită pe o arhitectură **Clean Architecture** decuplată în 4 straturi: `Domain`, `Application`, `Infrastructure` și `API`.
+
+---
+*  Security, Infrastructure & Database Specialist**
+  * **Infrastructure & DB:** Setup `AppDbContext`, configurare conexiune bază de date, scriere `Fluent API Configurations` și gestionare migrări.
+  * **Security & Auth:** Implementare autentificare JWT, hashing de parole (BCrypt/Argon2), `ICurrentUserService`, politici de autorizare pe baze de roluri (RBAC).
+  * **API Hardening:** Protecție Rate Limiting, CORS, Global Exception Handling middleware.
+
+* Application Logic & API Specialist**
+  * **Domain & DTOs:** Definirea entităților de business și DTO-uri pentru cereri/răspunsuri.
+  * **Application:** Implementare servicii/use-case-uri, validări de date (`FluentValidation`).
+  * **API Layer:** Creare `Controllers` pentru resurse/rezervări, configurare OpenAPI/Swagger.
+
+---
