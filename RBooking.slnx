@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RBooking.API/RBooking.API.csproj" />
+  <Project Path="RBooking.Application/RBooking.Application.csproj" />
+  <Project Path="RBooking.Domain/RBooking.Domain.csproj" />
+  <Project Path="RBooking.Infrastructure/RBooking.Infrastructure.csproj" />
+</Solution>
