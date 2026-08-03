@@ -1,0 +1,6 @@
+@RBooking.API_HostAddress = http://localhost:5293
+
+GET {{RBooking.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
