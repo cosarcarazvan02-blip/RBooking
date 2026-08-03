@@ -1,8 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\RBooking.Domain\RBooking.Domain.csproj" />
-    <ProjectReference Include="..\RBooking.Infrastructure\RBooking.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

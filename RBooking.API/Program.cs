@@ -1,13 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using RBooking.Infrastructure.Data;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Register Application & Infrastructure Services (Dependency Injection)
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -23,5 +26,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-
+app.UseAuthorization();
+app.MapControllers();
 app.Run();

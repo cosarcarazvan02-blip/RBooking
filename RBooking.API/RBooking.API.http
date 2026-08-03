@@ -1,6 +1,19 @@
 @RBooking.API_HostAddress = http://localhost:5293
 
-GET {{RBooking.API_HostAddress}}/weatherforecast/
+### Get all users
+GET {{RBooking.API_HostAddress}}/api/users
 Accept: application/json
+
+###
+
+### Create a new user
+POST {{RBooking.API_HostAddress}}/api/users
+Content-Type: application/json
+
+{
+  "firstName": "Alexandru",
+  "lastName": "Popa",
+  "email": "alex.popa@example.com"
+}
 
 ###
