@@ -1,4 +1,4 @@
-using Rbooking.Domain.Entities;
+namespace RBooking.Domain.Entities;
 
 namespace RBooking.Domain.Entities;
 
