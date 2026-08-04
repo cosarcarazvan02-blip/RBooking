@@ -1,6 +1,10 @@
-namespace RBooking.Domain.Entities;
+using System;
 
-public class PercentageDiscount : Discount
+
+namespace RBooking.Domain.Entities
 {
-    public decimal Percentage { get; set; }
+    public class PercentageDiscount : Discount
+    {
+        public decimal Percentage { get; set; }
+    }
 }
