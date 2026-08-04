@@ -1,7 +1,9 @@
-namespace RBooking.Domain.Entities;
+using System;
 
-public abstract class Discount
-{
+namespace Rbooking.Domain.Entities;
+public class Discount{
+
+    public string? DiscountType { get; set; }
     public int Id { get; set; }
     public string? Code { get; set; }
     public string? DiscountType { get; set; }
