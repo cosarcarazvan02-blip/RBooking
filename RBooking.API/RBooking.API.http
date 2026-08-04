@@ -11,9 +11,9 @@ POST {{RBooking.API_HostAddress}}/api/users
 Content-Type: application/json
 
 {
-  "firstName": "Alexandru",
+  "firstName": "Test",
   "lastName": "Popa",
-  "email": "alex.popa@example.com"
+  "email": "test.popa@example.com"
 }
 
 ###
