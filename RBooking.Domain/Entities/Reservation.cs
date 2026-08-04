@@ -1,15 +1,16 @@
-using System;
-namespace Rbooking.Domain.Entities
+namespace RBooking.Domain.Entities;
+
+public class Reservation
 {
-    public class Reservation
-    {
-        public int Id { get; set; }
-        public string? FullName { get; set; }
-        public int RoomId { get; set; }
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-        public decimal TotalPrice { get; set; }
-        public bool IsCancelled { get; set; } = false;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public User? User { get; set; }
+    public Guid AccommodationId { get; set; }
+    public Accommodation? Accommodation { get; set; }
+    public DateTime CheckInDate { get; set; }
+    public DateTime CheckOutDate { get; set; }
+    public int NumberOfGuests { get; set; }
+    public decimal TotalPrice { get; set; }
+    public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
