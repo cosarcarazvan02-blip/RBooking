@@ -1,7 +1,7 @@
 using System;
 
 namespace Rbooking.Domain.Entities;
-public abstract class Discount{
+public class Discount{
 
     public string? DiscountType { get; set; }
     public int Id { get; set; }

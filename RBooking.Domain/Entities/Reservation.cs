@@ -3,6 +3,7 @@ namespace Rbooking.Domain.Entities
 {
     public class Reservation
     {
+        public int Id { get; set; }
         public string? FullName { get; set; }
         public int RoomId { get; set; }
         public DateTime StartDate { get; set; }
