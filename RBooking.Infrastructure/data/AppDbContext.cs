@@ -26,11 +26,18 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Table-Per-Hierarchy (TPH) Configuration
+        // Table-Per-Hierarchy (TPH) Configuration for Accommodation
         modelBuilder.Entity<Accommodation>()
             .HasDiscriminator<string>("AccommodationType")
             .HasValue<Hotel>("Hotel")
             .HasValue<Apartment>("Apartment")
             .HasValue<Hostel>("Hostel");
+
+        // Table-Per-Hierarchy (TPH) Configuration for Discount
+        modelBuilder.Entity<Discount>()
+            .HasDiscriminator<string>("DiscountDiscriminator")
+            .HasValue<PercentageDiscount>("Percentage")
+            .HasValue<AbsoluteValueDiscount>("AbsoluteValue")
+            .HasValue<LoyaltyDiscount>("Loyalty");
     }
 }
