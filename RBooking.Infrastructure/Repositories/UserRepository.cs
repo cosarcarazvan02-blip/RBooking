@@ -1,45 +1,38 @@
-using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Infrastructure.Data;
 
 namespace RBooking.Infrastructure.Repositories;
 
 public class UserRepository : IUserRepository
 {
-    private readonly ConcurrentBag<User> _users = new()
-    {
-        new User
-        {
-            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            FirstName = "Ion",
-            LastName = "Popescu",
-            Email = "ion.popescu@example.com",
-            CreatedAt = DateTime.UtcNow
-        },
-        new User
-        {
-            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            FirstName = "Maria",
-            LastName = "Ionescu",
-            Email = "maria.ionescu@example.com",
-            CreatedAt = DateTime.UtcNow
-        }
-    };
+    private readonly AppDbContext _context;
 
-    public Task<IEnumerable<User>> GetAllAsync()
+    public UserRepository(AppDbContext context)
     {
-        return Task.FromResult<IEnumerable<User>>(_users);
+        _context = context;
     }
 
-    public Task<User?> GetByIdAsync(Guid id)
+    public async Task<IEnumerable<User>> GetAllAsync()
     {
-        var user = _users.FirstOrDefault(u => u.Id == id);
-        return Task.FromResult(user);
+        return await _context.Users.ToListAsync();
     }
 
-    public Task<User> AddAsync(User user)
+    public async Task<User?> GetByIdAsync(Guid id)
     {
-        _users.Add(user);
-        return Task.FromResult(user);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+    }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+    }
+
+    public async Task<User> AddAsync(User user)
+    {
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        return user;
     }
 }
