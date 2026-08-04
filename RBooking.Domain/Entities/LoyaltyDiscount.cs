@@ -1,6 +1,9 @@
 using Rbooking.Domain.Entities;
 
-public class PercentageDiscount : Discount
+namespace RBooking.Domain.Entities;
+
+public class LoyaltyDiscount : Discount
 {
-    public decimal Percentage { get; set; }
+    public int RequiredPoints { get; set; }
+    public decimal DiscountPercentage { get; set; }
 }
