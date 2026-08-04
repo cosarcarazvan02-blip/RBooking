@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using RBooking.Application.Interfaces;
 using RBooking.Application.Services;
@@ -8,13 +9,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
 // Register Application & Infrastructure Services (Dependency Injection)
-IServiceCollection serviceCollection1 = builder.Services.AddSingleton<IUserRepository, UserRepository>();
-IServiceCollection serviceCollection = builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 
