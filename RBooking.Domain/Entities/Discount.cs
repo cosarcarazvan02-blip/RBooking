@@ -1,9 +1,9 @@
 using System;
 
-namespace Rbooking.Domain.Entities;
-public class Discount{
+namespace RBooking.Domain.Entities;
 
-    public string? DiscountType { get; set; }
+public class Discount
+{
     public int Id { get; set; }
     public string? Code { get; set; }
     public string? DiscountType { get; set; }
@@ -11,3 +11,4 @@ public class Discount{
     public DateTime ExpirationDate { get; set; }
     public bool IsActive { get; set; } = true;
 }
+

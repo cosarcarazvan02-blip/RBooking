@@ -18,9 +18,6 @@ public class AppDbContext : DbContext
     public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
     public DbSet<Discount> Discounts => Set<Discount>();
     
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Reservation> Reservations => Set<Reservation>();
-    
     // TPH Accommodation hierarchy
     public DbSet<Accommodation> Accommodations => Set<Accommodation>();
     public DbSet<Hotel> Hotels => Set<Hotel>();
