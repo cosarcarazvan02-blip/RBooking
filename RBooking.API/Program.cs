@@ -12,12 +12,11 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // Register Application & Infrastructure Services (Dependency Injection)
-builder.Services.AddSingleton<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>();
+IServiceCollection serviceCollection1 = builder.Services.AddSingleton<IUserRepository, UserRepository>();
+IServiceCollection serviceCollection = builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 
-// Register DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
