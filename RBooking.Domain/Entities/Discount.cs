@@ -6,6 +6,7 @@ public abstract class Discount{
     public string? DiscountType { get; set; }
     public int Id { get; set; }
     public string? Code { get; set; }
+    public DateTime StartingDate {get; set; }
     public DateTime ExpirationDate { get; set; }
     public bool IsActive { get; set; } = true;
 }
