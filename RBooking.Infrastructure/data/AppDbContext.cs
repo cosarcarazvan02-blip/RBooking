@@ -10,7 +10,12 @@ public class AppDbContext : DbContext
     {
     }
 
+    public DbSet<User> Users => Set<User>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<LoyaltyDiscount> LoyaltyDiscounts => Set<LoyaltyDiscount>();
+    public DbSet<AbsoluteValueDiscount> AbsoluteValueDiscounts => Set<AbsoluteValueDiscount>();
+    public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
     public DbSet<Discount> Discounts => Set<Discount>();
     
     public DbSet<User> Users => Set<User>();
