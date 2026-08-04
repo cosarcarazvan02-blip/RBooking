@@ -1,6 +1,7 @@
 using System;
+using Rbooking.Domain.Entities;
 
-namespace Rbooking.Domain.Entities
+namespace RBooking.Domain.Entities
 {
     public class PercentageDiscount : Discount
     {
