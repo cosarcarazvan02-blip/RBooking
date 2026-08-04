@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using RBooking.Application.Interfaces;
+using RBooking.Application.Services;
 using RBooking.Infrastructure.Data;
+using RBooking.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,10 +15,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-var app = builder.Build();
+// Register DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
