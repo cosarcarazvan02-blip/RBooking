@@ -1,0 +1,104 @@
+using RBooking.Application.DTOs;
+using RBooking.Application.Interfaces;
+using RBooking.Domain.Entities;
+
+namespace RBooking.Application.Services;
+
+public class ReservationService : IReservationService
+{
+    private readonly IReservationRepository _reservationRepository;
+
+    public ReservationService(IReservationRepository reservationRepository)
+    {
+        _reservationRepository = reservationRepository;
+    }
+
+    public async Task<IEnumerable<ReservationDto>> GetAllReservationsAsync()
+    {
+        var reservations = await _reservationRepository.GetAllAsync();
+        return reservations.Select(MapToDto);
+    }
+
+    public async Task<ReservationDto?> GetReservationByIdAsync(Guid id)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        return reservation == null ? null : MapToDto(reservation);
+    }
+
+    public async Task<IEnumerable<ReservationDto>> GetReservationsByUserIdAsync(Guid userId)
+    {
+        var reservations = await _reservationRepository.GetByUserIdAsync(userId);
+        return reservations.Select(MapToDto);
+    }
+
+    public async Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto)
+    {
+        if (createReservationDto.CheckOutDate <= createReservationDto.CheckInDate)
+        {
+            throw new ArgumentException("Check-out date must be after check-in date.");
+        }
+
+        if (createReservationDto.NumberOfGuests <= 0)
+        {
+            throw new ArgumentException("Number of guests must be at least 1.");
+        }
+
+        int nights = (createReservationDto.CheckOutDate.Date - createReservationDto.CheckInDate.Date).Days;
+        decimal basePricePerNight = 100m; // Default nightly rate if not calculated from accommodation entity
+        decimal totalPrice = nights * basePricePerNight;
+
+        var reservation = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            UserId = createReservationDto.UserId,
+            AccommodationId = createReservationDto.AccommodationId,
+            CheckInDate = createReservationDto.CheckInDate,
+            CheckOutDate = createReservationDto.CheckOutDate,
+            NumberOfGuests = createReservationDto.NumberOfGuests,
+            TotalPrice = totalPrice,
+            Status = ReservationStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var created = await _reservationRepository.AddAsync(reservation);
+        return MapToDto(created);
+    }
+
+    public async Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, ReservationStatus newStatus)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return null;
+
+        reservation.Status = newStatus;
+        var updated = await _reservationRepository.UpdateAsync(reservation);
+        return updated == null ? null : MapToDto(updated);
+    }
+
+    public async Task<bool> CancelReservationAsync(Guid id)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return false;
+
+        reservation.Status = ReservationStatus.Cancelled;
+        var updated = await _reservationRepository.UpdateAsync(reservation);
+        return updated != null;
+    }
+
+    private static ReservationDto MapToDto(Reservation reservation)
+    {
+        return new ReservationDto
+        {
+            Id = reservation.Id,
+            UserId = reservation.UserId,
+            UserEmail = reservation.User?.Email ?? string.Empty,
+            AccommodationId = reservation.AccommodationId,
+            AccommodationName = reservation.Accommodation?.Name ?? string.Empty,
+            CheckInDate = reservation.CheckInDate,
+            CheckOutDate = reservation.CheckOutDate,
+            NumberOfGuests = reservation.NumberOfGuests,
+            TotalPrice = reservation.TotalPrice,
+            Status = reservation.Status,
+            CreatedAt = reservation.CreatedAt
+        };
+    }
+}

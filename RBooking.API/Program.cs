@@ -14,6 +14,8 @@ builder.Services.AddOpenApi();
 // Register Application & Infrastructure Services (Dependency Injection)
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
 
 // Register DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
