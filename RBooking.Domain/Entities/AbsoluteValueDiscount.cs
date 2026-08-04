@@ -1,8 +1,7 @@
-namespace RBooking.Domain.Entities;
-
-namespace RBooking.Domain.Entities;
-
-public class AbsoluteValueDiscount : Discount
+namespace RBooking.Domain.Entities
 {
-    public decimal Amount { get; set; }
+    public class AbsoluteValueDiscount : Discount
+    {
+        public decimal Amount { get; set; }
+    }
 }
