@@ -76,6 +76,19 @@ public class UserService : IUserService
         return await _imageService.GetImageAsync(user.ProfileImagePath);
     }
 
+    public async Task<bool> DeleteUserAsync(Guid id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return false;
+
+        if (!string.IsNullOrEmpty(user.ProfileImagePath))
+        {
+            await _imageService.DeleteImageAsync(user.ProfileImagePath);
+        }
+
+        return await _userRepository.DeleteAsync(id);
+    }
+
     private static UserDto MapToDto(User user)
     {
         return new UserDto
