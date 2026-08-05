@@ -10,4 +10,5 @@ public interface IUserService
     Task<UserDto> CreateUserAsync(CreateUserDto createUserDto);
     Task<UserDto?> UploadProfileImageAsync(Guid userId, Stream fileStream, string fileName);
     Task<(byte[] FileBytes, string ContentType)?> GetProfileImageAsync(Guid userId);
+    Task<bool> DeleteUserAsync(Guid id);
 }
