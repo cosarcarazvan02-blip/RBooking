@@ -19,6 +19,13 @@ public class ReservationService : IReservationService
         return reservations.Select(MapToDto);
     }
 
+    public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsAsync(PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _reservationRepository.GetPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
+    }
+
     public async Task<ReservationDto?> GetReservationByIdAsync(Guid id)
     {
         var reservation = await _reservationRepository.GetByIdAsync(id);
@@ -29,6 +36,13 @@ public class ReservationService : IReservationService
     {
         var reservations = await _reservationRepository.GetByUserIdAsync(userId);
         return reservations.Select(MapToDto);
+    }
+
+    public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsByUserIdAsync(Guid userId, PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _reservationRepository.GetPagedByUserIdAsync(userId, paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
     }
 
     public async Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto)

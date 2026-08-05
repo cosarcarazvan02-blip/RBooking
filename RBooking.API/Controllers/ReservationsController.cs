@@ -17,6 +17,13 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpGet]
+    public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetPaged([FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _reservationService.GetPagedReservationsAsync(paginationParams);
+        return Ok(result);
+    }
+
+    [HttpGet("all")]
     public async Task<ActionResult<IEnumerable<ReservationDto>>> GetAll()
     {
         var reservations = await _reservationService.GetAllReservationsAsync();
@@ -35,10 +42,10 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpGet("user/{userId:guid}")]
-    public async Task<ActionResult<IEnumerable<ReservationDto>>> GetByUserId(Guid userId)
+    public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetByUserId(Guid userId, [FromQuery] PaginationParamsDto paginationParams)
     {
-        var reservations = await _reservationService.GetReservationsByUserIdAsync(userId);
-        return Ok(reservations);
+        var result = await _reservationService.GetPagedReservationsByUserIdAsync(userId, paginationParams);
+        return Ok(result);
     }
 
     [HttpPost]

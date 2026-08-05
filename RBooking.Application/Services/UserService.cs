@@ -21,6 +21,13 @@ public class UserService : IUserService
         return users.Select(MapToDto);
     }
 
+    public async Task<PagedResultDto<UserDto>> GetPagedUsersAsync(PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _userRepository.GetPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<UserDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
+    }
+
     public async Task<UserDto?> GetUserByIdAsync(Guid id)
     {
         var user = await _userRepository.GetByIdAsync(id);
