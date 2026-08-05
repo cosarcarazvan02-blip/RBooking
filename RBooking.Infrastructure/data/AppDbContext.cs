@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     {
     }
 
+    public DbSet<AccommodationImage> AccommodationImages { get; set; }
     public DbSet<User> Users => Set<User>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -27,6 +28,13 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Table-Per-Hierarchy: Accommodation -> AccommodationImage
+        modelBuilder.Entity<AccommodationImage>()
+            .HasOne(img => img.Accommodation)
+            .WithMany(acc => acc.Images)
+            .HasForeignKey(img => img.AccommodationId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Table-Per-Hierarchy (TPH) Configuration for Accommodation
         modelBuilder.Entity<Accommodation>()
