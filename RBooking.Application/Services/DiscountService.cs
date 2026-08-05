@@ -1,6 +1,7 @@
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using Rbooking.Domain.Enum;
 
 namespace RBooking.Application.Services;
 
@@ -146,6 +147,44 @@ public class DiscountService : IDiscountService
         });
 
         var totalCount = discountDtos.Count();
+        var items = discountDtos
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return (items, totalCount);
+    }
+
+    public async Task<(IEnumerable<DiscountDto> Items, int TotalCount)> GetPagedFilteredAsync(int pageNumber, int pageSize, string? searchTerm, DiscountType? type, DateTime? startDate, DateTime? endDate, decimal? compareValue, string? compareOperator)
+    {
+        var discounts = await _discountRepository.GetAllAsync();
+
+        var filtered = discounts.Where(d =>
+            (string.IsNullOrEmpty(searchTerm) || d.Code?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
+            && (!type.HasValue || d.Type == type.Value)
+            && (!startDate.HasValue || d.StartingDate >= startDate.Value)
+            && (!endDate.HasValue || d.ExpirationDate <= endDate.Value)
+            && (!compareValue.HasValue ||
+                compareOperator switch
+                {
+                    ">" => d is PercentageDiscount pd && pd.Percentage > compareValue.Value || d is AbsoluteValueDiscount ad && ad.Amount > compareValue.Value || d is LoyaltyDiscount ld && ld.Percentage > compareValue.Value,
+                    "<" => d is PercentageDiscount pd && pd.Percentage < compareValue.Value || d is AbsoluteValueDiscount ad && ad.Amount < compareValue.Value || d is LoyaltyDiscount ld && ld.Percentage < compareValue.Value,
+                    "=" => d is PercentageDiscount pd && pd.Percentage == compareValue.Value || d is AbsoluteValueDiscount ad && ad.Amount == compareValue.Value || d is LoyaltyDiscount ld && ld.Percentage == compareValue.Value,
+                    _ => true
+                }
+            )
+        );
+
+        var discountDtos = filtered.Select(d => new DiscountDto
+        {
+            Id = d.Id,
+            Code = d.Code ?? string.Empty,
+            StartingDate = d.StartingDate,
+            ExpirationDate = d.ExpirationDate,
+            IsActive = d.StartingDate <= DateTime.UtcNow && d.ExpirationDate >= DateTime.UtcNow
+        }).ToList();
+
+        var totalCount = discountDtos.Count;
         var items = discountDtos
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
