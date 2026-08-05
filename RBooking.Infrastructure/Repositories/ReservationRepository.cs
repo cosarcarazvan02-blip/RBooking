@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 using RBooking.Infrastructure.Data;
 
 namespace RBooking.Infrastructure.Repositories;

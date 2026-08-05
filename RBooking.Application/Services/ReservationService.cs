@@ -1,6 +1,7 @@
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 
 namespace RBooking.Application.Services;
 

@@ -1,6 +1,4 @@
-using System;
-
-namespace Rbooking.Domain.Enum;
+namespace RBooking.Domain.Enums;
 
 public enum DiscountType
 {

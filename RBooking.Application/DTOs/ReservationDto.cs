@@ -1,4 +1,5 @@
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 
 namespace RBooking.Application.DTOs;
 

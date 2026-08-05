@@ -1,3 +1,5 @@
+using RBooking.Domain.Enums;
+
 namespace RBooking.Domain.Entities;
 
 public class Reservation
