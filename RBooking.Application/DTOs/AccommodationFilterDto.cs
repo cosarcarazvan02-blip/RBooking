@@ -1,12 +1,12 @@
 namespace RBooking.Application.DTOs;
 
-public class AccommodationFilterDto
+public class AccommodationFilterDto : PaginationParamsDto
 {
-    // Parametrii pentru paginare (valori implicite: pagina 1, 10 elemente pe pagină)
-    public int PageNumber { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
-
-    // Criterii de filtrare opționale
+    public string? SearchLocation { get; set; }
+    public string? City { get; set; }
+    public string? Country { get; set; }
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
+    public double? MinRating { get; set; }
+    public string? AccommodationType { get; set; }
 }
