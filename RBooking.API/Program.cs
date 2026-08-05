@@ -7,6 +7,7 @@ using RBooking.Application.Interfaces;
 using RBooking.Application.Services;
 using RBooking.Infrastructure.Data;
 using RBooking.Infrastructure.Repositories;
+using RBooking.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<IImageService, ImageService>();
 
 // Configure JWT Bearer Authentication
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RBookingAPI";
