@@ -13,4 +13,5 @@ public interface IDiscountService
     
     Task<bool> UpdateAsync(UpdateDiscountDto dto);
     Task<bool> DeleteAsync(int id);
+    Task<(IEnumerable<DiscountDto> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
 }
