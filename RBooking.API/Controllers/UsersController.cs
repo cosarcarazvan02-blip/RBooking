@@ -18,6 +18,13 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    public async Task<ActionResult<PagedResultDto<UserDto>>> GetPaged([FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _userService.GetPagedUsersAsync(paginationParams);
+        return Ok(result);
+    }
+
+    [HttpGet("all")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetAll()
     {
         var users = await _userService.GetAllUsersAsync();

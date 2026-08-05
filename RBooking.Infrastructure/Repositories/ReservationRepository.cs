@@ -49,6 +49,39 @@ public class ReservationRepository : IReservationRepository
         return _inMemoryReservations.ToList();
     }
 
+    public async Task<(IEnumerable<Reservation> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+    {
+        if (_dbContext != null)
+        {
+            try
+            {
+                var totalCount = await _dbContext.Reservations.CountAsync();
+                var items = await _dbContext.Reservations
+                    .Include(r => r.User)
+                    .Include(r => r.Accommodation)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (items, totalCount);
+            }
+            catch
+            {
+                // Fallback
+            }
+        }
+
+        var memTotal = _inMemoryReservations.Count;
+        var memItems = _inMemoryReservations
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return (memItems, memTotal);
+    }
+
     public async Task<Reservation?> GetByIdAsync(Guid id)
     {
         if (_dbContext != null)
@@ -86,6 +119,43 @@ public class ReservationRepository : IReservationRepository
             }
         }
         return _inMemoryReservations.Where(r => r.UserId == userId).ToList();
+    }
+
+    public async Task<(IEnumerable<Reservation> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int pageNumber, int pageSize)
+    {
+        if (_dbContext != null)
+        {
+            try
+            {
+                var query = _dbContext.Reservations
+                    .Include(r => r.User)
+                    .Include(r => r.Accommodation)
+                    .Where(r => r.UserId == userId);
+
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (items, totalCount);
+            }
+            catch
+            {
+                // Fallback
+            }
+        }
+
+        var userFiltered = _inMemoryReservations.Where(r => r.UserId == userId).ToList();
+        var memTotal = userFiltered.Count;
+        var memItems = userFiltered
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return (memItems, memTotal);
     }
 
     public async Task<IEnumerable<Reservation>> GetByAccommodationIdAsync(Guid accommodationId)
