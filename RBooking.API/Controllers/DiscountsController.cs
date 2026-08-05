@@ -16,10 +16,21 @@ public class DiscountsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<DiscountDto>>> GetAll()
+    public async Task<ActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
-        var discounts = await _discountService.GetAllAsync();
-        return Ok(discounts);
+        if (pageNumber <= 0) pageNumber = 1;
+        if (pageSize <= 0) pageSize = 10;
+
+        var (items, totalCount) = await _discountService.GetPagedAsync(pageNumber, pageSize);
+
+        return Ok(new
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            Data = items
+        });
     }
 
     [HttpGet("{id:int}")]

@@ -132,4 +132,25 @@ public class DiscountService : IDiscountService
         await _discountRepository.DeleteAsync(id);
         return true;
     }
+
+    public async Task<(IEnumerable<DiscountDto> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+    {
+        var allDiscounts = await _discountRepository.GetAllAsync();
+        var discountDtos = allDiscounts.Select(d => new DiscountDto
+        {
+            Id = d.Id,
+            Code = d.Code ?? string.Empty,
+            StartingDate = d.StartingDate,
+            ExpirationDate = d.ExpirationDate,
+            IsActive = d.StartingDate <= DateTime.UtcNow && d.ExpirationDate >= DateTime.UtcNow
+        });
+
+        var totalCount = discountDtos.Count();
+        var items = discountDtos
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return (items, totalCount);
+    }
 }
