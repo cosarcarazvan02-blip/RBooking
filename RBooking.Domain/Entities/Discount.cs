@@ -1,5 +1,5 @@
 using System;
-using Rbooking.Domain.Enum;
+using RBooking.Domain.Enums;
 
 namespace RBooking.Domain.Entities;
 

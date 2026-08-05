@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
-using Rbooking.Domain.Enum;
+using RBooking.Domain.Enums;
 
 namespace RBooking.API.Controllers;
 

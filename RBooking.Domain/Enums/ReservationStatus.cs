@@ -1,4 +1,4 @@
-namespace RBooking.Domain.Entities;
+namespace RBooking.Domain.Enums;
 
 public enum ReservationStatus
 {
