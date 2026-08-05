@@ -5,8 +5,10 @@ namespace RBooking.Application.Interfaces;
 public interface IReservationRepository
 {
     Task<IEnumerable<Reservation>> GetAllAsync();
+    Task<(IEnumerable<Reservation> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
     Task<Reservation?> GetByIdAsync(Guid id);
     Task<IEnumerable<Reservation>> GetByUserIdAsync(Guid userId);
+    Task<(IEnumerable<Reservation> Items, int TotalCount)> GetPagedByUserIdAsync(Guid userId, int pageNumber, int pageSize);
     Task<IEnumerable<Reservation>> GetByAccommodationIdAsync(Guid accommodationId);
     Task<Reservation> AddAsync(Reservation reservation);
     Task<Reservation?> UpdateAsync(Reservation reservation);

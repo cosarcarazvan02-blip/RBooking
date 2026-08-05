@@ -21,6 +21,13 @@ public class UserService : IUserService
         return users.Select(MapToDto);
     }
 
+    public async Task<PagedResultDto<UserDto>> GetPagedUsersAsync(PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _userRepository.GetPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<UserDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
+    }
+
     public async Task<UserDto?> GetUserByIdAsync(Guid id)
     {
         var user = await _userRepository.GetByIdAsync(id);
@@ -67,6 +74,19 @@ public class UserService : IUserService
         if (user == null || string.IsNullOrEmpty(user.ProfileImagePath)) return null;
 
         return await _imageService.GetImageAsync(user.ProfileImagePath);
+    }
+
+    public async Task<bool> DeleteUserAsync(Guid id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return false;
+
+        if (!string.IsNullOrEmpty(user.ProfileImagePath))
+        {
+            await _imageService.DeleteImageAsync(user.ProfileImagePath);
+        }
+
+        return await _userRepository.DeleteAsync(id);
     }
 
     private static UserDto MapToDto(User user)

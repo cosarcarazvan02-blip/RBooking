@@ -18,6 +18,13 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    public async Task<ActionResult<PagedResultDto<UserDto>>> GetPaged([FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _userService.GetPagedUsersAsync(paginationParams);
+        return Ok(result);
+    }
+
+    [HttpGet("all")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetAll()
     {
         var users = await _userService.GetAllUsersAsync();
@@ -84,5 +91,17 @@ public class UsersController : ControllerBase
         }
 
         return File(result.Value.FileBytes, result.Value.ContentType);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await _userService.DeleteUserAsync(id);
+        if (!result)
+        {
+            return NotFound(new { message = $"User with ID {id} was not found." });
+        }
+
+        return NoContent();
     }
 }
