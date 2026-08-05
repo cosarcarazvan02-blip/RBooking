@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
+using Rbooking.Domain.Enum;
 
 namespace RBooking.API.Controllers;
 
@@ -16,12 +17,21 @@ public class DiscountsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult> GetAll(
+        [FromQuery] int pageNumber = 1, 
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] DiscountType? type = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] decimal? compareValue = null,
+        [FromQuery] string? compareOperator = null)
     {
         if (pageNumber <= 0) pageNumber = 1;
         if (pageSize <= 0) pageSize = 10;
 
-        var (items, totalCount) = await _discountService.GetPagedAsync(pageNumber, pageSize);
+        var (items, totalCount) = await _discountService.GetPagedFilteredAsync(
+            pageNumber, pageSize, searchTerm, type, startDate, endDate, compareValue, compareOperator);
 
         return Ok(new
         {
