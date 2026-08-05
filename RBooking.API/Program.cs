@@ -39,7 +39,12 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddOpenApi();
 
-// Register DbContext
+// Register Application & Infrastructure Services (Dependency Injection)
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
