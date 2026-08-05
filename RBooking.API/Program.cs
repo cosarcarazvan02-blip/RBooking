@@ -31,7 +31,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityRequirement((doc) => new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecuritySchemeReference("Bearer"),
+            new OpenApiSecuritySchemeReference("Bearer", doc),
             new List<string>()
         }
     });
@@ -56,6 +56,8 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RBookingAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "RBookingClient";
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "RBookingSuperSecretKeyForJwtTokenGeneration2026!#";
 
+builder.Services.AddAuthorization();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -63,10 +65,13 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.UseSecurityTokenValidators = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false,
-        ValidateAudience = false,
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = jwtAudience,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
@@ -91,7 +96,12 @@ builder.Services.AddAuthentication(options =>
         },
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"[JWT Error] Authentication failed: {context.Exception.Message}");
+            Console.WriteLine($"[JWT Error] Authentication failed: {context.Exception.GetType().Name} - {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"[JWT Challenge] Error: {context.Error}, Description: {context.ErrorDescription}");
             return Task.CompletedTask;
         }
     };
