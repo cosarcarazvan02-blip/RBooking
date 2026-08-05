@@ -52,7 +52,9 @@ public class AuthController : ControllerBase
                 Id = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Email = user.Email
+                Email = user.Email,
+                ProfileImagePath = user.ProfileImagePath,
+                CreatedAt = user.CreatedAt
             }
         };
 
@@ -81,7 +83,9 @@ public class AuthController : ControllerBase
                         Id = userByEmail.Id,
                         FirstName = userByEmail.FirstName,
                         LastName = userByEmail.LastName,
-                        Email = userByEmail.Email
+                        Email = userByEmail.Email,
+                        ProfileImagePath = userByEmail.ProfileImagePath,
+                        CreatedAt = userByEmail.CreatedAt
                     });
                 }
             }
@@ -100,7 +104,9 @@ public class AuthController : ControllerBase
             Id = user.Id,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Email = user.Email
+            Email = user.Email,
+            ProfileImagePath = user.ProfileImagePath,
+            CreatedAt = user.CreatedAt
         });
     }
 }
