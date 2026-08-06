@@ -14,4 +14,5 @@ public interface IReservationService
     Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto);
     Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, ReservationStatus newStatus);
     Task<bool> CancelReservationAsync(Guid id);
+    Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, RBooking.Domain.Enums.UserRole currentUserRole);
 }
