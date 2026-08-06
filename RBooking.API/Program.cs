@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using RBooking.API.Middleware;
 using RBooking.Application.Interfaces;
 using RBooking.Application.Services;
 using RBooking.Infrastructure.Data;
@@ -86,10 +87,10 @@ builder.Services.AddScoped<IAccommodationService, AccommodationService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 
-// Configure Swagger with JWT Bearer Authentication support
+// Configure Swagger with JWT Bearer Authentication and API Key support
 builder.Services.AddSwaggerGen(options =>
 {
-    var securityScheme = new OpenApiSecurityScheme
+    var bearerScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
@@ -99,10 +100,23 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Enter your JWT Bearer token."
     };
 
-    options.AddSecurityDefinition("Bearer", securityScheme);
+    var apiKeyScheme = new OpenApiSecurityScheme
+    {
+        Name = ApiKeyMiddleware.ApiKeyHeaderName,
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Description = "Enter your API Key secret (e.g. RBooking_Secret_ApiKey_2026_x9k2M!)."
+    };
+
+    options.AddSecurityDefinition("Bearer", bearerScheme);
+    options.AddSecurityDefinition("ApiKey", apiKeyScheme);
 
     options.AddSecurityRequirement((doc) => new OpenApiSecurityRequirement
     {
+        {
+            new OpenApiSecuritySchemeReference("ApiKey", doc),
+            new List<string>()
+        },
         {
             new OpenApiSecuritySchemeReference("Bearer", doc),
             new List<string>()
@@ -253,6 +267,8 @@ app.MapGet("/metrics", (RequestMetrics metrics) => Results.Json(new
     errorResponses = metrics.ErrorResponses,
     successfulResponses = metrics.SuccessfulResponses
 }));
+
+app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseRateLimiter();
 
