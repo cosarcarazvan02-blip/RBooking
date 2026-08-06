@@ -1,3 +1,5 @@
+using RBooking.Domain.Enums;
+
 namespace RBooking.Domain.Entities;
 
 public class User
@@ -7,5 +9,7 @@ public class User
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? ProfileImagePath { get; set; }
+    public UserRole Role { get; set; } = UserRole.Client;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+

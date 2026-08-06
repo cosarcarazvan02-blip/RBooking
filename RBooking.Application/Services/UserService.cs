@@ -36,12 +36,14 @@ public class UserService : IUserService
 
     public async Task<UserDto> CreateUserAsync(CreateUserDto createUserDto)
     {
+        System.Enum.TryParse<RBooking.Domain.Enums.UserRole>(createUserDto.Role, true, out var role);
         var user = new User
         {
             Id = Guid.NewGuid(),
             FirstName = createUserDto.FirstName,
             LastName = createUserDto.LastName,
             Email = createUserDto.Email,
+            Role = role,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -98,6 +100,7 @@ public class UserService : IUserService
             LastName = user.LastName,
             Email = user.Email,
             ProfileImagePath = user.ProfileImagePath,
+            Role = user.Role.ToString(),
             CreatedAt = user.CreatedAt
         };
     }
