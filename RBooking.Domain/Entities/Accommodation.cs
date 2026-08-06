@@ -9,5 +9,6 @@ public class Accommodation
     public string City { get; set; } = string.Empty;
     public string Country { get; set; } = string.Empty;
     public decimal PricePerNight { get; set; }
+    public string OperatorId { get; set; } = string.Empty;
     public ICollection<AccommodationImage> Images { get; set; } = new List<AccommodationImage>();
 }
