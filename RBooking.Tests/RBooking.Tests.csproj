@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RBooking.API\RBooking.API.csproj" />
     <ProjectReference Include="..\RBooking.Application\RBooking.Application.csproj" />
     <ProjectReference Include="..\RBooking.Domain\RBooking.Domain.csproj" />
     <ProjectReference Include="..\RBooking.Infrastructure\RBooking.Infrastructure.csproj" />
