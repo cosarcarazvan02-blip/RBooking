@@ -8,10 +8,17 @@ namespace RBooking.Application.Services;
 public class ReservationService : IReservationService
 {
     private readonly IReservationRepository _reservationRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAccommodationRepository _accommodationRepository;
 
-    public ReservationService(IReservationRepository reservationRepository)
+    public ReservationService(
+        IReservationRepository reservationRepository,
+        IUserRepository userRepository,
+        IAccommodationRepository accommodationRepository)
     {
         _reservationRepository = reservationRepository;
+        _userRepository = userRepository;
+        _accommodationRepository = accommodationRepository;
     }
 
     public async Task<IEnumerable<ReservationDto>> GetAllReservationsAsync()
@@ -58,17 +65,41 @@ public class ReservationService : IReservationService
             throw new ArgumentException("Number of guests must be at least 1.");
         }
 
-        int nights = (createReservationDto.CheckOutDate.Date - createReservationDto.CheckInDate.Date).Days;
-        decimal basePricePerNight = 100m; // Default nightly rate if not calculated from accommodation entity
+        var user = await _userRepository.GetByIdAsync(createReservationDto.UserId);
+        if (user == null)
+        {
+            throw new ArgumentException($"User with ID {createReservationDto.UserId} was not found.");
+        }
+
+        var accommodation = await _accommodationRepository.GetByIdAsync(createReservationDto.AccommodationId);
+        if (accommodation == null)
+        {
+            throw new ArgumentException($"Accommodation with ID {createReservationDto.AccommodationId} was not found.");
+        }
+
+        var checkInUtc = createReservationDto.CheckInDate.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(createReservationDto.CheckInDate, DateTimeKind.Utc)
+            : createReservationDto.CheckInDate.ToUniversalTime();
+
+        var checkOutUtc = createReservationDto.CheckOutDate.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(createReservationDto.CheckOutDate, DateTimeKind.Utc)
+            : createReservationDto.CheckOutDate.ToUniversalTime();
+
+        int nights = (checkOutUtc.Date - checkInUtc.Date).Days;
+        if (nights <= 0) nights = 1;
+
+        decimal basePricePerNight = accommodation.PricePerNight > 0 ? accommodation.PricePerNight : 100m;
         decimal totalPrice = nights * basePricePerNight;
 
         var reservation = new Reservation
         {
             Id = Guid.NewGuid(),
             UserId = createReservationDto.UserId,
+            User = user,
             AccommodationId = createReservationDto.AccommodationId,
-            CheckInDate = createReservationDto.CheckInDate,
-            CheckOutDate = createReservationDto.CheckOutDate,
+            Accommodation = accommodation,
+            CheckInDate = checkInUtc,
+            CheckOutDate = checkOutUtc,
             NumberOfGuests = createReservationDto.NumberOfGuests,
             TotalPrice = totalPrice,
             Status = ReservationStatus.Pending,
