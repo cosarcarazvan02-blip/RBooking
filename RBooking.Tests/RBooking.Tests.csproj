@@ -17,6 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
@@ -25,10 +29,6 @@
     <ProjectReference Include="..\RBooking.Application\RBooking.Application.csproj" />
     <ProjectReference Include="..\RBooking.Domain\RBooking.Domain.csproj" />
     <ProjectReference Include="..\RBooking.Infrastructure\RBooking.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="Xunit" />
   </ItemGroup>
 
 </Project>
