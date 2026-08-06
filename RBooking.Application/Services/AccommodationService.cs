@@ -35,6 +35,47 @@ public class AccommodationService : IAccommodationService
         return MapToDto(accommodation, avgRating, reviewCount);
     }
 
+    public async Task<AccommodationDto> CreateAccommodationAsync(Guid currentUserId, CreateAccommodationDto dto)
+    {
+        // Poți adapta crearea în funcție de tipul de cazare trimis în DTO (Hotel, Apartment, Hostel)
+        Accommodation accommodation = dto.AccommodationType?.ToLower() switch
+        {
+            "hotel" => new Hotel
+            {
+                Stars = dto.Stars ?? 3,
+                HasPool = dto.HasPool ?? false,
+                HasRoomService = dto.HasRoomService ?? false,
+                TotalRooms = dto.TotalRooms ?? 10
+            },
+            "apartment" => new Apartment
+            {
+                FloorNumber = dto.FloorNumber ?? 1,
+                HasElevator = dto.HasElevator ?? false,
+                NumberOfRooms = dto.NumberOfRooms ?? 2,
+                IsFurnished = dto.IsFurnished ?? true
+            },
+            "hostel" => new Hostel
+            {
+                BedInSharedRoomPrice = dto.BedInSharedRoomPrice ?? 50,
+                HasSharedKitchen = dto.HasSharedKitchen ?? true,
+                TotalBeds = dto.TotalBeds ?? 20
+            },
+            _ => throw new ArgumentException("Tip de cazare invalid.")
+        };
+
+        accommodation.Id = Guid.NewGuid();
+        accommodation.Name = dto.Name;
+        accommodation.Location = dto.Location;
+        accommodation.City = dto.City;
+        accommodation.Country = dto.Country;
+        accommodation.PricePerNight = dto.PricePerNight;
+        accommodation.Description = dto.Description;
+        accommodation.OperatorId = currentUserId.ToString();
+
+        var created = await _accommodationRepository.AddAsync(accommodation);
+        return MapToDto(created, 0.0, 0);
+    }
+
     private static AccommodationDto MapToDto(Accommodation a, double avgRating, int reviewCount)
     {
         var dto = new AccommodationDto

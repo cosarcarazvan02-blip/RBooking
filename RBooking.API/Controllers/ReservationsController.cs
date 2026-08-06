@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
@@ -75,13 +77,30 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Cancel(Guid id)
+    [Authorize(Roles = "Client,Operator")]
+    public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await _reservationService.CancelReservationAsync(id);
-        if (!result)
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var roleString = User.FindFirstValue(ClaimTypes.Role);
+
+        if (!Guid.TryParse(userIdString, out var currentUserId) || 
+            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
         {
-            return NotFound(new { message = $"Reservation with ID {id} was not found." });
+            return Unauthorized(new { message = "Invalid user token credentials." });
         }
-        return NoContent();
+
+        try
+        {
+            var success = await _reservationService.DeleteReservationAsync(id, currentUserId, currentUserRole);
+            if (!success)
+            {
+                return NotFound(new { message = $"Reservation with ID {id} was not found." });
+            }
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 }
