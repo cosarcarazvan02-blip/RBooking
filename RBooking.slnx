@@ -3,4 +3,5 @@
   <Project Path="RBooking.Application/RBooking.Application.csproj" />
   <Project Path="RBooking.Domain/RBooking.Domain.csproj" />
   <Project Path="RBooking.Infrastructure/RBooking.Infrastructure.csproj" />
+  <Project Path="RBooking.Tests/RBooking.Tests.csproj" />
 </Solution>
