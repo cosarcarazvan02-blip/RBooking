@@ -1,14 +1,17 @@
 @RBooking.API_HostAddress = http://localhost:5293
+@ApiKey = RBooking_Secret_ApiKey_2026_x9k2M!
 
 ### Get all users
 GET {{RBooking.API_HostAddress}}/api/users
 Accept: application/json
+X-Api-Key: {{ApiKey}}
 
 ###
 
 ### Create a new user
 POST {{RBooking.API_HostAddress}}/api/users
 Content-Type: application/json
+X-Api-Key: {{ApiKey}}
 
 {
   "firstName": "Test",
