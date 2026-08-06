@@ -77,7 +77,7 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Client,Operator")]
+    [Authorize(Roles = "Client,Operator,Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);

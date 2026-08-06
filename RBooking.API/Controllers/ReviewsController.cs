@@ -25,7 +25,7 @@ public class ReviewsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Client")]
+    [Authorize(Roles = "Client,Admin")]
     public async Task<ActionResult<ReviewDto>> Create([FromBody] CreateReviewDto createReviewDto)
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
