@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
+using RBooking.Domain.Enums;
 
 namespace RBooking.API.Controllers;
 
@@ -47,7 +48,7 @@ public class AccommodationsController : ControllerBase
     /// Creates a new accommodation associated with the logged-in operator.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Operator")]
+    [Authorize(Roles = "Operator,Admin")]
     public async Task<ActionResult<AccommodationDto>> Create([FromBody] CreateAccommodationDto createDto)
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -64,6 +65,66 @@ public class AccommodationsController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Operator,Admin")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] CreateAccommodationDto updateDto)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var roleString = User.FindFirstValue(ClaimTypes.Role);
+
+        if (!Guid.TryParse(userIdString, out var currentUserId) || 
+            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
+        {
+            return Unauthorized(new { message = "Invalid user token credentials." });
+        }
+
+        try
+        {
+            var success = await _accommodationService.UpdateAccommodationAsync(id, currentUserId, currentUserRole, updateDto);
+            if (!success)
+            {
+                return NotFound(new { message = $"Accommodation with ID {id} was not found." });
+            }
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Operator,Admin")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var roleString = User.FindFirstValue(ClaimTypes.Role);
+
+        if (!Guid.TryParse(userIdString, out var currentUserId) || 
+            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
+        {
+            return Unauthorized(new { message = "Invalid user token credentials." });
+        }
+
+        try
+        {
+            var success = await _accommodationService.DeleteAccommodationAsync(id, currentUserId, currentUserRole);
+            if (!success)
+            {
+                return NotFound(new { message = $"Accommodation with ID {id} was not found." });
+            }
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
     }
 }
