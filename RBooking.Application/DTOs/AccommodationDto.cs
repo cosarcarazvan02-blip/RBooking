@@ -1,5 +1,9 @@
 namespace RBooking.Application.DTOs;
 
+/// <summary>
+/// DTO pentru returnarea datelor despre o cazare către client/frontend.
+/// Evită expunerea directă a entităților bazei de date.
+/// </summary>
 public class AccommodationDto
 {
     public Guid Id { get; set; }
