@@ -19,10 +19,33 @@ public class ReportsController : ControllerBase
     /// <summary>
     /// Generates a CSV, XLSX, or PDF report for accommodations with column selection and multi-column filtering.
     /// </summary>
-    [HttpPost("accommodations")]
+    [HttpGet("accommodations")]
     [AllowAnonymous]
-    public async Task<IActionResult> GenerateAccommodationReport([FromBody] AccommodationReportRequestDto request)
+    public async Task<IActionResult> GenerateAccommodationReport(
+        [FromQuery] string format = "csv",
+        [FromQuery] List<string>? columns = null,
+        [FromQuery] AccommodationReportFilterDto? filter = null)
     {
+        var resolvedColumns = new List<string>();
+        if (columns != null && columns.Any())
+        {
+            foreach (var col in columns)
+            {
+                if (!string.IsNullOrWhiteSpace(col))
+                {
+                    var parts = col.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    resolvedColumns.AddRange(parts);
+                }
+            }
+        }
+
+        var request = new AccommodationReportRequestDto
+        {
+            Format = format,
+            Columns = resolvedColumns.Any() ? resolvedColumns : null,
+            Filters = filter
+        };
+
         var (content, contentType, fileName) = await _accommodationReportService.GenerateReportAsync(request);
         return File(content, contentType, fileName);
     }
