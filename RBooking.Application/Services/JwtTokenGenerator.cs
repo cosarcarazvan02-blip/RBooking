@@ -19,19 +19,23 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
     public string GenerateToken(User user)
     {
-        var secretKey = _configuration["Jwt:Key"] 
+        var secretKey = _configuration["Jwt:Key"]
             ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
-        var issuer = _configuration["Jwt:Issuer"] ?? "RBookingAPI";
-        var audience = _configuration["Jwt:Audience"] ?? "RBookingClient";
+        // FIX: fara fallback - trebuie sa fie configurate explicit, la fel ca in Program.cs.
+        var issuer = _configuration["Jwt:Issuer"]
+            ?? throw new InvalidOperationException("JWT Issuer is not configured.");
+        var audience = _configuration["Jwt:Audience"]
+            ?? throw new InvalidOperationException("JWT Audience is not configured.");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        // FIX: pastrate doar claim-urile standard JWT, fara duplicate (ClaimTypes.* + JwtRegisteredClaimNames.*
+        // pentru aceleasi valori). Daca alta parte din cod citeste specific ClaimTypes.NameIdentifier sau
+        // ClaimTypes.Email, adaugati-le inapoi - dar altfel tokenul e inutil de mare.
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(ClaimTypes.GivenName, user.FirstName),
             new Claim(ClaimTypes.Surname, user.LastName),
