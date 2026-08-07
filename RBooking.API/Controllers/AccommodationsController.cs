@@ -12,10 +12,25 @@ namespace RBooking.API.Controllers;
 public class AccommodationsController : ControllerBase
 {
     private readonly IAccommodationService _accommodationService;
+    private readonly IAccommodationReportService _accommodationReportService;
 
-    public AccommodationsController(IAccommodationService accommodationService)
+    public AccommodationsController(
+        IAccommodationService accommodationService,
+        IAccommodationReportService accommodationReportService)
     {
         _accommodationService = accommodationService;
+        _accommodationReportService = accommodationReportService;
+    }
+
+    /// <summary>
+    /// Generates a CSV, XLSX, or PDF report for accommodations with selected columns and multi-column filtering.
+    /// </summary>
+    [HttpPost("report")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GenerateReport([FromBody] AccommodationReportRequestDto request)
+    {
+        var (content, contentType, fileName) = await _accommodationReportService.GenerateReportAsync(request);
+        return File(content, contentType, fileName);
     }
 
     /// <summary>
