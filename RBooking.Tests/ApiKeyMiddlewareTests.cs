@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using RBooking.API.Middleware;
 using System.Collections.Generic;
@@ -12,6 +13,7 @@ namespace RBooking.Tests;
 public class ApiKeyMiddlewareTests
 {
     private readonly IConfiguration _configuration;
+    private readonly Mock<ILogger<ApiKeyMiddleware>> _loggerMock;
     private const string SecretApiKey = "RBooking_Secret_ApiKey_2026_x9k2M!";
 
     public ApiKeyMiddlewareTests()
@@ -24,6 +26,8 @@ public class ApiKeyMiddlewareTests
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(inMemorySettings)
             .Build();
+
+        _loggerMock = new Mock<ILogger<ApiKeyMiddleware>>();
     }
 
     [Fact]
@@ -42,7 +46,7 @@ public class ApiKeyMiddlewareTests
         var middleware = new ApiKeyMiddleware(next);
 
         // Act
-        await middleware.InvokeAsync(context, _configuration);
+        await middleware.InvokeAsync(context, _configuration, _loggerMock.Object);
 
         // Assert
         Assert.True(nextCalled);
@@ -67,7 +71,7 @@ public class ApiKeyMiddlewareTests
         var middleware = new ApiKeyMiddleware(next);
 
         // Act
-        await middleware.InvokeAsync(context, _configuration);
+        await middleware.InvokeAsync(context, _configuration, _loggerMock.Object);
 
         // Assert
         Assert.False(nextCalled);
@@ -93,7 +97,7 @@ public class ApiKeyMiddlewareTests
         var middleware = new ApiKeyMiddleware(next);
 
         // Act
-        await middleware.InvokeAsync(context, _configuration);
+        await middleware.InvokeAsync(context, _configuration, _loggerMock.Object);
 
         // Assert
         Assert.False(nextCalled);
@@ -118,7 +122,7 @@ public class ApiKeyMiddlewareTests
         var middleware = new ApiKeyMiddleware(next);
 
         // Act
-        await middleware.InvokeAsync(context, _configuration);
+        await middleware.InvokeAsync(context, _configuration, _loggerMock.Object);
 
         // Assert
         Assert.True(nextCalled);
