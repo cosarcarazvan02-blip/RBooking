@@ -58,6 +58,28 @@ public class AccommodationsController : ControllerBase
     }
 
     /// <summary>
+    /// Imports accommodations from a CSV file with line-by-line validation and duplicate checking.
+    /// </summary>
+    [HttpPost("import-csv")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AccommodationCsvImportResultDto>> ImportCsv(
+        IFormFile file,
+        [FromServices] IAccommodationCsvImportService importService)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "Fișierul CSV este obligatoriu." });
+        }
+
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        using var stream = file.OpenReadStream();
+        var result = await importService.ImportCsvAsync(stream, userIdString);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Seeds mock accommodations, images, and reviews into the database.
     /// </summary>
     [HttpPost("seed")]

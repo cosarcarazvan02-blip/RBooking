@@ -119,6 +119,28 @@ public class AccommodationRepository : IAccommodationRepository
         return stats != null ? (stats.AvgRating, stats.ReviewCount) : (0.0, 0);
     }
 
+    public async Task<HashSet<string>> GetExistingUniqueKeysAsync()
+    {
+        var list = await _context.Accommodations
+            .Select(a => new
+            {
+                a.Name,
+                a.City,
+                a.Location,
+                Type = EF.Property<string>(a, "AccommodationType")
+            })
+            .ToListAsync();
+
+        return list.Select(x => $"{x.Name.Trim().ToLower()}|{x.City.Trim().ToLower()}|{x.Location.Trim().ToLower()}|{(x.Type ?? "").Trim().ToLower()}")
+                   .ToHashSet();
+    }
+
+    public async Task AddRangeAsync(IEnumerable<Accommodation> accommodations)
+    {
+        await _context.Accommodations.AddRangeAsync(accommodations);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<Accommodation> AddAsync(Accommodation accommodation)
     {
         _context.Accommodations.Add(accommodation);

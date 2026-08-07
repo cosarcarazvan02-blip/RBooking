@@ -10,6 +10,8 @@ public interface IAccommodationRepository
     Task<Accommodation?> GetByIdAsync(Guid id);
     Task<(double AvgRating, int ReviewCount)> GetRatingStatsAsync(Guid accommodationId);
     Task<IEnumerable<AccommodationDto>> GetReportDataAsync(AccommodationReportFilterDto? filter);
+    Task<HashSet<string>> GetExistingUniqueKeysAsync();
+    Task AddRangeAsync(IEnumerable<Accommodation> accommodations);
     Task<Accommodation> AddAsync(Accommodation accommodation);
     Task<Accommodation?> UpdateAsync(Accommodation accommodation);
     Task<bool> DeleteAsync(Guid id);
