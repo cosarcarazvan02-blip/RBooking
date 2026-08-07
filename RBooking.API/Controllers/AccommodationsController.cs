@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Enums;
+using RBooking.Infrastructure.Data;
 
 namespace RBooking.API.Controllers;
 
@@ -12,10 +13,36 @@ namespace RBooking.API.Controllers;
 public class AccommodationsController : ControllerBase
 {
     private readonly IAccommodationService _accommodationService;
+    private readonly IAccommodationReportService _accommodationReportService;
 
-    public AccommodationsController(IAccommodationService accommodationService)
+    public AccommodationsController(
+        IAccommodationService accommodationService,
+        IAccommodationReportService accommodationReportService)
     {
         _accommodationService = accommodationService;
+        _accommodationReportService = accommodationReportService;
+    }
+
+    /// <summary>
+    /// Generates a CSV, XLSX, or PDF report for accommodations with selected columns and multi-column filtering.
+    /// </summary>
+    [HttpPost("report")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GenerateReport([FromBody] AccommodationReportRequestDto request)
+    {
+        var (content, contentType, fileName) = await _accommodationReportService.GenerateReportAsync(request);
+        return File(content, contentType, fileName);
+    }
+
+    /// <summary>
+    /// Seeds mock accommodations, images, and reviews into the database.
+    /// </summary>
+    [HttpPost("seed")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SeedMockAccommodations([FromServices] AppDbContext context)
+    {
+        var count = await DbSeeder.SeedAsync(context);
+        return Ok(new { message = $"Successfully seeded database with {count} mock accommodations and reviews.", count });
     }
 
     /// <summary>
