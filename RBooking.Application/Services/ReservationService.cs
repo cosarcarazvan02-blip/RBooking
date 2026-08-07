@@ -1,3 +1,4 @@
+using System.Text;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
@@ -135,7 +136,6 @@ public class ReservationService : IReservationService
         var reservation = await _reservationRepository.GetByIdAsync(id);
         if (reservation == null) return false;
 
-        // Dacă e Client, poate șterge doar propria rezervare
         if (currentUserRole == RBooking.Domain.Enums.UserRole.Client)
         {
             if (reservation.UserId != currentUserId)
@@ -143,7 +143,6 @@ public class ReservationService : IReservationService
                 throw new UnauthorizedAccessException("Nu poți șterge rezervarea altui utilizator.");
             }
         }
-        // Dacă e Operator, poate șterge doar dacă hotelul îi aparține
         else if (currentUserRole == RBooking.Domain.Enums.UserRole.Operator)
         {
             var accommodation = await _accommodationRepository.GetByIdAsync(reservation.AccommodationId);
@@ -154,6 +153,65 @@ public class ReservationService : IReservationService
         }
 
         return await _reservationRepository.DeleteAsync(id);
+    }
+
+    public async Task<(byte[] FileContent, string ContentType, string FileName)> GenerateReportAsync(ReservationReportRequestDto request)
+    {
+        var reservations = await _reservationRepository.GetAllAsync();
+
+        var filtered = reservations.Where(r =>
+        {
+            var f = request.Filters;
+            if (f == null) return true;
+
+            if (!string.IsNullOrEmpty(f.UserEmail) && !(r.User?.Email?.Contains(f.UserEmail, StringComparison.OrdinalIgnoreCase) ?? false)) return false;
+            if (!string.IsNullOrEmpty(f.AccommodationName) && !(r.Accommodation?.Name?.Contains(f.AccommodationName, StringComparison.OrdinalIgnoreCase) ?? false)) return false;
+            if (!string.IsNullOrEmpty(f.City) && !(r.Accommodation?.City?.Equals(f.City, StringComparison.OrdinalIgnoreCase) ?? false)) return false;
+            if (!string.IsNullOrEmpty(f.Country) && !(r.Accommodation?.Country?.Equals(f.Country, StringComparison.OrdinalIgnoreCase) ?? false)) return false;
+            if (f.NumberOfGuests.HasValue && r.NumberOfGuests != f.NumberOfGuests.Value) return false;
+            if (f.MinPrice.HasValue && r.TotalPrice < f.MinPrice.Value) return false;
+            if (f.MaxPrice.HasValue && r.TotalPrice > f.MaxPrice.Value) return false;
+            if (!string.IsNullOrEmpty(f.Status) && Enum.TryParse<ReservationStatus>(f.Status, true, out var parsedStatus) && r.Status != parsedStatus) return false;
+
+            return true;
+        }).ToList();
+
+        var columns = (request.Columns == null || !request.Columns.Any())
+            ? new List<string> { "Id", "UserEmail", "AccommodationName", "City", "CheckInDate", "CheckOutDate", "TotalPrice", "Status" }
+            : request.Columns;
+
+        var sb = new StringBuilder();
+        sb.AppendLine(string.Join(",", columns));
+
+        foreach (var r in filtered)
+        {
+            var values = new List<string>();
+            foreach (var col in columns)
+            {
+                string val = col switch
+                {
+                    "Id" => r.Id.ToString(),
+                    "UserId" => r.UserId.ToString(),
+                    "UserEmail" => r.User?.Email ?? "N/A",
+                    "AccommodationId" => r.AccommodationId.ToString(),
+                    "AccommodationName" => r.Accommodation?.Name ?? "N/A",
+                    "City" => r.Accommodation?.City ?? "N/A",
+                    "Country" => r.Accommodation?.Country ?? "N/A",
+                    "CheckInDate" => r.CheckInDate.ToString("yyyy-MM-dd"),
+                    "CheckOutDate" => r.CheckOutDate.ToString("yyyy-MM-dd"),
+                    "NumberOfGuests" => r.NumberOfGuests.ToString(),
+                    "TotalPrice" => r.TotalPrice.ToString(),
+                    "Status" => r.Status.ToString(),
+                    "CreatedAt" => r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                    _ => string.Empty
+                };
+                values.Add($"\"{val}\"");
+            }
+            sb.AppendLine(string.Join(",", values));
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        return (bytes, "text/csv", $"ReservationsReport_{DateTime.UtcNow:yyyyMMdd}.csv");
     }
 
     private static ReservationDto MapToDto(Reservation reservation)
