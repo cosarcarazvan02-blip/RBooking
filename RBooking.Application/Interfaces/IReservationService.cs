@@ -15,5 +15,6 @@ public interface IReservationService
     Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, ReservationStatus newStatus);
     Task<bool> CancelReservationAsync(Guid id);
     Task<(byte[] FileContent, string ContentType, string FileName)> GenerateReportAsync(ReservationReportRequestDto request);
+    Task<ReservationImportResultDto> ImportReservationsFromCsvAsync(Stream fileStream);
     Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, RBooking.Domain.Enums.UserRole currentUserRole);
 }
