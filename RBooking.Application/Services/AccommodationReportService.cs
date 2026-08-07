@@ -148,6 +148,20 @@ public class AccommodationReportService : IAccommodationReportService
 
         worksheet.Columns().AdjustToContents();
 
+        // Increase width & enable text wrap for Description, Name, Location
+        for (int c = 0; c < columns.Count; c++)
+        {
+            if (columns[c].Equals("Description", StringComparison.OrdinalIgnoreCase))
+            {
+                worksheet.Column(c + 1).Width = 50;
+                worksheet.Column(c + 1).Style.Alignment.WrapText = true;
+            }
+            else if (columns[c].Equals("Name", StringComparison.OrdinalIgnoreCase) || columns[c].Equals("Location", StringComparison.OrdinalIgnoreCase))
+            {
+                worksheet.Column(c + 1).Width = Math.Max(worksheet.Column(c + 1).Width, 25);
+            }
+        }
+
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
         return ms.ToArray();
@@ -179,9 +193,20 @@ public class AccommodationReportService : IAccommodationReportService
                 {
                     table.ColumnsDefinition(cols =>
                     {
-                        foreach (var _ in columns)
+                        foreach (var colName in columns)
                         {
-                            cols.RelativeColumn();
+                            if (colName.Equals("Description", StringComparison.OrdinalIgnoreCase))
+                            {
+                                cols.RelativeColumn(3); // 3x relative width for Description
+                            }
+                            else if (colName.Equals("Name", StringComparison.OrdinalIgnoreCase) || colName.Equals("Location", StringComparison.OrdinalIgnoreCase))
+                            {
+                                cols.RelativeColumn(2); // 2x relative width
+                            }
+                            else
+                            {
+                                cols.RelativeColumn(1);
+                            }
                         }
                     });
 
