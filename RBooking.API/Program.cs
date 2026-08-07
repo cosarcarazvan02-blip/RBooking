@@ -84,6 +84,7 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 
 builder.Services.AddScoped<IAccommodationRepository, AccommodationRepository>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();
+builder.Services.AddScoped<IAccommodationReportService, AccommodationReportService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 
