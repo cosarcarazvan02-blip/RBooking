@@ -1,3 +1,4 @@
+using System.Text;
 using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -5,66 +6,164 @@ using QuestPDF.Infrastructure;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
-using System.Text;
+using RBooking.Domain.Enums;
 
 namespace RBooking.Application.Services;
 
 public class ReservationService : IReservationService
 {
     private readonly IReservationRepository _reservationRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAccommodationRepository _accommodationRepository;
 
-    // FIX: lista coloanelor valide, intr-un singur loc, folosita atat pentru matching
-    // cat si pentru validare. Evita sa avem "magic strings" duplicate in mai multe locuri.
     private static readonly HashSet<string> AllowedColumns = new(StringComparer.OrdinalIgnoreCase)
     {
         "Id", "UserName", "UserEmail", "AccommodationName", "City", "Country",
         "CheckInDate", "NumberOfGuests", "TotalPrice", "Status"
     };
 
-    public ReservationService(IReservationRepository reservationRepository)
+    public ReservationService(
+        IReservationRepository reservationRepository,
+        IUserRepository userRepository,
+        IAccommodationRepository accommodationRepository)
     {
         _reservationRepository = reservationRepository;
+        _userRepository = userRepository;
+        _accommodationRepository = accommodationRepository;
         QuestPDF.Settings.License = LicenseType.Community;
-    }
-
-    public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsAsync(PaginationParamsDto paginationParams)
-    {
-        throw new NotImplementedException();
     }
 
     public async Task<IEnumerable<ReservationDto>> GetAllReservationsAsync()
     {
-        throw new NotImplementedException();
+        var reservations = await _reservationRepository.GetAllAsync();
+        return reservations.Select(MapToDto);
+    }
+
+    public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsAsync(PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _reservationRepository.GetPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
     }
 
     public async Task<ReservationDto?> GetReservationByIdAsync(Guid id)
     {
-        throw new NotImplementedException();
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        return reservation == null ? null : MapToDto(reservation);
+    }
+
+    public async Task<IEnumerable<ReservationDto>> GetReservationsByUserIdAsync(Guid userId)
+    {
+        var reservations = await _reservationRepository.GetByUserIdAsync(userId);
+        return reservations.Select(MapToDto);
     }
 
     public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsByUserIdAsync(Guid userId, PaginationParamsDto paginationParams)
     {
-        throw new NotImplementedException();
+        var (items, totalCount) = await _reservationRepository.GetPagedByUserIdAsync(userId, paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
     }
 
     public async Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto)
     {
-        throw new NotImplementedException();
+        if (createReservationDto.CheckOutDate <= createReservationDto.CheckInDate)
+        {
+            throw new ArgumentException("Check-out date must be after check-in date.");
+        }
+
+        if (createReservationDto.NumberOfGuests <= 0)
+        {
+            throw new ArgumentException("Number of guests must be at least 1.");
+        }
+
+        var user = await _userRepository.GetByIdAsync(createReservationDto.UserId);
+        if (user == null)
+        {
+            throw new ArgumentException($"User with ID {createReservationDto.UserId} was not found.");
+        }
+
+        var accommodation = await _accommodationRepository.GetByIdAsync(createReservationDto.AccommodationId);
+        if (accommodation == null)
+        {
+            throw new ArgumentException($"Accommodation with ID {createReservationDto.AccommodationId} was not found.");
+        }
+
+        var checkInUtc = createReservationDto.CheckInDate.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(createReservationDto.CheckInDate, DateTimeKind.Utc)
+            : createReservationDto.CheckInDate.ToUniversalTime();
+
+        var checkOutUtc = createReservationDto.CheckOutDate.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(createReservationDto.CheckOutDate, DateTimeKind.Utc)
+            : createReservationDto.CheckOutDate.ToUniversalTime();
+
+        int nights = (checkOutUtc.Date - checkInUtc.Date).Days;
+        if (nights <= 0) nights = 1;
+
+        decimal basePricePerNight = accommodation.PricePerNight > 0 ? accommodation.PricePerNight : 100m;
+        decimal totalPrice = nights * basePricePerNight;
+
+        var reservation = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            UserId = createReservationDto.UserId,
+            User = user,
+            AccommodationId = createReservationDto.AccommodationId,
+            Accommodation = accommodation,
+            CheckInDate = checkInUtc,
+            CheckOutDate = checkOutUtc,
+            NumberOfGuests = createReservationDto.NumberOfGuests,
+            TotalPrice = totalPrice,
+            Status = ReservationStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var created = await _reservationRepository.AddAsync(reservation);
+        return MapToDto(created);
     }
 
-    public async Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, Domain.Enums.ReservationStatus status)
+    public async Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, ReservationStatus newStatus)
     {
-        throw new NotImplementedException();
-    }
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return null;
 
-    public async Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, Domain.Enums.UserRole currentUserRole)
-    {
-        throw new NotImplementedException();
+        reservation.Status = newStatus;
+        var updated = await _reservationRepository.UpdateAsync(reservation);
+        return updated == null ? null : MapToDto(updated);
     }
 
     public async Task<bool> CancelReservationAsync(Guid id)
     {
-        throw new NotImplementedException();
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return false;
+
+        reservation.Status = ReservationStatus.Cancelled;
+        var updated = await _reservationRepository.UpdateAsync(reservation);
+        return updated != null;
+    }
+
+    public async Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, UserRole currentUserRole)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return false;
+
+        if (currentUserRole == UserRole.Client)
+        {
+            if (reservation.UserId != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Nu poți șterge rezervarea altui utilizator.");
+            }
+        }
+        else if (currentUserRole == UserRole.Operator)
+        {
+            var accommodation = await _accommodationRepository.GetByIdAsync(reservation.AccommodationId);
+            if (accommodation == null || accommodation.OperatorId != currentUserId.ToString())
+            {
+                throw new UnauthorizedAccessException("Poți șterge rezervări doar pentru propriile hoteluri.");
+            }
+        }
+
+        return await _reservationRepository.DeleteAsync(id);
     }
 
     public async Task<(byte[] FileContent, string ContentType, string FileName)> GenerateReportAsync(ReservationReportRequestDto request)
@@ -109,7 +208,6 @@ public class ReservationService : IReservationService
 
         var reservations = query.ToList();
 
-        // Gestionăm corect cazul în care coloanele vin ca un singur string despărțit prin virgulă din query
         var parsedColumns = request.Columns;
         if (parsedColumns != null && parsedColumns.Count == 1 && parsedColumns[0].Contains(','))
         {
@@ -117,15 +215,10 @@ public class ReservationService : IReservationService
         }
 
         var defaultColumns = new List<string> { "Id", "UserEmail", "AccommodationName", "CheckInDate", "TotalPrice", "Status" };
-        // FIX: Trim() pe fiecare nume de coloana primit - un spatiu din greseala la tastare
-        // in Swagger nu mai duce la coloana goala silentios.
         var selectedColumns = (parsedColumns == null || parsedColumns.Count == 0)
             ? defaultColumns
             : parsedColumns.Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
 
-        // FIX: validam coloanele cerute fata de lista permisa (case-insensitive).
-        // Daca cineva scrie gresit numele unei coloane, primeste eroare clara acum,
-        // nu un raport cu coloana goala fara explicatie.
         var unknownColumns = selectedColumns.Where(c => !AllowedColumns.Contains(c)).ToList();
         if (unknownColumns.Count > 0)
         {
@@ -235,15 +328,13 @@ public class ReservationService : IReservationService
         return (pdfBytes, "application/pdf", $"reservations_report_{DateTime.UtcNow:yyyyMMdd}.pdf");
     }
 
-    // FIX: matching case-insensitive pe numele coloanei, in loc de switch exact-match
-    // pe string. "userEmail", "USEREMAIL", " Id " (cu spatii, dupa Trim mai sus) merg acum la fel.
     private object? GetPropertyValue(Reservation r, string propertyName)
     {
         return propertyName.ToLowerInvariant() switch
         {
             "id" => r.Id,
             "username" => r.User != null ? $"{r.User.FirstName} {r.User.LastName}" : string.Empty,
-            "useremail" => r.User?.Email ?? string.Empty, // Folosește string gol dacă user e null
+            "useremail" => r.User?.Email ?? string.Empty,
             "accommodationname" => r.Accommodation?.Name ?? string.Empty,
             "city" => r.Accommodation?.City ?? string.Empty,
             "country" => r.Accommodation?.Country ?? string.Empty,
@@ -255,8 +346,21 @@ public class ReservationService : IReservationService
         };
     }
 
-    public Task<IEnumerable<ReservationDto>> GetReservationsByUserIdAsync(Guid userId)
+    private static ReservationDto MapToDto(Reservation reservation)
     {
-        throw new NotImplementedException();
+        return new ReservationDto
+        {
+            Id = reservation.Id,
+            UserId = reservation.UserId,
+            UserEmail = reservation.User?.Email ?? string.Empty,
+            AccommodationId = reservation.AccommodationId,
+            AccommodationName = reservation.Accommodation?.Name ?? string.Empty,
+            CheckInDate = reservation.CheckInDate,
+            CheckOutDate = reservation.CheckOutDate,
+            NumberOfGuests = reservation.NumberOfGuests,
+            TotalPrice = reservation.TotalPrice,
+            Status = reservation.Status,
+            CreatedAt = reservation.CreatedAt
+        };
     }
 }
