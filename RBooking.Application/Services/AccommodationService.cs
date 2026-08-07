@@ -1,6 +1,7 @@
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 
 namespace RBooking.Application.Services;
 
@@ -33,6 +34,47 @@ public class AccommodationService : IAccommodationService
 
         var (avgRating, reviewCount) = await _accommodationRepository.GetRatingStatsAsync(id);
         return MapToDto(accommodation, avgRating, reviewCount);
+    }
+
+    public async Task<AccommodationDto> CreateAccommodationAsync(Guid currentUserId, CreateAccommodationDto dto)
+    {
+        // Poți adapta crearea în funcție de tipul de cazare trimis în DTO (Hotel, Apartment, Hostel)
+        Accommodation accommodation = dto.AccommodationType?.ToLower() switch
+        {
+            "hotel" => new Hotel
+            {
+                Stars = dto.Stars ?? 3,
+                HasPool = dto.HasPool ?? false,
+                HasRoomService = dto.HasRoomService ?? false,
+                TotalRooms = dto.TotalRooms ?? 10
+            },
+            "apartment" => new Apartment
+            {
+                FloorNumber = dto.FloorNumber ?? 1,
+                HasElevator = dto.HasElevator ?? false,
+                NumberOfRooms = dto.NumberOfRooms ?? 2,
+                IsFurnished = dto.IsFurnished ?? true
+            },
+            "hostel" => new Hostel
+            {
+                BedInSharedRoomPrice = dto.BedInSharedRoomPrice ?? 50,
+                HasSharedKitchen = dto.HasSharedKitchen ?? true,
+                TotalBeds = dto.TotalBeds ?? 20
+            },
+            _ => throw new ArgumentException("Tip de cazare invalid.")
+        };
+
+        accommodation.Id = Guid.NewGuid();
+        accommodation.Name = dto.Name;
+        accommodation.Location = dto.Location;
+        accommodation.City = dto.City;
+        accommodation.Country = dto.Country;
+        accommodation.PricePerNight = dto.PricePerNight;
+        accommodation.Description = dto.Description;
+        accommodation.OperatorId = currentUserId.ToString();
+
+        var created = await _accommodationRepository.AddAsync(accommodation);
+        return MapToDto(created, 0.0, 0);
     }
 
     private static AccommodationDto MapToDto(Accommodation a, double avgRating, int reviewCount)
@@ -73,5 +115,63 @@ public class AccommodationService : IAccommodationService
         }
 
         return dto;
+    }
+
+    public async Task<bool> UpdateAccommodationAsync(Guid id, Guid currentUserId, UserRole currentUserRole, CreateAccommodationDto dto)
+    {
+        var accommodation = await _accommodationRepository.GetByIdAsync(id);
+        if (accommodation == null) return false;
+
+        // Autorizare: Doar operatorul acelei cazări sau un Admin
+        if (currentUserRole != UserRole.Admin && accommodation.OperatorId != currentUserId.ToString())
+        {
+            throw new UnauthorizedAccessException("Nu poți modifica o cazare care nu îți aparține.");
+        }
+
+        accommodation.Name = dto.Name;
+        accommodation.Location = dto.Location;
+        accommodation.City = dto.City;
+        accommodation.Country = dto.Country;
+        accommodation.PricePerNight = dto.PricePerNight;
+        accommodation.Description = dto.Description;
+
+        // Tip specific
+        if (accommodation is Hotel hotel)
+        {
+            if (dto.Stars.HasValue) hotel.Stars = dto.Stars.Value;
+            if (dto.HasPool.HasValue) hotel.HasPool = dto.HasPool.Value;
+            if (dto.HasRoomService.HasValue) hotel.HasRoomService = dto.HasRoomService.Value;
+            if (dto.TotalRooms.HasValue) hotel.TotalRooms = dto.TotalRooms.Value;
+        }
+        else if (accommodation is Apartment apartment)
+        {
+            if (dto.FloorNumber.HasValue) apartment.FloorNumber = dto.FloorNumber.Value;
+            if (dto.HasElevator.HasValue) apartment.HasElevator = dto.HasElevator.Value;
+            if (dto.NumberOfRooms.HasValue) apartment.NumberOfRooms = dto.NumberOfRooms.Value;
+            if (dto.IsFurnished.HasValue) apartment.IsFurnished = dto.IsFurnished.Value;
+        }
+        else if (accommodation is Hostel hostel)
+        {
+            if (dto.BedInSharedRoomPrice.HasValue) hostel.BedInSharedRoomPrice = dto.BedInSharedRoomPrice.Value;
+            if (dto.HasSharedKitchen.HasValue) hostel.HasSharedKitchen = dto.HasSharedKitchen.Value;
+            if (dto.TotalBeds.HasValue) hostel.TotalBeds = dto.TotalBeds.Value;
+        }
+
+        var updated = await _accommodationRepository.UpdateAsync(accommodation);
+        return updated != null;
+    }
+
+    public async Task<bool> DeleteAccommodationAsync(Guid id, Guid currentUserId, UserRole currentUserRole)
+    {
+        var accommodation = await _accommodationRepository.GetByIdAsync(id);
+        if (accommodation == null) return false;
+
+        // Autorizare: Doar operatorul acelei cazări sau un Admin
+        if (currentUserRole != UserRole.Admin && accommodation.OperatorId != currentUserId.ToString())
+        {
+            throw new UnauthorizedAccessException("Nu poți șterge o cazare care nu îți aparține.");
+        }
+
+        return await _accommodationRepository.DeleteAsync(id);
     }
 }

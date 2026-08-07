@@ -130,6 +130,32 @@ public class ReservationService : IReservationService
         return updated != null;
     }
 
+    public async Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, RBooking.Domain.Enums.UserRole currentUserRole)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id);
+        if (reservation == null) return false;
+
+        // Dacă e Client, poate șterge doar propria rezervare
+        if (currentUserRole == RBooking.Domain.Enums.UserRole.Client)
+        {
+            if (reservation.UserId != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Nu poți șterge rezervarea altui utilizator.");
+            }
+        }
+        // Dacă e Operator, poate șterge doar dacă hotelul îi aparține
+        else if (currentUserRole == RBooking.Domain.Enums.UserRole.Operator)
+        {
+            var accommodation = await _accommodationRepository.GetByIdAsync(reservation.AccommodationId);
+            if (accommodation == null || accommodation.OperatorId != currentUserId.ToString())
+            {
+                throw new UnauthorizedAccessException("Poți șterge rezervări doar pentru propriile hoteluri.");
+            }
+        }
+
+        return await _reservationRepository.DeleteAsync(id);
+    }
+
     private static ReservationDto MapToDto(Reservation reservation)
     {
         return new ReservationDto
