@@ -88,6 +88,7 @@ public class AccommodationService : IAccommodationService
             Country = a.Country,
             PricePerNight = a.PricePerNight,
             Description = a.Description,
+            OperatorId = a.OperatorId ?? string.Empty,
             AverageRating = Math.Round(avgRating, 1),
             TotalReviewsCount = reviewCount,
             AccommodationType = a.GetType().Name
