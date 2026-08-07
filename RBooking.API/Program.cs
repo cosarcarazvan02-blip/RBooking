@@ -31,11 +31,29 @@ var blockedIps = new HashSet<IPAddress>(blockedIpStrings
     .Where(ip => !string.IsNullOrWhiteSpace(ip))
     .Select(ip => IPAddress.Parse(ip.Trim())));
 
+// FIX: nu mai golim KnownProxies/KnownIPNetworks fara sa punem ceva in loc.
+// Daca aplicatia sta in spatele unui reverse proxy real (nginx, Azure App Gateway etc.),
+// pune aici IP-ul/subnetul acelui proxy explicit, in appsettings sau environment.
+// Daca NU exista niciun proxy in fata, nu adaugati UseForwardedHeaders deloc mai jos,
+// altfel oricine poate falsifica X-Forwarded-For si va ocoleste blockedIps + rate limiting.
+var trustedProxies = builder.Configuration.GetSection("Security:TrustedProxies").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+    options.KnownIPNetworks.Clear();
+    foreach (var proxy in trustedProxies)
+    {
+        if (IPAddress.TryParse(proxy.Trim(), out var proxyIp))
+        {
+            options.KnownProxies.Add(proxyIp);
+        }
+    }
+    // Daca nu avem niciun proxy de incredere configurat, nu acceptam X-Forwarded-For deloc.
+    if (options.KnownProxies.Count == 0)
+    {
+        options.ForwardedHeaders = ForwardedHeaders.None;
+    }
 });
 
 builder.Services.AddSingleton(blockedIps);
@@ -106,7 +124,8 @@ builder.Services.AddSwaggerGen(options =>
         Name = ApiKeyMiddleware.ApiKeyHeaderName,
         Type = SecuritySchemeType.ApiKey,
         In = ParameterLocation.Header,
-        Description = "Enter your API Key secret (e.g. RBooking_Secret_ApiKey_2026_x9k2M!)."
+        // FIX: nu mai punem un exemplu care arata ca o cheie reala.
+        Description = "Enter your API Key secret."
     };
 
     options.AddSecurityDefinition("Bearer", bearerScheme);
@@ -131,9 +150,21 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RBookingAPI";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "RBookingClient";
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "RBookingSuperSecretKeyForJwtTokenGeneration2026!#";
+// FIX: valorile pentru Jwt:Issuer, Jwt:Audience si mai ales Jwt:Key trebuie sa vina
+// obligatoriu din configuratie (appsettings / environment / secret manager / Azure Key Vault),
+// niciodata hardcodate in cod. Daca lipsesc, aplicatia trebuie sa nu porneasca,
+// nu sa cada pe o valoare implicita cunoscuta public (in cod, pe GitHub).
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("Configuratia 'Jwt:Issuer' lipseste.");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("Configuratia 'Jwt:Audience' lipseste.");
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Configuratia 'Jwt:Key' lipseste.");
+
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("'Jwt:Key' este prea scurta pentru HMAC-SHA256 (minim 32 caractere / 256 biti).");
+}
 
 builder.Services.AddAuthorization();
 
@@ -144,7 +175,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.UseSecurityTokenValidators = true;
+    // FIX: eliminat UseSecurityTokenValidators = true (foloseste calea legacy de validare).
+    // Implementarea implicita (TokenHandlers) e cea recomandata.
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -154,7 +186,8 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.FromMinutes(5)
+        // FIX: 5 minute era prea permisiv pentru un sistem de rezervari; 1 minut e suficient.
+        ClockSkew = TimeSpan.FromMinutes(1)
     };
 
     options.Events = new JwtBearerEvents
@@ -173,14 +206,27 @@ builder.Services.AddAuthentication(options =>
             }
             return Task.CompletedTask;
         },
+        // FIX: Console.WriteLine inlocuit cu ILogger; nivel Warning (nu Error, e asteptat sa apara
+        // frecvent din cauza clientilor), fara sa includem context.Exception.Message in productie
+        // (poate contine detalii interne). In Development poti loga mai mult daca vrei sa debughezi.
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"[JWT Error] Authentication failed: {context.Exception.GetType().Name} - {context.Exception.Message}");
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var env = context.HttpContext.RequestServices.GetRequiredService<IHostEnvironment>();
+            if (env.IsDevelopment())
+            {
+                logger.LogWarning(context.Exception, "[JWT] Authentication failed: {ExceptionType}", context.Exception.GetType().Name);
+            }
+            else
+            {
+                logger.LogWarning("[JWT] Authentication failed: {ExceptionType}", context.Exception.GetType().Name);
+            }
             return Task.CompletedTask;
         },
         OnChallenge = context =>
         {
-            Console.WriteLine($"[JWT Challenge] Error: {context.Error}, Description: {context.ErrorDescription}");
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("[JWT] Challenge issued: {Error}", context.Error);
             return Task.CompletedTask;
         }
     };
@@ -268,20 +314,24 @@ app.MapGet("/healthz", () => Results.Json(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
-app.MapGet("/metrics", (RequestMetrics metrics) => Results.Json(new
-{
-    totalRequests = metrics.TotalRequests,
-    blockedRequests = metrics.BlockedRequests,
-    errorResponses = metrics.ErrorResponses,
-    successfulResponses = metrics.SuccessfulResponses
-}));
-
 app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// FIX: /metrics era public, inainte de ApiKeyMiddleware. Acum cere API key
+// (aceeasi middleware ca restul API-ului) si e sub rate limiting, nu mai e
+// expus liber la scanare/reconnaissance.
+app.MapGet("/metrics", (RequestMetrics metrics) => Results.Json(new
+{
+    totalRequests = metrics.TotalRequests,
+    blockedRequests = metrics.BlockedRequests,
+    errorResponses = metrics.ErrorResponses,
+    successfulResponses = metrics.SuccessfulResponses
+}))
+.RequireRateLimiting("tokenBucket");
 
 app.MapControllers().RequireRateLimiting("tokenBucket");
 
