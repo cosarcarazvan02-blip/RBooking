@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 
 namespace RBooking.API.Controllers;
 
@@ -31,12 +32,23 @@ public class AuthController : ControllerBase
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            var role = UserRole.Client;
+            if (request.Email.Contains("admin", StringComparison.OrdinalIgnoreCase))
+            {
+                role = UserRole.Admin;
+            }
+            else if (request.Email.Contains("operator", StringComparison.OrdinalIgnoreCase))
+            {
+                role = UserRole.Operator;
+            }
+
             // Auto-create user for demo/testing if email is provided
             user = new User
             {
                 Email = request.Email,
                 FirstName = request.Email.Split('@')[0],
                 LastName = "User",
+                Role = role,
                 CreatedAt = DateTime.UtcNow
             };
             await _userRepository.AddAsync(user);
@@ -54,6 +66,7 @@ public class AuthController : ControllerBase
                 LastName = user.LastName,
                 Email = user.Email,
                 ProfileImagePath = user.ProfileImagePath,
+                Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt
             }
         };
@@ -85,6 +98,7 @@ public class AuthController : ControllerBase
                         LastName = userByEmail.LastName,
                         Email = userByEmail.Email,
                         ProfileImagePath = userByEmail.ProfileImagePath,
+                        Role = userByEmail.Role.ToString(),
                         CreatedAt = userByEmail.CreatedAt
                     });
                 }
@@ -106,6 +120,7 @@ public class AuthController : ControllerBase
             LastName = user.LastName,
             Email = user.Email,
             ProfileImagePath = user.ProfileImagePath,
+            Role = user.Role.ToString(),
             CreatedAt = user.CreatedAt
         });
     }
