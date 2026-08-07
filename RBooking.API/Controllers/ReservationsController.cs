@@ -76,6 +76,57 @@ public class ReservationsController : ControllerBase
         return Ok(updatedReservation);
     }
 
+    /// <summary>
+    /// Generează un raport cu rezervările filtrate.
+    /// </summary>
+    [HttpGet("report")]
+    [Authorize(Roles = "Operator,Admin")]
+    public async Task<IActionResult> GenerateReport(
+        [FromQuery] string? userName,
+        [FromQuery] string? userEmail,
+        [FromQuery] string? accommodationName,
+        [FromQuery] string? city,
+        [FromQuery] string? country,
+        [FromQuery] DateTime? checkInDateFrom,
+        [FromQuery] DateTime? checkInDateTo,
+        [FromQuery] int? numberOfGuests,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] string? status,
+        [FromQuery] string format = "csv",
+        [FromQuery] List<string>? columns = null)
+    {
+        var request = new ReservationReportRequestDto
+        {
+            Columns = columns ?? new(),
+            Format = format,
+            Filters = new ReservationReportFilterDto
+            {
+                UserName = userName,
+                UserEmail = userEmail,
+                AccommodationName = accommodationName,
+                City = city,
+                Country = country,
+                CheckInDateFrom = checkInDateFrom,
+                CheckInDateTo = checkInDateTo,
+                NumberOfGuests = numberOfGuests,
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                Status = status
+            }
+        };
+
+        try
+        {
+            var (fileContent, contentType, fileName) = await _reservationService.GenerateReportAsync(request);
+            return File(fileContent, contentType, fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Client,Operator,Admin")]
     public async Task<IActionResult> Delete(Guid id)
