@@ -127,6 +127,43 @@ public class ReservationsController : ControllerBase
         }
     }
 
+    [HttpPost("import")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ImportCsv(IFormFile file)
+    {
+        // FIX: 400 ramane doar pentru cereri invalide (fara fisier, extensie gresita) -
+        // adica probleme cu request-ul in sine, nu cu continutul datelor din CSV.
+        if (file == null || file.Length == 0)
+            return BadRequest("Te rog să încarci un fișier CSV valid.");
+
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            return BadRequest("Fișierul trebuie să aibă extensia .csv.");
+
+        using var stream = file.OpenReadStream();
+        var result = await _reservationService.ImportReservationsFromCsvAsync(stream);
+
+        // FIX: raspuns formatat exact ca in cerinta - "successful insert count",
+        // "failed insert count", "failed inserts" cu cate o linie per intrare esuata,
+        // continand toate problemele identificate pe acea linie.
+        var formattedErrors = result.Errors
+            .OrderBy(kvp => kvp.Key)
+            .Select(kvp => $"linia {kvp.Key}: {string.Join(", ", kvp.Value)}")
+            .ToList();
+
+        var response = new Dictionary<string, object>
+        {
+            ["successful insert count"] = result.SuccessfulCount,
+            ["failed insert count"] = result.FailedCount,
+            ["failed inserts"] = formattedErrors
+        };
+
+        // FIX: intotdeauna 200 OK pentru un fisier procesat cu succes ca request,
+        // indiferent daca unele linii de date au esuat validarea - un import partial
+        // reusit nu e o eroare de request, e un rezultat de business normal.
+        return Ok(response);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Client,Operator,Admin")]
     public async Task<IActionResult> Delete(Guid id)

@@ -5,6 +5,7 @@ using QuestPDF.Infrastructure;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using System.Globalization;
 using System.Text;
 
 namespace RBooking.Application.Services;
@@ -13,8 +14,6 @@ public class ReservationService : IReservationService
 {
     private readonly IReservationRepository _reservationRepository;
 
-    // FIX: lista coloanelor valide, intr-un singur loc, folosita atat pentru matching
-    // cat si pentru validare. Evita sa avem "magic strings" duplicate in mai multe locuri.
     private static readonly HashSet<string> AllowedColumns = new(StringComparer.OrdinalIgnoreCase)
     {
         "Id", "UserName", "UserEmail", "AccommodationName", "City", "Country",
@@ -67,6 +66,116 @@ public class ReservationService : IReservationService
         throw new NotImplementedException();
     }
 
+    public async Task<ReservationImportResultDto> ImportReservationsFromCsvAsync(Stream fileStream)
+    {
+        var result = new ReservationImportResultDto();
+        var errors = new Dictionary<int, List<string>>();
+        var validReservationsToInsert = new List<Reservation>();
+
+        using var textReader = new StreamReader(fileStream, Encoding.UTF8);
+        string? headerLine = await textReader.ReadLineAsync();
+        if (headerLine == null) return result;
+
+        int lineNumber = 1;
+        string? line;
+        while ((line = await textReader.ReadLineAsync()) != null)
+        {
+            lineNumber++;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var values = line.Split(',');
+            var rowErrors = new List<string>();
+
+            if (values.Length < 6)
+            {
+                rowErrors.Add("număr insuficient de coloane");
+                errors.Add(lineNumber, rowErrors);
+                continue;
+            }
+
+            string rawUserId = values[0].Trim().Trim('"');
+            string rawAccommodationId = values[1].Trim().Trim('"');
+            string rawCheckInDate = values[2].Trim().Trim('"');
+            string rawGuests = values[3].Trim().Trim('"');
+            string rawPrice = values[4].Trim().Trim('"');
+            string rawStatus = values[5].Trim().Trim('"');
+
+            if (!Guid.TryParse(rawUserId, out Guid userId))
+            {
+                rowErrors.Add("UserId invalid (nu este un GUID corect)");
+            }
+
+            if (!Guid.TryParse(rawAccommodationId, out Guid accommodationId))
+            {
+                rowErrors.Add("AccommodationId invalid (nu este un GUID corect)");
+            }
+
+            if (!DateTime.TryParse(rawCheckInDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime checkInDate))
+            {
+                rowErrors.Add("CheckInDate are format invalid (format acceptat: YYYY-MM-DD)");
+            }
+            else if (checkInDate.Date < DateTime.UtcNow.Date)
+            {
+                rowErrors.Add("CheckInDate nu poate fi în trecut");
+            }
+
+            if (!int.TryParse(rawGuests, out int numberOfGuests) || numberOfGuests <= 0)
+            {
+                rowErrors.Add("NumberOfGuests trebuie să fie un număr întreg mai mare ca 0");
+            }
+
+            if (!decimal.TryParse(rawPrice, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal totalPrice) || totalPrice < 0)
+            {
+                rowErrors.Add("TotalPrice trebuie să fie o valoare numerică validă și pozitivă");
+            }
+
+            if (!Enum.TryParse<Domain.Enums.ReservationStatus>(rawStatus, true, out var status))
+            {
+                rowErrors.Add("Status invalid");
+            }
+
+            if (rowErrors.Count > 0)
+            {
+                errors.Add(lineNumber, rowErrors);
+                continue;
+            }
+
+            var allExisting = await _reservationRepository.GetAllAsync();
+            bool existsInDb = allExisting.Any(r => r.UserId == userId && r.AccommodationId == accommodationId && r.CheckInDate.Date == checkInDate.Date);
+            bool existsInBatch = validReservationsToInsert.Any(r => r.UserId == userId && r.AccommodationId == accommodationId && r.CheckInDate.Date == checkInDate.Date);
+
+            if (existsInDb || existsInBatch)
+            {
+                rowErrors.Add("există deja o rezervare identică pentru acest utilizator, cazare și dată (duplicat)");
+                errors.Add(lineNumber, rowErrors);
+                continue;
+            }
+
+            validReservationsToInsert.Add(new Reservation
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AccommodationId = accommodationId,
+                CheckInDate = DateTime.SpecifyKind(checkInDate, DateTimeKind.Utc),
+                NumberOfGuests = numberOfGuests,
+                TotalPrice = totalPrice,
+                Status = status,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        foreach (var reservation in validReservationsToInsert)
+        {
+            await _reservationRepository.AddAsync(reservation);
+        }
+
+        result.SuccessfulCount = validReservationsToInsert.Count;
+        result.FailedCount = errors.Count;
+        result.Errors = errors;
+
+        return result;
+    }
+
     public async Task<(byte[] FileContent, string ContentType, string FileName)> GenerateReportAsync(ReservationReportRequestDto request)
     {
         var allReservations = await _reservationRepository.GetAllAsync();
@@ -109,7 +218,6 @@ public class ReservationService : IReservationService
 
         var reservations = query.ToList();
 
-        // Gestionăm corect cazul în care coloanele vin ca un singur string despărțit prin virgulă din query
         var parsedColumns = request.Columns;
         if (parsedColumns != null && parsedColumns.Count == 1 && parsedColumns[0].Contains(','))
         {
@@ -117,15 +225,10 @@ public class ReservationService : IReservationService
         }
 
         var defaultColumns = new List<string> { "Id", "UserEmail", "AccommodationName", "CheckInDate", "TotalPrice", "Status" };
-        // FIX: Trim() pe fiecare nume de coloana primit - un spatiu din greseala la tastare
-        // in Swagger nu mai duce la coloana goala silentios.
         var selectedColumns = (parsedColumns == null || parsedColumns.Count == 0)
             ? defaultColumns
             : parsedColumns.Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
 
-        // FIX: validam coloanele cerute fata de lista permisa (case-insensitive).
-        // Daca cineva scrie gresit numele unei coloane, primeste eroare clara acum,
-        // nu un raport cu coloana goala fara explicatie.
         var unknownColumns = selectedColumns.Where(c => !AllowedColumns.Contains(c)).ToList();
         if (unknownColumns.Count > 0)
         {
@@ -235,15 +338,13 @@ public class ReservationService : IReservationService
         return (pdfBytes, "application/pdf", $"reservations_report_{DateTime.UtcNow:yyyyMMdd}.pdf");
     }
 
-    // FIX: matching case-insensitive pe numele coloanei, in loc de switch exact-match
-    // pe string. "userEmail", "USEREMAIL", " Id " (cu spatii, dupa Trim mai sus) merg acum la fel.
     private object? GetPropertyValue(Reservation r, string propertyName)
     {
         return propertyName.ToLowerInvariant() switch
         {
             "id" => r.Id,
             "username" => r.User != null ? $"{r.User.FirstName} {r.User.LastName}" : string.Empty,
-            "useremail" => r.User?.Email ?? string.Empty, // Folosește string gol dacă user e null
+            "useremail" => r.User?.Email ?? string.Empty,
             "accommodationname" => r.Accommodation?.Name ?? string.Empty,
             "city" => r.Accommodation?.City ?? string.Empty,
             "country" => r.Accommodation?.Country ?? string.Empty,
