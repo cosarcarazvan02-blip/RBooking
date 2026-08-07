@@ -480,7 +480,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # Vim temporary swap files
-*.swp
-RBooking.API/appsettings.Development.json
-RBooking.API/appsettings.json
+# ASP.NET Core appsettings
+**/appsettings.json
+**/appsettings.*.json
 
