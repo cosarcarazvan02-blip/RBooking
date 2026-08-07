@@ -483,4 +483,5 @@ $RECYCLE.BIN/
 # ASP.NET Core appsettings
 **/appsettings.json
 **/appsettings.*.json
+!**/appsettings.Example.json
 
