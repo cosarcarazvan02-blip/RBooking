@@ -16,21 +16,21 @@ public class ReviewRepository : IReviewRepository
 
     public async Task<IEnumerable<Review>> GetByAccommodationIdAsync(Guid accommodationId)
     {
-        return await _context.Reviews
-            .Include(r => r.Reservation)
+            return await _context.Reviews
+            .Include(r => r.Reservation!)
                 .ThenInclude(res => res.User)
-            .Include(r => r.Reservation)
+            .Include(r => r.Reservation!)
                 .ThenInclude(res => res.Accommodation)
-            .Where(r => r.Reservation.AccommodationId == accommodationId)
+            .Where(r => r.Reservation != null && r.Reservation.AccommodationId == accommodationId)
             .ToListAsync();
     }
 
     public async Task<Review?> GetByIdAsync(int id)
     {
-        return await _context.Reviews
-            .Include(r => r.Reservation)
+            return await _context.Reviews
+            .Include(r => r.Reservation!)
                 .ThenInclude(res => res.User)
-            .Include(r => r.Reservation)
+            .Include(r => r.Reservation!)
                 .ThenInclude(res => res.Accommodation)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
