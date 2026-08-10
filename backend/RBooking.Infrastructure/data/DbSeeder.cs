@@ -6,9 +6,8 @@ namespace RBooking.Infrastructure.Data;
 
 public static class DbSeeder
 {
-    public static async Task<int> SeedAsync(AppDbContext context)
+    public static async Task SeedUsersAsync(AppDbContext context)
     {
-        // 1. Ensure Operator & Client Users exist
         var operatorUser = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Operator);
         if (operatorUser == null)
         {
@@ -39,20 +38,33 @@ public static class DbSeeder
             context.Users.Add(clientUser);
         }
 
-        await context.SaveChangesAsync();
-
-        var opId = operatorUser.Id.ToString();
-
-        // 2. Create Mock Accommodations if database has fewer than 5 accommodations
-        var existingCount = await context.Accommodations.CountAsync();
-        if (existingCount >= 5)
+        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
+        if (adminUser == null)
         {
-            return 0; // Already seeded
+            adminUser = new User
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "Admin",
+                LastName = "System",
+                Email = "admin@rbooking.com",
+                Role = UserRole.Admin,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(adminUser);
         }
+
+        await context.SaveChangesAsync();
+    }
+
+    public static async Task<int> SeedMockAccommodationsAsync(AppDbContext context)
+    {
+        await SeedUsersAsync(context);
+
+        var operatorUser = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Operator);
+        var opId = operatorUser?.Id.ToString() ?? Guid.NewGuid().ToString();
 
         var accommodations = new List<Accommodation>
         {
-            // Hotels
             new Hotel
             {
                 Id = Guid.NewGuid(),
@@ -110,8 +122,6 @@ public static class DbSeeder
                     new AccommodationImage { FilePath = "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb", IsMain = true }
                 }
             },
-
-            // Apartments
             new Apartment
             {
                 Id = Guid.NewGuid(),
@@ -169,8 +179,6 @@ public static class DbSeeder
                     new AccommodationImage { FilePath = "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2", IsMain = true }
                 }
             },
-
-            // Hostels
             new Hostel
             {
                 Id = Guid.NewGuid(),
@@ -209,44 +217,7 @@ public static class DbSeeder
             }
         };
 
-        await context.Accommodations.AddRangeAsync(accommodations);
-        await context.SaveChangesAsync();
-
-        // 3. Create Mock Reviews & Ratings for each accommodation
-        var random = new Random(42);
-        var reviews = new List<Review>();
-
-        foreach (var acc in accommodations)
-        {
-            for (int i = 0; i < 3; i++)
-            {
-                var reservation = new Reservation
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = clientUser.Id,
-                    AccommodationId = acc.Id,
-                    CheckInDate = DateTime.UtcNow.AddDays(-30 - i * 5),
-                    CheckOutDate = DateTime.UtcNow.AddDays(-27 - i * 5),
-                    NumberOfGuests = 2,
-                    TotalPrice = acc.PricePerNight * 3,
-                    Status = ReservationStatus.Confirmed,
-                    CreatedAt = DateTime.UtcNow.AddDays(-35 - i * 5)
-                };
-                context.Reservations.Add(reservation);
-
-                var rating = random.Next(4, 6); // 4 or 5
-                var review = new Review
-                {
-                    Rating = rating,
-                    Comment = rating == 5 ? "Excelent! Curățenie desăvârșită și locație ideală." : "Experiență foarte bună, personal amabil.",
-                    ReservationId = reservation.Id,
-                    CreatedAt = DateTime.UtcNow.AddDays(-26 - i * 5)
-                };
-                reviews.Add(review);
-            }
-        }
-
-        await context.Reviews.AddRangeAsync(reviews);
+        context.Accommodations.AddRange(accommodations);
         await context.SaveChangesAsync();
 
         return accommodations.Count;
