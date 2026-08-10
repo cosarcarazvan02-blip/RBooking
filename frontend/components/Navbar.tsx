@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useLanguage } from '@/context/LanguageContext';
-import { LogIn, Calendar, LogOut, Globe, User, Building2, Shield, Hotel, LayoutDashboard } from 'lucide-react';
+import { LogIn, Calendar, LogOut, Globe, User, Building2, Shield, Hotel } from 'lucide-react';
 
 export default function Navbar() {
   const { lang, toggleLang } = useLanguage();

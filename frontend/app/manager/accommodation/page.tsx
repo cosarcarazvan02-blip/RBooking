@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
-import { Building2, Plus, Trash2, Edit, MapPin, Euro, CheckCircle2, X } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
 
 interface Accommodation {
   id: string;
@@ -29,15 +29,17 @@ export default function ManageAccommodationsPage() {
   const [image, setImage] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('rbooking_accommodations');
-    if (saved) {
-      try {
-        setAccommodations(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+    let ignore = false;
+    const loadData = () => {
+      const saved = localStorage.getItem('rbooking_accommodations');
+      if (saved) {
+        try {
+          if (!ignore) setAccommodations(JSON.parse(saved));
+          return;
+        } catch (e) {
+          console.error(e);
+        }
       }
-    } else {
-      // Date inițiale demo dacă nu există nimic
       const initial: Accommodation[] = [
         {
           id: '1',
@@ -49,9 +51,15 @@ export default function ManageAccommodationsPage() {
           image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'
         }
       ];
-      setAccommodations(initial);
+      if (!ignore) setAccommodations(initial);
       localStorage.setItem('rbooking_accommodations', JSON.stringify(initial));
-    }
+    };
+
+    const timer = setTimeout(loadData, 0);
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   const saveToStorage = (updated: Accommodation[]) => {

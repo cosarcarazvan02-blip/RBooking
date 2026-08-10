@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, MapPin, Trash2, CheckCircle2, Globe, Home, LogOut } from 'lucide-react';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 interface Reservation {
   id: string;
   hotelName: string;
@@ -46,29 +48,27 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
-  const [lang, setLang] = useState<'RO' | 'EN'>('RO');
+  const { lang, toggleLang } = useLanguage();
 
   useEffect(() => {
-    const savedLang = localStorage.getItem('app_lang') as 'RO' | 'EN';
-    if (savedLang === 'RO' || savedLang === 'EN') {
-      setLang(savedLang);
-    }
-
-    const savedReservations = localStorage.getItem('rbooking_user_reservations');
-    if (savedReservations) {
-      try {
-        setReservations(JSON.parse(savedReservations));
-      } catch (e) {
-        console.error(e);
+    let ignore = false;
+    const timer = setTimeout(() => {
+      const savedReservations = localStorage.getItem('rbooking_user_reservations');
+      if (savedReservations) {
+        try {
+          if (!ignore) setReservations(JSON.parse(savedReservations));
+        } catch (e) {
+          console.error(e);
+        }
       }
-    }
+    }, 0);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, []);
 
-  const toggleLang = () => {
-    const nextLang = lang === 'RO' ? 'EN' : 'RO';
-    setLang(nextLang);
-    localStorage.setItem('app_lang', nextLang);
-  };
 
   const handleRemoveReservation = (id: string) => {
     const updated = reservations.filter((item) => item.id !== id);
