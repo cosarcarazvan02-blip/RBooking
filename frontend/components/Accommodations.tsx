@@ -1,68 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 
-const FALLBACK_ACCOMMODATIONS: Accommodation[] = [
-  {
-    id: "1",
-    name: "Grand Hotel Continental",
-    location: "Calea Victoriei 56, București",
-    city: "București",
-    country: "România",
-    accommodationType: "Hotel",
-    imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85",
-  },
-  {
-    id: "2",
-    name: "Kronwell Alpine Retreat",
-    location: "Bulevardul Gării 7A, Brașov",
-    city: "Brașov",
-    country: "România",
-    accommodationType: "Hotel",
-    imageUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=85",
-  },
-  {
-    id: "3",
-    name: "Platinia Modern Suites",
-    location: "Calea Mănăștur 2-6, Cluj-Napoca",
-    city: "Cluj-Napoca",
-    country: "România",
-    accommodationType: "Apartment",
-    imageUrl: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=85",
-  },
-  {
-    id: "4",
-    name: "Atelier Historic Loft",
-    location: "Piața Mică 12, Sibiu",
-    city: "Sibiu",
-    country: "România",
-    accommodationType: "Apartment",
-    imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=85",
-  },
-  {
-    id: "5",
-    name: "Botanica Residence & Spa",
-    location: "Strada Republicii 44, Oradea",
-    city: "Oradea",
-    country: "România",
-    accommodationType: "Hotel",
-    imageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=85",
-  },
-  {
-    id: "6",
-    name: "Urban Nomads Boutique Hostel",
-    location: "Strada Potaissa 13, Cluj-Napoca",
-    city: "Cluj-Napoca",
-    country: "România",
-    accommodationType: "Hostel",
-    imageUrl: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=85",
-  },
-];
+
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -77,8 +22,15 @@ interface RawAccommodationDto {
   pricePerNight?: number;
 }
 
+const emptySubscribe = () => () => {};
+
 export default function Accommodations() {
-  const [accommodations, setAccommodations] = useState<Accommodation[]>(FALLBACK_ACCOMMODATIONS);
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFromDatabase, setIsFromDatabase] = useState<boolean>(false);
 
@@ -108,29 +60,27 @@ export default function Accommodations() {
           ? data
           : data.items || data.Items || [];
 
-        if (items && items.length > 0) {
-          const mapped: Accommodation[] = items.map((item, index) => ({
-            id: item.id || `acc-${index}`,
-            name: item.name,
-            location: item.location || `${item.city || "România"}, ${item.country || ""}`,
-            city: item.city || "București",
-            country: item.country || "România",
-            accommodationType: item.accommodationType || "Hotel",
-            imageUrl:
-              item.imageUrl && item.imageUrl.trim()
-                ? item.imageUrl
-                : NO_PHOTO_PLACEHOLDER,
-          }));
+        const mapped: Accommodation[] = items.map((item, index) => ({
+          id: item.id || `acc-${index}`,
+          name: item.name,
+          location: item.location || `${item.city || "România"}, ${item.country || ""}`,
+          city: item.city || "București",
+          country: item.country || "România",
+          accommodationType: item.accommodationType || "Hotel",
+          imageUrl:
+            item.imageUrl && item.imageUrl.trim()
+              ? item.imageUrl
+              : NO_PHOTO_PLACEHOLDER,
+        }));
 
-          setAccommodations(mapped);
-          setIsFromDatabase(true);
-          return;
-        }
+        setAccommodations(mapped);
+        setIsFromDatabase(true);
+      } else {
+        setAccommodations([]);
+        setIsFromDatabase(false);
       }
-      setAccommodations(FALLBACK_ACCOMMODATIONS);
-      setIsFromDatabase(false);
     } catch {
-      setAccommodations(FALLBACK_ACCOMMODATIONS);
+      setAccommodations([]);
       setIsFromDatabase(false);
     } finally {
       setIsLoading(false);
@@ -159,32 +109,30 @@ export default function Accommodations() {
               ? data
               : data.items || data.Items || [];
 
-            if (items && items.length > 0) {
-              const mapped: Accommodation[] = items.map((item, index) => ({
-                id: item.id || `acc-${index}`,
-                name: item.name,
-                location: item.location || `${item.city || "România"}, ${item.country || ""}`,
-                city: item.city || "București",
-                country: item.country || "România",
-                accommodationType: item.accommodationType || "Hotel",
-                imageUrl:
-                  item.imageUrl && item.imageUrl.trim()
-                    ? item.imageUrl
-                    : NO_PHOTO_PLACEHOLDER,
-              }));
-              setAccommodations(mapped);
-              setIsFromDatabase(true);
-              setIsLoading(false);
-              return;
-            }
+            const mapped: Accommodation[] = items.map((item, index) => ({
+              id: item.id || `acc-${index}`,
+              name: item.name,
+              location: item.location || `${item.city || "România"}, ${item.country || ""}`,
+              city: item.city || "București",
+              country: item.country || "România",
+              accommodationType: item.accommodationType || "Hotel",
+              imageUrl:
+                item.imageUrl && item.imageUrl.trim()
+                  ? item.imageUrl
+                  : NO_PHOTO_PLACEHOLDER,
+            }));
+            setAccommodations(mapped);
+            setIsFromDatabase(true);
+            setIsLoading(false);
+            return;
           }
-          setAccommodations(FALLBACK_ACCOMMODATIONS);
+          setAccommodations([]);
           setIsFromDatabase(false);
           setIsLoading(false);
         })
         .catch(() => {
           if (ignore) return;
-          setAccommodations(FALLBACK_ACCOMMODATIONS);
+          setAccommodations([]);
           setIsFromDatabase(false);
           setIsLoading(false);
         });
@@ -254,7 +202,7 @@ export default function Accommodations() {
             <span className="text-xs font-mono font-semibold tracking-[0.25em] uppercase text-amber-700 dark:text-amber-300">
               [ 02 / ACCOMMODATIONS ]
             </span>
-            {isFromDatabase ? (
+            {isClient && isFromDatabase ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 <Database className="w-3 h-3" />
                 <span>Live PostgreSQL DB</span>
@@ -273,11 +221,11 @@ export default function Accommodations() {
         <div className="flex items-center gap-4 text-xs font-mono text-neutral-500 dark:text-neutral-400">
           <button
             onClick={() => void reloadData()}
-            disabled={isLoading}
+            disabled={!isClient ? false : isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer disabled:opacity-50"
             title="Reîmprospătează datele din baza de date"
           >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3 h-3 ${isClient && isLoading ? "animate-spin" : ""}`} />
             <span>Reîncarcă DB</span>
           </button>
           <span>
@@ -396,17 +344,19 @@ export default function Accommodations() {
         <div className="text-center py-20 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-8">
           <Compass className="w-12 h-12 mx-auto text-neutral-400 mb-4" />
           <h3 className="text-xl font-serif text-neutral-900 dark:text-white mb-2">
-            Niciun hotel găsit
+            Nicio cazare găsită
           </h3>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md mx-auto mb-6">
-            Nu am găsit cazări care să corespundă criteriilor selectate. Încercați să modificați termenii de căutare.
+            Nu există nicio cazare care să corespundă criteriilor sau baza de date este goală. Puteți adăuga cazări noi direct din Swagger UI (/swagger).
           </p>
-          <button
-            onClick={clearFilters}
-            className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white cursor-pointer"
-          >
-            Resetează Filtrele
-          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white cursor-pointer"
+            >
+              Resetează Filtrele
+            </button>
+          )}
         </div>
       ) : (
         /* Hotel Cards Grid (Strict: Imagine, Nume, Locatie, Buton Detalii) */

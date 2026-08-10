@@ -80,14 +80,29 @@ public class AccommodationsController : ControllerBase
     }
 
     /// <summary>
-    /// Seeds mock accommodations, images, and reviews into the database.
+    /// Seeds mock accommodations, images, and reviews into the database on demand.
     /// </summary>
     [HttpPost("seed")]
     [AllowAnonymous]
     public async Task<IActionResult> SeedMockAccommodations([FromServices] AppDbContext context)
     {
-        var count = await DbSeeder.SeedAsync(context);
-        return Ok(new { message = $"Successfully seeded database with {count} mock accommodations and reviews.", count });
+        var count = await DbSeeder.SeedMockAccommodationsAsync(context);
+        return Ok(new { message = $"Baza de date a fost populată cu {count} cazări demonstrative.", count });
+    }
+
+    /// <summary>
+    /// Clears all accommodations, images, reviews, and reservations from the database for a clean blank state.
+    /// </summary>
+    [HttpDelete("clear-all")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ClearAllAccommodations([FromServices] AppDbContext context)
+    {
+        context.Reviews.RemoveRange(context.Reviews);
+        context.Reservations.RemoveRange(context.Reservations);
+        context.AccommodationImages.RemoveRange(context.AccommodationImages);
+        context.Accommodations.RemoveRange(context.Accommodations);
+        await context.SaveChangesAsync();
+        return Ok(new { message = "Toate cazările și datele asociate au fost șterse cu succes din baza de date. Baza de date este acum complet curată (0 cazări)." });
     }
 
     /// <summary>

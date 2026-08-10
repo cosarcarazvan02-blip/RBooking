@@ -255,8 +255,8 @@ using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         dbContext.Database.Migrate();
-        await DbSeeder.SeedAsync(dbContext);
-        logger.LogInformation("Database migrated and seeded successfully.");
+        await DbSeeder.SeedUsersAsync(dbContext);
+        logger.LogInformation("Database migrated successfully.");
     }
     catch (Exception ex)
     {
