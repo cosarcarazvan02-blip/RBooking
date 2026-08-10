@@ -23,11 +23,9 @@ public class ApiKeyMiddleware
     {
         var path = context.Request.Path;
 
-        // Exempt health checks, swagger / openapi UI from API key requirement.
-        // FIX: /metrics scos de aici - contine date interne (nr. requesturi, erori etc.)
-        // si nu trebuie sa fie public. Daca vreti totusi sa ramana public pentru un
-        // monitoring extern, spuneti-mi si il tratam separat cu propriul lui rate limit.
-        if (path.StartsWithSegments("/healthz", StringComparison.OrdinalIgnoreCase) ||
+        // Exempt CORS preflight OPTIONS, health checks, swagger / openapi from API key requirement.
+        if (HttpMethods.IsOptions(context.Request.Method) ||
+            path.StartsWithSegments("/healthz", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase))
         {

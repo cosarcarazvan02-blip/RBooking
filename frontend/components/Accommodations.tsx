@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw } from "lucide-react";
 import { Accommodation } from "@/types";
+import { getActiveApiKey } from "@/lib/apiKey";
 
 const FALLBACK_ACCOMMODATIONS: Accommodation[] = [
   {
@@ -63,16 +64,7 @@ const FALLBACK_ACCOMMODATIONS: Accommodation[] = [
   },
 ];
 
-const CURATED_IMAGES = [
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=85",
-];
+const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
 interface RawAccommodationDto {
   id: string;
@@ -100,7 +92,7 @@ export default function Accommodations() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
-      const apiKey = process.env.NEXT_PUBLIC_API_KEY || "RBooking_Secret_ApiKey_2026_x9k2M!";
+      const apiKey = getActiveApiKey();
 
       const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
         method: "GET",
@@ -125,8 +117,9 @@ export default function Accommodations() {
             country: item.country || "România",
             accommodationType: item.accommodationType || "Hotel",
             imageUrl:
-              item.imageUrl ||
-              CURATED_IMAGES[index % CURATED_IMAGES.length],
+              item.imageUrl && item.imageUrl.trim()
+                ? item.imageUrl
+                : NO_PHOTO_PLACEHOLDER,
           }));
 
           setAccommodations(mapped);
@@ -146,55 +139,68 @@ export default function Accommodations() {
 
   useEffect(() => {
     let ignore = false;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY || "RBooking_Secret_ApiKey_2026_x9k2M!";
 
-    fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Api-Key": apiKey,
-      },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (ignore) return;
-        if (data) {
-          const items: RawAccommodationDto[] = Array.isArray(data)
-            ? data
-            : data.items || data.Items || [];
+    const executeFetch = () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
+      const apiKey = getActiveApiKey();
 
-          if (items && items.length > 0) {
-            const mapped: Accommodation[] = items.map((item, index) => ({
-              id: item.id || `acc-${index}`,
-              name: item.name,
-              location: item.location || `${item.city || "România"}, ${item.country || ""}`,
-              city: item.city || "București",
-              country: item.country || "România",
-              accommodationType: item.accommodationType || "Hotel",
-              imageUrl:
-                item.imageUrl ||
-                CURATED_IMAGES[index % CURATED_IMAGES.length],
-            }));
-            setAccommodations(mapped);
-            setIsFromDatabase(true);
-            setIsLoading(false);
-            return;
-          }
-        }
-        setAccommodations(FALLBACK_ACCOMMODATIONS);
-        setIsFromDatabase(false);
-        setIsLoading(false);
+      fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey,
+        },
       })
-      .catch(() => {
-        if (ignore) return;
-        setAccommodations(FALLBACK_ACCOMMODATIONS);
-        setIsFromDatabase(false);
-        setIsLoading(false);
-      });
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (ignore) return;
+          if (data) {
+            const items: RawAccommodationDto[] = Array.isArray(data)
+              ? data
+              : data.items || data.Items || [];
+
+            if (items && items.length > 0) {
+              const mapped: Accommodation[] = items.map((item, index) => ({
+                id: item.id || `acc-${index}`,
+                name: item.name,
+                location: item.location || `${item.city || "România"}, ${item.country || ""}`,
+                city: item.city || "București",
+                country: item.country || "România",
+                accommodationType: item.accommodationType || "Hotel",
+                imageUrl:
+                  item.imageUrl && item.imageUrl.trim()
+                    ? item.imageUrl
+                    : NO_PHOTO_PLACEHOLDER,
+              }));
+              setAccommodations(mapped);
+              setIsFromDatabase(true);
+              setIsLoading(false);
+              return;
+            }
+          }
+          setAccommodations(FALLBACK_ACCOMMODATIONS);
+          setIsFromDatabase(false);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          if (ignore) return;
+          setAccommodations(FALLBACK_ACCOMMODATIONS);
+          setIsFromDatabase(false);
+          setIsLoading(false);
+        });
+    };
+
+    executeFetch();
+
+    const handleKeyChange = () => {
+      executeFetch();
+    };
+
+    window.addEventListener("api-key-change", handleKeyChange);
 
     return () => {
       ignore = true;
+      window.removeEventListener("api-key-change", handleKeyChange);
     };
   }, []);
 
@@ -246,7 +252,7 @@ export default function Accommodations() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <span className="text-xs font-mono font-semibold tracking-[0.25em] uppercase text-amber-700 dark:text-amber-300">
-              [ 02 / REZERVĂRI &amp; HOTELURI ]
+              [ 02 / ACCOMMODATIONS ]
             </span>
             {isFromDatabase ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -260,7 +266,7 @@ export default function Accommodations() {
             )}
           </div>
           <h2 className="text-3xl sm:text-5xl font-serif font-normal text-neutral-950 dark:text-white tracking-tight">
-            Hoteluri &amp; Reședințe
+            Accommodations
           </h2>
         </div>
 
@@ -413,10 +419,7 @@ export default function Accommodations() {
               {/* 1. Imagine Cazare */}
               <div className="relative w-full h-72 sm:h-80 overflow-hidden bg-neutral-200 dark:bg-neutral-800">
                 <Image
-                  src={
-                    hotel.imageUrl ||
-                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85"
-                  }
+                  src={hotel.imageUrl || NO_PHOTO_PLACEHOLDER}
                   alt={hotel.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
