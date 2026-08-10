@@ -17,12 +17,12 @@ public class AccommodationRepository : IAccommodationRepository
 
     public async Task<IEnumerable<Accommodation>> GetAllAsync()
     {
-        return await _context.Accommodations.ToListAsync();
+        return await _context.Accommodations.Include(a => a.Images).ToListAsync();
     }
 
     public async Task<(IEnumerable<Accommodation> Items, int TotalCount, Dictionary<Guid, (double AvgRating, int ReviewCount)> RatingStats)> GetFilteredAsync(AccommodationFilterDto filter)
     {
-        var query = _context.Accommodations.AsQueryable();
+        var query = _context.Accommodations.Include(a => a.Images).AsQueryable();
 
         // 1. Filter by SearchLocation (City, Country, Location, Name)
         if (!string.IsNullOrWhiteSpace(filter.SearchLocation))
@@ -101,7 +101,7 @@ public class AccommodationRepository : IAccommodationRepository
 
     public async Task<Accommodation?> GetByIdAsync(Guid id)
     {
-        return await _context.Accommodations.FirstOrDefaultAsync(a => a.Id == id);
+        return await _context.Accommodations.Include(a => a.Images).FirstOrDefaultAsync(a => a.Id == id);
     }
 
     public async Task<(double AvgRating, int ReviewCount)> GetRatingStatsAsync(Guid accommodationId)
