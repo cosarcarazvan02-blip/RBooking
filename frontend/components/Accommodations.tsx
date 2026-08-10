@@ -1,10 +1,11 @@
-"use client";
+'use client';
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, MapPin, ArrowUpRight, Compass, X } from "lucide-react";
 import { Accommodation } from "@/types";
+import { useLanguage } from "@/context/LanguageContext"; // Importăm contextul global pentru limbă
 
 const CURATED_ACCOMMODATIONS: Accommodation[] = [
   {
@@ -65,11 +66,13 @@ const CURATED_ACCOMMODATIONS: Accommodation[] = [
 
 interface AccommodationsProps {
   initialAccommodations?: Accommodation[];
+  lang?: 'RO' | 'EN';
 }
 
 export default function Accommodations({
   initialAccommodations = CURATED_ACCOMMODATIONS,
 }: AccommodationsProps) {
+  const { lang } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedCity, setSelectedCity] = useState<string>("All");
@@ -108,6 +111,36 @@ export default function Accommodations({
     setSelectedCity("All");
   };
 
+  const t = {
+    tag: lang === 'RO' ? 'Portofoliu Selecționat' : 'Curated Portfolio',
+    heading: 'Accommodations',
+    subtitle: lang === 'RO'
+      ? 'O colecție de spații rafinate, boutique hoteluri și apartamente contemporane alese pentru arhitectură și confort.'
+      : 'A collection of refined spaces, boutique hotels, and contemporary apartments chosen for architecture and comfort.',
+    propertyCount: (count: number) => {
+      if (lang === 'RO') {
+        return count === 1 ? 'proprietate' : 'proprietăți';
+      }
+      return count === 1 ? 'property' : 'properties';
+    },
+    searchPlaceholder: lang === 'RO' ? 'Caută după nume, adresă sau oraș...' : 'Search by name, address or city...',
+    allDestinations: lang === 'RO' ? 'Toate destinațiile' : 'All destinations',
+    types: [
+      { label: lang === 'RO' ? 'Toate' : 'All', val: 'All' },
+      { label: 'Hotel', val: 'Hotel' },
+      { label: lang === 'RO' ? 'Apartament' : 'Apartment', val: 'Apartment' },
+      { label: 'Hostel', val: 'Hostel' },
+    ],
+    filtersLabel: lang === 'RO' ? 'Filtre:' : 'Filters:',
+    reset: lang === 'RO' ? '[ Resetează ]' : '[ Reset ]',
+    noResultsTitle: lang === 'RO' ? 'Nicio locație nu corespunde criteriilor' : 'No locations match your criteria',
+    noResultsSub: lang === 'RO' 
+      ? 'Încearcă să extinzi căutarea sau să selectezi o altă destinație.' 
+      : 'Try expanding your search or selecting a different destination.',
+    clearFiltersBtn: lang === 'RO' ? 'Șterge filtrele' : 'Clear filters',
+    viewDetails: lang === 'RO' ? 'Vezi detalii' : 'View details',
+  };
+
   return (
     <section
       id="accommodations"
@@ -118,13 +151,13 @@ export default function Accommodations({
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-2 text-xs font-mono font-semibold tracking-[0.25em] uppercase text-neutral-500 dark:text-neutral-400">
             <span className="w-2 h-2 bg-amber-600 dark:bg-amber-400"></span>
-            <span>Portofoliu Selecționat</span>
+            <span>{t.tag}</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-normal tracking-tight text-neutral-900 dark:text-neutral-50">
-            Accommodations
+            {t.heading}
           </h2>
           <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 font-normal leading-relaxed">
-            O colecție de spații rafinate, boutique hoteluri și apartamente contemporane alese pentru arhitectură și confort.
+            {t.subtitle}
           </p>
         </div>
 
@@ -133,7 +166,7 @@ export default function Accommodations({
             <span className="font-bold text-neutral-950 dark:text-white mr-1.5">
               {filteredItems.length}
             </span>
-            {filteredItems.length === 1 ? "proprietate" : "proprietăți"}
+            {t.propertyCount(filteredItems.length)}
           </div>
         </div>
       </div>
@@ -148,13 +181,13 @@ export default function Accommodations({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Caută după nume, adresă sau oraș..."
+              placeholder={t.searchPlaceholder}
               className="w-full pl-11 pr-8 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-200 transition-all font-sans border border-neutral-200 dark:border-neutral-800"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -169,7 +202,7 @@ export default function Accommodations({
               onChange={(e) => setSelectedCity(e.target.value)}
               className="w-full pl-11 pr-8 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-200 transition-all font-sans appearance-none cursor-pointer border border-neutral-200 dark:border-neutral-800"
             >
-              <option value="All">Toate destinațiile</option>
+              <option value="All">{t.allDestinations}</option>
               {cities
                 .filter((c) => c !== "All")
                 .map((city) => (
@@ -183,20 +216,15 @@ export default function Accommodations({
             </div>
           </div>
 
-          {/* Type Filter Buttons (Sharp Geometric Blocks) */}
+          {/* Type Filter Buttons */}
           <div className="lg:col-span-3 flex items-center gap-1.5 p-1 bg-neutral-100 dark:bg-[#181a20] border border-neutral-200 dark:border-neutral-800 overflow-x-auto">
-            {[
-              { label: "Toate", val: "All" },
-              { label: "Hotel", val: "Hotel" },
-              { label: "Apartament", val: "Apartment" },
-              { label: "Hostel", val: "Hostel" },
-            ].map(({ label, val }) => {
+            {t.types.map(({ label, val }) => {
               const isActive = selectedType === val;
               return (
                 <button
                   key={val}
                   onClick={() => setSelectedType(val)}
-                  className={`flex-1 min-w-[60px] py-2 px-2 text-xs font-mono uppercase tracking-wider transition-all text-center ${
+                  className={`flex-1 min-w-[60px] py-2 px-2 text-xs font-mono uppercase tracking-wider transition-all text-center cursor-pointer ${
                     isActive
                       ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold"
                       : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
@@ -213,7 +241,7 @@ export default function Accommodations({
         {hasActiveFilters && (
           <div className="flex items-center justify-between pt-3 mt-3 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-500 font-mono">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-neutral-400 uppercase tracking-wider">Filtre:</span>
+              <span className="text-neutral-400 uppercase tracking-wider">{t.filtersLabel}</span>
               {searchQuery && (
                 <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700">
                   &ldquo;{searchQuery}&rdquo;
@@ -234,27 +262,27 @@ export default function Accommodations({
               onClick={clearFilters}
               className="text-xs font-semibold text-neutral-900 dark:text-white hover:underline underline-offset-4 cursor-pointer"
             >
-              [ Resetează ]
+              {t.reset}
             </button>
           </div>
         )}
       </div>
 
-      {/* Accommodations Grid (Strictly Image, Name, Location & Details Button) */}
+      {/* Accommodations Grid */}
       {filteredItems.length === 0 ? (
         <div className="text-center py-24 px-4 border border-dashed border-neutral-300 dark:border-neutral-800 bg-white/40 dark:bg-[#121418]/40">
           <Compass className="w-10 h-10 mx-auto text-neutral-400 mb-3 stroke-[1.2]" />
           <h3 className="text-lg font-serif text-neutral-900 dark:text-neutral-100">
-            Nicio locație nu corespunde criteriilor
+            {t.noResultsTitle}
           </h3>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-sm mx-auto">
-            Încearcă să extinzi căutarea sau să selectezi o altă destinație.
+            {t.noResultsSub}
           </p>
           <button
             onClick={clearFilters}
-            className="mt-6 px-6 py-3 text-xs font-mono uppercase tracking-wider bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
+            className="mt-6 px-6 py-3 text-xs font-mono uppercase tracking-wider bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:opacity-90 transition-opacity cursor-pointer"
           >
-            Șterge filtrele
+            {t.clearFiltersBtn}
           </button>
         </div>
       ) : (
@@ -302,13 +330,13 @@ export default function Accommodations({
                   </div>
                 </div>
 
-                {/* Details Button with Geometric Minimal Styling */}
+                {/* Details Button */}
                 <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <Link
                     href={`/accommodations/${item.id}`}
-                    className="inline-flex items-center justify-between w-full py-3 px-4 bg-neutral-100 dark:bg-[#1a1d24] group-hover:bg-neutral-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs font-mono font-semibold tracking-wider uppercase transition-all duration-200 border border-neutral-300 dark:border-neutral-700"
+                    className="inline-flex items-center justify-between w-full py-3 px-4 bg-neutral-100 dark:bg-[#1a1d24] group-hover:bg-neutral-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs font-mono font-semibold tracking-wider uppercase transition-all duration-200 border border-neutral-300 dark:border-neutral-700 cursor-pointer"
                   >
-                    <span>Vezi detalii</span>
+                    <span>{t.viewDetails}</span>
                     <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </Link>
                 </div>

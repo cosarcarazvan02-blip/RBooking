@@ -1,37 +1,100 @@
 'use client';
-import { useState } from 'react';
-import Navbar from '@/components/Navbar';
 
-export default function HotelsPage() {
-  const [role] = useState<'guest' | 'user' | 'manager' | 'admin'>('user');
+import React from 'react';
+import Link from 'next/link';
+import { useLanguage } from '@/context/LanguageContext';
 
-  const hotelsList = [
-    { id: 1, name: 'Grand Hotel Bucharest', location: 'Bucharest', rooms: 120 },
-    { id: 2, name: 'Hotel Belvedere', location: 'Cluj-Napoca', rooms: 85 },
-    { id: 3, name: 'Continental Forum', location: 'Sibiu', rooms: 95 },
-  ];
+interface NavbarProps {
+  role?: 'guest' | 'user' | 'manager' | 'admin';
+}
+
+export default function Navbar({ role = 'user' }: NavbarProps) {
+  const { lang, toggleLang } = useLanguage();
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <Navbar role={role} />
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Hotels Catalog</h1>
-        <p className="text-gray-600 mb-8">Browse through available partner hotels.</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {hotelsList.map((hotel) => (
-            <div key={hotel.id} className="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
-              <h3 className="font-bold text-xl text-gray-800 mb-2">{hotel.name}</h3>
-              <p className="text-gray-500 text-sm mb-4">Location: {hotel.location}</p>
-              <p className="text-gray-600 text-sm mb-6">Total Rooms: {hotel.rooms}</p>
-              <button className="mt-auto bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-                View Details
-              </button>
-            </div>
-          ))}
+    <nav className="w-full flex justify-between items-center px-8 py-4 bg-white dark:bg-[#121418] border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-50 shadow-sm">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-serif font-bold text-sm">
+          R
         </div>
+        <span className="font-serif font-medium text-lg tracking-tight">RBooking</span>
       </div>
-    </main>
+
+      <div className="flex items-center gap-4 text-xs font-mono uppercase tracking-wider">
+        {role === 'guest' && (
+          <>
+            <Link href="/" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Cazări' : 'Accommodations'}
+            </Link>
+            <Link href="/register" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Înregistrare' : 'Register'}
+            </Link>
+            <Link href="/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg transition">
+              {lang === 'RO' ? 'Autentificare' : 'Login'}
+            </Link>
+          </>
+        )}
+
+        {role === 'user' && (
+          <>
+            <Link href="/" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Acasă' : 'Home'}
+            </Link>
+            <Link href="/hotels" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Hoteluri' : 'Hotels'}
+            </Link>
+            <Link href="/reservations" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Rezervări' : 'Reservations'}
+            </Link>
+            <Link href="/account" className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded transition hover:bg-neutral-100 dark:hover:bg-neutral-800">
+              {lang === 'RO' ? 'Contul meu' : 'My Account'}
+            </Link>
+          </>
+        )}
+
+        {role === 'manager' && (
+          <>
+            <Link href="/" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Cazări' : 'Accommodations'}
+            </Link>
+            <Link href="/manage-accommodations" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Administrare' : 'Manage'}
+            </Link>
+            <Link href="/account" className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded transition hover:bg-neutral-100 dark:hover:bg-neutral-800">
+              {lang === 'RO' ? 'Contul meu' : 'My Account'}
+            </Link>
+          </>
+        )}
+
+        {role === 'admin' && (
+          <>
+            <Link href="/" className="hover:text-blue-600 transition">
+              {lang === 'RO' ? 'Cazări' : 'Accommodations'}
+            </Link>
+            <Link href="/admin" className="hover:text-blue-600 transition">Admin</Link>
+            <Link href="/account" className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded transition hover:bg-neutral-100 dark:hover:bg-neutral-800">
+              {lang === 'RO' ? 'Contul meu' : 'My Account'}
+            </Link>
+          </>
+        )}
+
+        {/* Buton Limbă */}
+        <button 
+          onClick={toggleLang}
+          className="px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+        >
+          {lang}
+        </button>
+
+        {/* Logout */}
+        <Link 
+          href="/" 
+          onClick={() => localStorage.removeItem('rbooking_logged_in')}
+          className="px-4 py-2 bg-neutral-900 text-white dark:bg-white dark:text-black rounded transition"
+        >
+          {lang === 'RO' ? 'Ieșire' : 'Logout'}
+        </Link>
+      </div>
+    </nav>
   );
 }
