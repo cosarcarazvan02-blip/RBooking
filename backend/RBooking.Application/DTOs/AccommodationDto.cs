@@ -18,6 +18,8 @@ public class AccommodationDto
     public string AccommodationType { get; set; } = string.Empty;
     public double AverageRating { get; set; }
     public int TotalReviewsCount { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
 
     // Hotel specific
     public int? Stars { get; set; }
