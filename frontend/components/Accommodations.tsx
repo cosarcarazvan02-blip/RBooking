@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ArrowUpRight, Compass, X } from "lucide-react";
+import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw } from "lucide-react";
 import { Accommodation } from "@/types";
 
-const CURATED_ACCOMMODATIONS: Accommodation[] = [
+const FALLBACK_ACCOMMODATIONS: Accommodation[] = [
   {
     id: "1",
     name: "Grand Hotel Continental",
@@ -63,44 +63,172 @@ const CURATED_ACCOMMODATIONS: Accommodation[] = [
   },
 ];
 
-interface AccommodationsProps {
-  initialAccommodations?: Accommodation[];
+const CURATED_IMAGES = [
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=85",
+  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=85",
+];
+
+interface RawAccommodationDto {
+  id: string;
+  name: string;
+  location?: string;
+  city?: string;
+  country?: string;
+  accommodationType?: string;
+  imageUrl?: string;
+  pricePerNight?: number;
 }
 
-export default function Accommodations({
-  initialAccommodations = CURATED_ACCOMMODATIONS,
-}: AccommodationsProps) {
+export default function Accommodations() {
+  const [accommodations, setAccommodations] = useState<Accommodation[]>(FALLBACK_ACCOMMODATIONS);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isFromDatabase, setIsFromDatabase] = useState<boolean>(false);
+
+  // Filters State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedCity, setSelectedCity] = useState<string>("All");
 
+  const reloadData = async () => {
+    setIsLoading(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || "RBooking_Secret_ApiKey_2026_x9k2M!";
+
+      const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const items: RawAccommodationDto[] = Array.isArray(data)
+          ? data
+          : data.items || data.Items || [];
+
+        if (items && items.length > 0) {
+          const mapped: Accommodation[] = items.map((item, index) => ({
+            id: item.id || `acc-${index}`,
+            name: item.name,
+            location: item.location || `${item.city || "România"}, ${item.country || ""}`,
+            city: item.city || "București",
+            country: item.country || "România",
+            accommodationType: item.accommodationType || "Hotel",
+            imageUrl:
+              item.imageUrl ||
+              CURATED_IMAGES[index % CURATED_IMAGES.length],
+          }));
+
+          setAccommodations(mapped);
+          setIsFromDatabase(true);
+          return;
+        }
+      }
+      setAccommodations(FALLBACK_ACCOMMODATIONS);
+      setIsFromDatabase(false);
+    } catch {
+      setAccommodations(FALLBACK_ACCOMMODATIONS);
+      setIsFromDatabase(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let ignore = false;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY || "RBooking_Secret_ApiKey_2026_x9k2M!";
+
+    fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey,
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (ignore) return;
+        if (data) {
+          const items: RawAccommodationDto[] = Array.isArray(data)
+            ? data
+            : data.items || data.Items || [];
+
+          if (items && items.length > 0) {
+            const mapped: Accommodation[] = items.map((item, index) => ({
+              id: item.id || `acc-${index}`,
+              name: item.name,
+              location: item.location || `${item.city || "România"}, ${item.country || ""}`,
+              city: item.city || "București",
+              country: item.country || "România",
+              accommodationType: item.accommodationType || "Hotel",
+              imageUrl:
+                item.imageUrl ||
+                CURATED_IMAGES[index % CURATED_IMAGES.length],
+            }));
+            setAccommodations(mapped);
+            setIsFromDatabase(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+        setAccommodations(FALLBACK_ACCOMMODATIONS);
+        setIsFromDatabase(false);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (ignore) return;
+        setAccommodations(FALLBACK_ACCOMMODATIONS);
+        setIsFromDatabase(false);
+        setIsLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Filter options
   const cities = useMemo(() => {
     const set = new Set<string>();
-    initialAccommodations.forEach((item) => {
-      if (item.city) set.add(item.city);
+    accommodations.forEach((acc) => {
+      if (acc.city) set.add(acc.city);
     });
     return ["All", ...Array.from(set)];
-  }, [initialAccommodations]);
+  }, [accommodations]);
 
-  const filteredItems = useMemo(() => {
-    return initialAccommodations.filter((item) => {
-      const matchText =
+  const accommodationTypes = ["All", "Hotel", "Apartment", "Hostel"];
+
+  // Filtered accommodations
+  const filteredAccommodations = useMemo(() => {
+    return accommodations.filter((item) => {
+      const matchesSearch =
+        searchQuery === "" ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.location.toLowerCase().includes(searchQuery.toLowerCase());
+        item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.city && item.city.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchType =
+      const matchesType =
         selectedType === "All" ||
         item.accommodationType?.toLowerCase() === selectedType.toLowerCase();
 
-      const matchCity =
+      const matchesCity =
         selectedCity === "All" ||
-        item.city?.toLowerCase() === selectedCity.toLowerCase();
+        (item.city && item.city.toLowerCase() === selectedCity.toLowerCase());
 
-      return matchText && matchType && matchCity;
+      return matchesSearch && matchesType && matchesCity;
     });
-  }, [initialAccommodations, searchQuery, selectedType, selectedCity]);
-
-  const hasActiveFilters = searchQuery !== "" || selectedType !== "All" || selectedCity !== "All";
+  }, [accommodations, searchQuery, selectedType, selectedCity]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -108,131 +236,131 @@ export default function Accommodations({
     setSelectedCity("All");
   };
 
+  const hasActiveFilters =
+    searchQuery !== "" || selectedType !== "All" || selectedCity !== "All";
+
   return (
-    <section
-      id="accommodations"
-      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 scroll-mt-6"
-    >
-      {/* Editorial Header cu linii drepte */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 pb-6 border-b border-neutral-300 dark:border-neutral-800 gap-6">
-        <div className="space-y-2 max-w-2xl">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-semibold tracking-[0.25em] uppercase text-neutral-500 dark:text-neutral-400">
-            <span className="w-2 h-2 bg-amber-600 dark:bg-amber-400"></span>
-            <span>Portofoliu Selecționat</span>
+    <section id="accommodations" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+      {/* Editorial Section Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 border-b border-neutral-300 dark:border-neutral-800 pb-6 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-xs font-mono font-semibold tracking-[0.25em] uppercase text-amber-700 dark:text-amber-300">
+              [ 02 / REZERVĂRI &amp; HOTELURI ]
+            </span>
+            {isFromDatabase ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                <Database className="w-3 h-3" />
+                <span>Live PostgreSQL DB</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-700">
+                <span>Colecție Curată</span>
+              </span>
+            )}
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-normal tracking-tight text-neutral-900 dark:text-neutral-50">
-            Accommodations
+          <h2 className="text-3xl sm:text-5xl font-serif font-normal text-neutral-950 dark:text-white tracking-tight">
+            Hoteluri &amp; Reședințe
           </h2>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 font-normal leading-relaxed">
-            O colecție de spații rafinate, boutique hoteluri și apartamente contemporane alese pentru arhitectură și confort.
-          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-neutral-100 dark:bg-[#15171C] text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-800">
-            <span className="font-bold text-neutral-950 dark:text-white mr-1.5">
-              {filteredItems.length}
-            </span>
-            {filteredItems.length === 1 ? "proprietate" : "proprietăți"}
-          </div>
+        <div className="flex items-center gap-4 text-xs font-mono text-neutral-500 dark:text-neutral-400">
+          <button
+            onClick={() => void reloadData()}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer disabled:opacity-50"
+            title="Reîmprospătează datele din baza de date"
+          >
+            <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
+            <span>Reîncarcă DB</span>
+          </button>
+          <span>
+            {filteredAccommodations.length}{" "}
+            {filteredAccommodations.length === 1 ? "opțiune" : "opțiuni găsite"}
+          </span>
         </div>
       </div>
 
-      {/* Modern Refined Search Console (Geometric & Sharp) */}
-      <div className="mb-14 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-4 sm:p-5 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+      {/* Filter & Search Bar */}
+      <div className="bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-6 mb-12 shadow-xs transition-colors duration-300">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
           {/* Search Input */}
-          <div className="lg:col-span-6 relative">
+          <div className="md:col-span-6 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Caută după nume, adresă sau oraș..."
-              className="w-full pl-11 pr-8 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-200 transition-all font-sans border border-neutral-200 dark:border-neutral-800"
+              placeholder="Caută după nume hotel sau locație..."
+              className="w-full pl-11 pr-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white border border-neutral-300 dark:border-neutral-800 font-sans transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          {/* City Dropdown */}
-          <div className="lg:col-span-3 relative">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+          {/* City Filter */}
+          <div className="md:col-span-3">
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="w-full pl-11 pr-8 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-neutral-200 transition-all font-sans appearance-none cursor-pointer border border-neutral-200 dark:border-neutral-800"
+              className="w-full px-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white font-sans transition-all cursor-pointer"
             >
-              <option value="All">Toate destinațiile</option>
-              {cities
-                .filter((c) => c !== "All")
-                .map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
+              {cities.map((city) => (
+                <option key={city} value={city} className="bg-white dark:bg-[#181a20]">
+                  {city === "All" ? "Toate Orașele" : city}
+                </option>
+              ))}
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400 text-xs font-mono">
-              ▼
-            </div>
           </div>
 
-          {/* Type Filter Buttons (Sharp Geometric Blocks) */}
-          <div className="lg:col-span-3 flex items-center gap-1.5 p-1 bg-neutral-100 dark:bg-[#181a20] border border-neutral-200 dark:border-neutral-800 overflow-x-auto">
-            {[
-              { label: "Toate", val: "All" },
-              { label: "Hotel", val: "Hotel" },
-              { label: "Apartament", val: "Apartment" },
-              { label: "Hostel", val: "Hostel" },
-            ].map(({ label, val }) => {
-              const isActive = selectedType === val;
-              return (
-                <button
-                  key={val}
-                  onClick={() => setSelectedType(val)}
-                  className={`flex-1 min-w-[60px] py-2 px-2 text-xs font-mono uppercase tracking-wider transition-all text-center ${
-                    isActive
-                      ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          {/* Type Filter Buttons */}
+          <div className="md:col-span-3 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+            {accommodationTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-3 py-2.5 text-xs font-mono uppercase tracking-wider transition-all duration-150 whitespace-nowrap cursor-pointer flex-1 text-center border ${
+                  selectedType === type
+                    ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white font-bold"
+                    : "bg-neutral-50 dark:bg-[#181a20] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-500"
+                }`}
+              >
+                {type === "All" ? "Toate" : type}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Active Filter Indicators */}
         {hasActiveFilters && (
-          <div className="flex items-center justify-between pt-3 mt-3 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-500 font-mono">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-neutral-400 uppercase tracking-wider">Filtre:</span>
+          <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-mono">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-neutral-500 dark:text-neutral-400 uppercase">Filtre active:</span>
               {searchQuery && (
-                <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700">
-                  &ldquo;{searchQuery}&rdquo;
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                  „{searchQuery}”
                 </span>
               )}
               {selectedCity !== "All" && (
-                <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700">
-                  {selectedCity}
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                  Oraș: {selectedCity}
                 </span>
               )}
               {selectedType !== "All" && (
-                <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700">
-                  {selectedType}
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                  Tip: {selectedType}
                 </span>
               )}
             </div>
             <button
               onClick={clearFilters}
-              className="text-xs font-semibold text-neutral-900 dark:text-white hover:underline underline-offset-4 cursor-pointer"
+              className="text-amber-800 dark:text-amber-300 hover:underline uppercase tracking-wider font-semibold cursor-pointer"
             >
               [ Resetează ]
             </button>
@@ -240,76 +368,90 @@ export default function Accommodations({
         )}
       </div>
 
-      {/* Accommodations Grid (Strictly Image, Name, Location & Details Button) */}
-      {filteredItems.length === 0 ? (
-        <div className="text-center py-24 px-4 border border-dashed border-neutral-300 dark:border-neutral-800 bg-white/40 dark:bg-[#121418]/40">
-          <Compass className="w-10 h-10 mx-auto text-neutral-400 mb-3 stroke-[1.2]" />
-          <h3 className="text-lg font-serif text-neutral-900 dark:text-neutral-100">
-            Nicio locație nu corespunde criteriilor
+      {/* Loading Skeleton */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div
+              key={n}
+              className="bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 animate-pulse"
+            >
+              <div className="w-full h-72 bg-neutral-200 dark:bg-neutral-800" />
+              <div className="p-6 space-y-4">
+                <div className="h-5 bg-neutral-200 dark:bg-neutral-800 w-3/4" />
+                <div className="h-4 bg-neutral-200 dark:bg-neutral-800 w-1/2" />
+                <div className="h-10 bg-neutral-200 dark:bg-neutral-800 w-full mt-4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredAccommodations.length === 0 ? (
+        /* Empty State */
+        <div className="text-center py-20 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-8">
+          <Compass className="w-12 h-12 mx-auto text-neutral-400 mb-4" />
+          <h3 className="text-xl font-serif text-neutral-900 dark:text-white mb-2">
+            Niciun hotel găsit
           </h3>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-sm mx-auto">
-            Încearcă să extinzi căutarea sau să selectezi o altă destinație.
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md mx-auto mb-6">
+            Nu am găsit cazări care să corespundă criteriilor selectate. Încercați să modificați termenii de căutare.
           </p>
           <button
             onClick={clearFilters}
-            className="mt-6 px-6 py-3 text-xs font-mono uppercase tracking-wider bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:opacity-90 transition-opacity"
+            className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white cursor-pointer"
           >
-            Șterge filtrele
+            Resetează Filtrele
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-9">
-          {filteredItems.map((item) => (
+        /* Hotel Cards Grid (Strict: Imagine, Nume, Locatie, Buton Detalii) */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
+          {filteredAccommodations.map((hotel) => (
             <article
-              key={item.id}
-              className="group flex flex-col bg-white dark:bg-[#131519] border border-neutral-300 dark:border-neutral-800 shadow-sm hover:shadow-xl transition-all duration-300"
+              key={hotel.id}
+              className="group bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 hover:border-neutral-900 dark:hover:border-white transition-all duration-300 flex flex-col justify-between shadow-xs"
             >
-              {/* Image Frame with Type Badge */}
-              <div className="relative aspect-[16/11] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+              {/* 1. Imagine Cazare */}
+              <div className="relative w-full h-72 sm:h-80 overflow-hidden bg-neutral-200 dark:bg-neutral-800">
                 <Image
                   src={
-                    item.imageUrl ||
+                    hotel.imageUrl ||
                     "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85"
                   }
-                  alt={item.name}
+                  alt={hotel.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                  className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-                {item.accommodationType && (
-                  <div className="absolute top-3 left-3">
-                    <span className="px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-widest bg-black/85 text-white border border-white/20">
-                      {item.accommodationType}
+                {hotel.accommodationType && (
+                  <div className="absolute top-4 left-4 z-10">
+                    <span className="px-3 py-1 text-[10px] font-mono uppercase tracking-widest font-semibold bg-white/95 text-neutral-950 dark:bg-neutral-950/95 dark:text-white border border-neutral-300 dark:border-white/20 shadow-sm">
+                      {hotel.accommodationType}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Card Body: Name, Location, Button */}
-              <div className="p-6 sm:p-7 flex flex-col flex-1 justify-between gap-6">
-                <div className="space-y-2.5">
-                  <h3 className="text-xl sm:text-2xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-snug group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors line-clamp-1">
-                    {item.name}
+              {/* 2. Informații: Strict Nume & Locație */}
+              <div className="p-6 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-serif text-neutral-950 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors leading-snug mb-2">
+                    {hotel.name}
                   </h3>
 
-                  <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm">
-                    <MapPin className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
-                    <span className="line-clamp-1 font-normal tracking-tight">
-                      {item.location}
-                    </span>
+                  <div className="flex items-start gap-2 text-xs text-neutral-600 dark:text-neutral-400 font-sans">
+                    <MapPin className="w-3.5 h-3.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                    <span>{hotel.location}</span>
                   </div>
                 </div>
 
-                {/* Details Button with Geometric Minimal Styling */}
-                <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                {/* 3. Buton către Pagina de Detalii */}
+                <div className="mt-8 pt-4 border-t border-neutral-200 dark:border-neutral-800">
                   <Link
-                    href={`/accommodations/${item.id}`}
-                    className="inline-flex items-center justify-between w-full py-3 px-4 bg-neutral-100 dark:bg-[#1a1d24] group-hover:bg-neutral-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs font-mono font-semibold tracking-wider uppercase transition-all duration-200 border border-neutral-300 dark:border-neutral-700"
+                    href={`/hotels/${hotel.id}`}
+                    className="w-full py-3.5 px-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs font-semibold uppercase tracking-widest flex items-center justify-between group-hover:bg-amber-700 dark:group-hover:bg-amber-300 dark:group-hover:text-neutral-950 transition-all duration-200 border border-neutral-950 dark:border-white cursor-pointer shadow-xs active:scale-[0.99]"
                   >
                     <span>Vezi detalii</span>
-                    <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </Link>
                 </div>
               </div>
