@@ -8,8 +8,8 @@ import { LogIn } from "lucide-react";
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-neutral-900 transition-colors duration-300">
-      {/* Editorial Navigation Bar (Architectural Sharp Lines - Light & Dark adaptive) */}
-      <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-xs text-neutral-900 dark:text-white transition-colors duration-300">
+      {/* Editorial Navigation Bar (Full Transparent cu blur xs) */}
+      <header className="sticky top-0 z-50 w-full border-b border-black/10 dark:border-white/10 bg-transparent backdrop-blur-xs text-neutral-900 dark:text-white transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3.5 group">
             <div className="w-9 h-9 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 flex items-center justify-center font-serif font-bold text-lg shadow-sm group-hover:bg-amber-600 dark:group-hover:bg-amber-300 transition-colors">
