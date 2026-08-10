@@ -1,235 +1,234 @@
 'use client';
-import { useState } from 'react';
-import Navbar from '@/components/Navbar';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Calendar, MapPin, Trash2, CheckCircle2, Globe, Home, LogOut } from 'lucide-react';
+
+interface Reservation {
+  id: string;
+  hotelName: string;
+  location: string;
+  dates: string;
+  status: 'Confirmed' | 'Pending' | 'Completed';
+  imageUrl: string;
+  type: 'current' | 'past';
+}
+
+const INITIAL_RESERVATIONS: Reservation[] = [
+  {
+    id: 'res-1',
+    hotelName: 'Grand Hotel Continental',
+    location: 'Calea Victoriei 56, București',
+    dates: '12 Sep 2026 - 15 Sep 2026',
+    status: 'Confirmed',
+    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
+    type: 'current',
+  },
+  {
+    id: 'res-2',
+    hotelName: 'Kronwell Alpine Retreat',
+    location: 'Bulevardul Gării 7A, Brașov',
+    dates: '20 Oct 2026 - 23 Oct 2026',
+    status: 'Pending',
+    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
+    type: 'current',
+  },
+  {
+    id: 'res-3',
+    hotelName: 'Grand Hotel Bucharest',
+    location: 'Bucharest, Romania',
+    dates: '10 May 2026 - 15 May 2026',
+    status: 'Completed',
+    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
+    type: 'past',
+  }
+];
 
 export default function ReservationsPage() {
-  const [role] = useState<'guest' | 'user' | 'manager' | 'admin'>('user');
+  const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
+  const [lang, setLang] = useState<'RO' | 'EN'>('RO');
 
-  const [reservations, setReservations] = useState([
-    { id: 101, hotel: 'Grand Hotel Bucharest', location: 'Bucharest, Romania', checkIn: '2026-09-10', checkOut: '2026-09-15', status: 'Confirmed', payment: 'Credit Card' },
-  ]);
+  useEffect(() => {
+    const savedLang = localStorage.getItem('app_lang') as 'RO' | 'EN';
+    if (savedLang === 'RO' || savedLang === 'EN') {
+      setLang(savedLang);
+    }
 
-  // Stări pentru formular
-  const [country, setCountry] = useState('Romania');
-  const [county, setCounty] = useState('Cluj');
-  const [city, setCity] = useState('Cluj-Napoca');
-  const [hotelName, setHotelName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
-  
-  // Date specifice cardului
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+    const savedReservations = localStorage.getItem('rbooking_user_reservations');
+    if (savedReservations) {
+      try {
+        setReservations(JSON.parse(savedReservations));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
 
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-
-  // Sugestii pentru hoteluri (funcționează și ca scriere liberă)
-  const hotelSuggestions = [
-    'Hotel Belvedere',
-    'Grand Hotel Napoca',
-    'Plaza Hotel',
-    'Hotel Transilvania',
-  ];
-
-  const handleAddReservation = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hotelName || !checkIn || !checkOut || !paymentMethod) return;
-
-    const newRes = {
-      id: Date.now(),
-      hotel: hotelName,
-      location: `${city}, ${country}`,
-      checkIn,
-      checkOut,
-      status: 'Confirmed',
-      payment: paymentMethod === 'Credit Card' ? `Credit Card ending in ${cardNumber.slice(-4) || '1234'}` : paymentMethod
-    };
-
-    setReservations([...reservations, newRes]);
-    
-    // Resetare
-    setHotelName('');
-    setCheckIn('');
-    setCheckOut('');
-    setPaymentMethod('');
-    setCardNumber('');
-    setCardExpiry('');
-    setCardCvv('');
+  const toggleLang = () => {
+    const nextLang = lang === 'RO' ? 'EN' : 'RO';
+    setLang(nextLang);
+    localStorage.setItem('app_lang', nextLang);
   };
 
-  const handleCancel = (id: number) => {
-    setReservations(reservations.filter((res) => res.id !== id));
+  const handleRemoveReservation = (id: string) => {
+    const updated = reservations.filter((item) => item.id !== id);
+    setReservations(updated);
+    localStorage.setItem('rbooking_user_reservations', JSON.stringify(updated));
   };
+
+  const currentBookings = reservations.filter((r) => r.type === 'current');
+  const pastBookings = reservations.filter((r) => r.type === 'past');
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <Navbar role={role} />
+    <main className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
+      <nav className="border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-md sticky top-0 z-50 px-8 py-4 flex justify-between items-center">
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="w-8 h-8 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 flex items-center justify-center font-serif font-bold text-sm shadow-sm">
+            R
+          </div>
+          <span className="font-serif font-medium text-lg tracking-tight">RBooking</span>
+        </Link>
+        <div className="flex items-center gap-4 text-xs font-mono uppercase tracking-wider">
+          <button 
+            onClick={toggleLang}
+            className="flex items-center gap-1.5 px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{lang}</span>
+          </button>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">My Reservations</h1>
-        <p className="text-gray-600 mb-8">Manage your active and past hotel bookings.</p>
+          <Link href="/" className="flex items-center gap-1.5 px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
+            <Home className="w-3.5 h-3.5" />
+            <span>{lang === 'RO' ? 'Acasă' : 'Home'}</span>
+          </Link>
 
-        {/* Formular de rezervare */}
-        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Book a New Stay</h2>
-          
-          <form onSubmit={handleAddReservation} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Țară */}
-            <select 
-              value={country} 
-              onChange={(e) => setCountry(e.target.value)}
-              className="border p-2 rounded-lg text-gray-900 bg-white"
-            >
-              <option value="Romania">Romania</option>
-              <option value="Hungary">Hungary</option>
-              <option value="Germany">Germany</option>
-            </select>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('rbooking_logged_in');
+              window.location.href = '/';
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 rounded hover:opacity-90 transition cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>{lang === 'RO' ? 'Ieșire' : 'Logout'}</span>
+          </button>
+        </div>
+      </nav>
 
-            {/* Județ */}
-            <select 
-              value={county} 
-              onChange={(e) => setCounty(e.target.value)}
-              className="border p-2 rounded-lg text-gray-900 bg-white"
-            >
-              <option value="Cluj">Cluj</option>
-              <option value="Mureș">Mureș</option>
-              <option value="București">București</option>
-            </select>
-
-            {/* Oraș */}
-            <select 
-              value={city} 
-              onChange={(e) => setCity(e.target.value)}
-              className="border p-2 rounded-lg text-gray-900 bg-white"
-            >
-              <option value="Cluj-Napoca">Cluj-Napoca</option>
-              <option value="Târgu Mureș">Târgu Mureș</option>
-              <option value="Bucharest">Bucharest</option>
-            </select>
-
-            {/* Nume Hotel: Permite atât scriere liberă cât și selecție din listă (datalist) */}
-            <div>
-              <input 
-                type="text" 
-                list="hotels-list"
-                placeholder="Type or select hotel name" 
-                value={hotelName}
-                onChange={(e) => setHotelName(e.target.value)}
-                required
-                className="w-full border p-2 rounded-lg text-gray-900 placeholder:text-gray-500"
-              />
-              <datalist id="hotels-list">
-                {hotelSuggestions.map((h, index) => (
-                  <option key={index} value={h} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Metodă de plată */}
-            <select 
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              required
-              className="border p-2 rounded-lg text-gray-900 bg-white md:col-span-2"
-            >
-              <option value="" disabled>Select Payment Method</option>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Apple Pay">Apple Pay</option>
-              <option value="Google Pay">Google Pay</option>
-              <option value="PayPal">PayPal</option>
-            </select>
-
-            {/* Dacă alege Credit Card, cerem detaliile cardului */}
-            {paymentMethod === 'Credit Card' && (
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border">
-                <input 
-                  type="text" 
-                  placeholder="Card Number (16 digits)" 
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  maxLength={16}
-                  required
-                  className="border p-2 rounded-lg text-gray-900 bg-white md:col-span-1"
-                />
-                <input 
-                  type="text" 
-                  placeholder="MM/YY" 
-                  value={cardExpiry}
-                  onChange={(e) => setCardExpiry(e.target.value)}
-                  maxLength={5}
-                  required
-                  className="border p-2 rounded-lg text-gray-900 bg-white"
-                />
-                <input 
-                  type="password" 
-                  placeholder="CVV" 
-                  value={cardCvv}
-                  onChange={(e) => setCardCvv(e.target.value)}
-                  maxLength={3}
-                  required
-                  className="border p-2 rounded-lg text-gray-900 bg-white"
-                />
-              </div>
-            )}
-
-            {/* Date Check-in */}
-            <input 
-              type="date" 
-              value={checkIn}
-              onChange={(e) => setCheckIn(e.target.value)}
-              required
-              className="border p-2 rounded-lg text-gray-900"
-            />
-
-            {/* Date Check-out */}
-            <input 
-              type="date" 
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-              required
-              className="border p-2 rounded-lg text-gray-900"
-            />
-
-            <button 
-              type="submit" 
-              className="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium transition mt-2"
-            >
-              Confirm & Pay
-            </button>
-          </form>
+      <div className="w-full max-w-4xl mx-auto px-6 py-12">
+        <div className="mb-10 pb-6 border-b border-neutral-300 dark:border-neutral-800">
+          <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">
+            [ {lang === 'RO' ? 'ISTORIC CONT' : 'ACCOUNT HISTORY'} ]
+          </p>
+          <h1 className="text-3xl font-serif text-neutral-900 dark:text-neutral-50 tracking-wide">
+            {lang === 'RO' ? 'Rezervările Mele' : 'My Reservations'}
+          </h1>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+            {lang === 'RO' 
+              ? 'Vizualizează sejururile active din prezent și istoricul rezervărilor anterioare.' 
+              : 'View your active stays and past booking history.'}
+          </p>
         </div>
 
-        {/* Listă rezervări */}
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Active Bookings</h2>
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-          <div className="divide-y divide-gray-200">
-            {reservations.map((res) => (
-              <div key={res.id} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h3 className="font-bold text-lg text-gray-800">{res.hotel}</h3>
-                  <p className="text-xs text-gray-500">📍 {res.location}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Check-in: {res.checkIn} → Check-out: {res.checkOut}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1 font-medium">
-                     💳 Paid with {res.payment}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                    {res.status}
-                  </span>
-                  <button 
-                    onClick={() => handleCancel(res.id)}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium transition"
+        {/* Sejururi Active */}
+        <div className="mb-10">
+          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase mb-4">
+            {lang === 'RO' ? 'Sejururi Active (Prezent)' : 'Active Stays (Current)'}
+          </h2>
+          {currentBookings.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#111]">
+              <Calendar className="w-10 h-10 mx-auto text-neutral-400 mb-3 stroke-[1.5]" />
+              <p className="text-neutral-600 dark:text-neutral-400 font-mono text-xs uppercase">
+                {lang === 'RO' ? 'Nu ai niciun sejur activ în prezent.' : 'You have no active stays at the moment.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {currentBookings.map((item) => (
+                <div 
+                  key={item.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
+                      <img src={item.imageUrl} alt={item.hotelName} className="object-cover w-full h-full" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-600 dark:text-amber-400">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{item.status}</span>
+                      </div>
+                      <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50">
+                        {item.hotelName}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{item.location}</span>
+                      </div>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-1">
+                        📅 {item.dates}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleRemoveReservation(item.id)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-mono uppercase tracking-wider transition-all cursor-pointer w-full sm:w-auto justify-center rounded-lg"
                   >
-                    Cancel
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{lang === 'RO' ? 'Anulează' : 'Cancel'}</span>
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Rezervări Anterioare */}
+        <div>
+          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase mb-4">
+            {lang === 'RO' ? 'Rezervări Anterioare (Istoric)' : 'Past Bookings (History)'}
+          </h2>
+          {pastBookings.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#111]">
+              <p className="text-neutral-600 dark:text-neutral-400 font-mono text-xs uppercase">
+                {lang === 'RO' ? 'Nu ai rezervări anterioare în istoric.' : 'No past bookings found.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 opacity-90">
+              {pastBookings.map((item) => (
+                <div 
+                  key={item.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
+                      <img src={item.imageUrl} alt={item.hotelName} className="object-cover w-full h-full" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50">
+                        {item.hotelName}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{item.location}</span>
+                      </div>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-1">
+                        📅 {item.dates}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                      {lang === 'RO' ? 'Finalizat' : 'Completed'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>
