@@ -73,6 +73,31 @@ public class AccommodationService : IAccommodationService
         accommodation.Description = dto.Description;
         accommodation.OperatorId = currentUserId.ToString();
 
+        if (!string.IsNullOrWhiteSpace(dto.ImageUrl))
+        {
+            accommodation.Images.Add(new AccommodationImage
+            {
+                AccommodationId = accommodation.Id,
+                FilePath = dto.ImageUrl.Trim(),
+                IsMain = true
+            });
+        }
+        if (dto.ImageUrls != null && dto.ImageUrls.Any())
+        {
+            foreach (var url in dto.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            {
+                if (url.Trim() != dto.ImageUrl?.Trim())
+                {
+                    accommodation.Images.Add(new AccommodationImage
+                    {
+                        AccommodationId = accommodation.Id,
+                        FilePath = url.Trim(),
+                        IsMain = false
+                    });
+                }
+            }
+        }
+
         var created = await _accommodationRepository.AddAsync(accommodation);
         return MapToDto(created, 0.0, 0);
     }
@@ -91,7 +116,9 @@ public class AccommodationService : IAccommodationService
             OperatorId = a.OperatorId ?? string.Empty,
             AverageRating = Math.Round(avgRating, 1),
             TotalReviewsCount = reviewCount,
-            AccommodationType = a.GetType().Name
+            AccommodationType = a.GetType().Name,
+            ImageUrl = a.Images?.FirstOrDefault(i => i.IsMain)?.FilePath ?? a.Images?.FirstOrDefault()?.FilePath,
+            ImageUrls = a.Images?.Select(i => i.FilePath).ToList() ?? new List<string>()
         };
 
         if (a is Hotel hotel)

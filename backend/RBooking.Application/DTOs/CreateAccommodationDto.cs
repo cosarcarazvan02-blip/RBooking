@@ -9,6 +9,8 @@ public class CreateAccommodationDto
     public decimal PricePerNight { get; set; }
     public string Description { get; set; } = string.Empty;
     public string AccommodationType { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
+    public List<string>? ImageUrls { get; set; }
 
     // Hotel specific
     public int? Stars { get; set; }
