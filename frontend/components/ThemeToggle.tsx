@@ -1,23 +1,39 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useSyncExternalStore } from "react";
 import { Sun, Moon } from "lucide-react";
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [mounted, setMounted] = useState(false);
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  const observer = new MutationObserver(callback);
+  if (typeof document !== "undefined") {
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  }
+  return () => {
+    window.removeEventListener("storage", callback);
+    observer.disconnect();
+  };
+}
 
-  useEffect(() => {
-    setMounted(true);
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
+function getSnapshot() {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function getServerSnapshot() {
+  return "dark";
+}
+
+export default function ThemeToggle() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-
     const root = document.documentElement;
+
     if (nextTheme === "dark") {
       root.classList.add("dark");
       localStorage.setItem("rbooking_theme", "dark");
@@ -26,12 +42,6 @@ export default function ThemeToggle() {
       localStorage.setItem("rbooking_theme", "light");
     }
   };
-
-  if (!mounted) {
-    return (
-      <div className="w-24 h-8 border border-neutral-300 dark:border-white/20 bg-neutral-100 dark:bg-white/10" />
-    );
-  }
 
   return (
     <button
