@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Shield, User, Hotel, Check, AlertCircle } from "lucide-react";
+import { getActiveApiKey } from "@/lib/apiKey";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -101,7 +102,7 @@ const validateEmail = (val: string): string | null => {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
-      const apiKey = process.env.NEXT_PUBLIC_API_KEY || "RBooking_Secret_ApiKey_2026_x9k2M!";
+      const apiKey = getActiveApiKey();
 
       const response = await fetch(`${apiUrl}/Auth/login`, {
         method: "POST",
