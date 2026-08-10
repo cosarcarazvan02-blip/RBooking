@@ -5,17 +5,7 @@ import { Sun, Moon } from "lucide-react";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);
-  const observer = new MutationObserver(callback);
-  if (typeof document !== "undefined") {
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-  }
-  return () => {
-    window.removeEventListener("storage", callback);
-    observer.disconnect();
-  };
+  return () => window.removeEventListener("storage", callback);
 }
 
 function getSnapshot() {
@@ -41,6 +31,7 @@ export default function ThemeToggle() {
       root.classList.remove("dark");
       localStorage.setItem("rbooking_theme", "light");
     }
+    window.dispatchEvent(new Event("storage"));
   };
 
   return (
