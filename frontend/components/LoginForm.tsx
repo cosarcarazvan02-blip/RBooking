@@ -20,8 +20,7 @@ export default function LoginForm() {
   // Global form states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const validateEmail = (val: string): string | null => {
+const validateEmail = (val: string): string | null => {
     const trimmed = val.trim();
     if (!trimmed) {
       return "Adresa de email este obligatorie.";
@@ -69,6 +68,7 @@ export default function LoginForm() {
       setPasswordError(validatePassword(password));
     }
   };
+  
 
   const selectQuickRole = (roleEmail: string) => {
     setEmail(roleEmail);
@@ -83,6 +83,7 @@ export default function LoginForm() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    
     // Validate all fields on submit
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
