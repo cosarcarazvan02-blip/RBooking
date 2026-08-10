@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,7 +52,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-[#FBFBF9] text-[#1A1A1A] dark:bg-[#0D0E11] dark:text-[#F3F4F6] selection:bg-[#1A1A1A] selection:text-[#FBFBF9] dark:selection:bg-[#F3F4F6] dark:selection:text-[#0D0E11]">
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -1,10 +1,12 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowDown, Compass, Sparkles, Star, ShieldCheck, MapPin } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function HeroBanner() {
+  const { lang } = useLanguage();
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
@@ -36,6 +38,39 @@ export default function HeroBanner() {
   const textOpacity = Math.max(0, 1 - scrollY / 550);
   const floatingCardLeft = scrollY * -0.18;
   const floatingCardRight = scrollY * 0.12;
+
+  // Dicționar de texte pentru RO și EN bazat pe starea globală
+  const t = {
+    badge: lang === 'RO' ? 'Colecție Exclusivă • 2026' : 'Exclusive Collection • 2026',
+    verified: lang === 'RO' ? 'VERIFICAT' : 'VERIFIED',
+    reviews: lang === 'RO' ? 'Peste 1.400 de recenzii autentice' : 'Over 1,400 authentic reviews',
+    locations: lang === 'RO' ? 'Locații de Top • România' : 'Top Locations • Romania',
+    titleMain: lang === 'RO' ? 'Arhitectură, Liniște &' : 'Architecture, Serenity &',
+    titleItalic: lang === 'RO' ? 'Ospitalitate Distinctă.' : 'Distinct Hospitality.',
+    description: lang === 'RO' 
+      ? 'O selecție editorială de boutique hoteluri, conace restaurate și apartamente urbane cu design contemporan. Fiecare destinație este aleasă cu atenție pentru o experiență memorabilă.'
+      : 'An editorial selection of boutique hotels, restored manors, and contemporary urban apartments. Each destination is carefully chosen for a memorable experience.',
+    explore: lang === 'RO' ? 'Explorează Hotelurile' : 'Explore Hotels',
+    scroll: lang === 'RO' ? '[ scroll în jos pentru listă ↓ ]' : '[ scroll down for list ↓ ]',
+    features: [
+      {
+        title: lang === 'RO' ? '01 / Selecție' : '01 / Selection',
+        desc: lang === 'RO' ? '100% Verificate Manual' : '100% Manually Verified',
+      },
+      {
+        title: lang === 'RO' ? '02 / Calitate' : '02 / Quality',
+        desc: lang === 'RO' ? 'Standarde Premium' : 'Premium Standards',
+      },
+      {
+        title: lang === 'RO' ? '03 / Flexibilitate' : '03 / Flexibility',
+        desc: lang === 'RO' ? 'Rezervare Directă' : 'Direct Booking',
+      },
+      {
+        title: lang === 'RO' ? '04 / Destinații' : '04 / Destinations',
+        desc: lang === 'RO' ? 'Orașe & Zone Montane' : 'Cities & Mountain Areas',
+      },
+    ]
+  };
 
   return (
     <section className="relative w-full overflow-hidden bg-[#F4F1EA] dark:bg-[#0D0E11] text-neutral-900 dark:text-white min-h-[90vh] flex flex-col justify-between transition-colors duration-300">
@@ -76,10 +111,10 @@ export default function HeroBanner() {
         <div>
           <div className="text-xs font-bold tracking-wide flex items-center gap-2">
             <span>4.96 / 5.0</span>
-            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono tracking-widest">[ VERIFICAT ]</span>
+            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono tracking-widest">[ {t.verified} ]</span>
           </div>
           <p className="text-[11px] text-neutral-600 dark:text-neutral-400 font-sans mt-0.5">
-            Peste 1.400 de recenzii autentice
+            {t.reviews}
           </p>
         </div>
       </div>
@@ -95,7 +130,7 @@ export default function HeroBanner() {
           <MapPin className="w-3.5 h-3.5" />
         </div>
         <div className="text-xs font-mono tracking-wider uppercase">
-          Locații de Top • România
+          {t.locations}
         </div>
       </div>
 
@@ -111,7 +146,7 @@ export default function HeroBanner() {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] bg-amber-500/10 text-amber-800 border border-amber-500/30 dark:bg-white/10 dark:text-amber-300 dark:border-white/20 backdrop-blur-md">
             <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-300" />
-            <span>Colecție Exclusivă • 2026</span>
+            <span>{t.badge}</span>
           </div>
           <span className="text-neutral-500 dark:text-neutral-400 text-xs tracking-wider uppercase font-mono hidden sm:inline-block">
             [ 01 / PORTFOLIO ]
@@ -121,14 +156,14 @@ export default function HeroBanner() {
         {/* Titlu Dinamic */}
         <div className="max-w-4xl space-y-6 my-auto">
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-normal tracking-tight text-neutral-950 dark:text-white leading-[1.08]">
-            Arhitectură, Liniște &amp;{" "}
+            {t.titleMain}{" "}
             <span className="italic font-light text-amber-800 dark:text-amber-200 block sm:inline">
-              Ospitalitate Distinctă.
+              {t.titleItalic}
             </span>
           </h1>
 
           <p className="text-base sm:text-lg text-neutral-700 dark:text-neutral-300 font-sans font-normal max-w-2xl leading-relaxed text-balance">
-            O selecție editorială de boutique hoteluri, conace restaurate și apartamente urbane cu design contemporan. Fiecare destinație este aleasă cu atenție pentru o experiență memorabilă.
+            {t.description}
           </p>
 
           {/* Buton cu linii geometrice drepte */}
@@ -138,12 +173,12 @@ export default function HeroBanner() {
               className="inline-flex items-center gap-3 px-8 py-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-semibold text-xs uppercase tracking-[0.2em] hover:bg-neutral-800 dark:hover:bg-amber-300 dark:hover:text-neutral-950 active:scale-[0.99] transition-all duration-200 shadow-xl shadow-black/10 dark:shadow-black/40 group cursor-pointer border border-neutral-950 dark:border-white"
             >
               <Compass className="w-4 h-4 text-white dark:text-neutral-900 group-hover:rotate-45 transition-transform duration-300" />
-              <span>Explorează Hotelurile</span>
+              <span>{t.explore}</span>
               <ArrowDown className="w-4 h-4 animate-bounce" />
             </button>
 
             <span className="text-xs text-neutral-500 dark:text-neutral-400 font-mono uppercase tracking-wider">
-              [ scroll în jos pentru listă ↓ ]
+              {t.scroll}
             </span>
           </div>
         </div>
@@ -153,21 +188,21 @@ export default function HeroBanner() {
           <div className="space-y-1.5 pl-3 border-l border-amber-600 dark:border-amber-400/40">
             <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 flex items-center gap-1.5 font-bold">
               <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>01 / Selecție</span>
+              <span>{t.features[0].title}</span>
             </div>
-            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">100% Verificate Manual</div>
+            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">{t.features[0].desc}</div>
           </div>
           <div className="space-y-1.5 pl-3 border-l border-neutral-300 dark:border-white/20">
-            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">02 / Calitate</div>
-            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">Standarde Premium</div>
+            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">{t.features[1].title}</div>
+            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">{t.features[1].desc}</div>
           </div>
           <div className="space-y-1.5 pl-3 border-l border-neutral-300 dark:border-white/20">
-            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">03 / Flexibilitate</div>
-            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">Rezervare Directă</div>
+            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">{t.features[2].title}</div>
+            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">{t.features[2].desc}</div>
           </div>
           <div className="space-y-1.5 pl-3 border-l border-neutral-300 dark:border-white/20">
-            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">04 / Destinații</div>
-            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">Orașe & Zone Montane</div>
+            <div className="text-[10px] uppercase font-mono tracking-widest text-amber-800 dark:text-amber-300/90 font-bold">{t.features[3].title}</div>
+            <div className="text-xs sm:text-sm font-medium text-neutral-950 dark:text-white">{t.features[3].desc}</div>
           </div>
         </div>
       </div>
