@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useSyncExternalStore } from 'react';
 
 type Lang = 'RO' | 'EN';
 
@@ -12,32 +12,39 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('RO');
-  const [mounted, setMounted] = useState(false);
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener('lang-change', callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('lang-change', callback);
+  };
+}
 
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('app_lang') as Lang;
-    if (saved === 'RO' || saved === 'EN') {
-      setLangState(saved);
-    }
-  }, []);
+function getSnapshot(): Lang {
+  if (typeof window === 'undefined') return 'RO';
+  const saved = localStorage.getItem('app_lang');
+  return saved === 'RO' || saved === 'EN' ? saved : 'RO';
+}
+
+function getServerSnapshot(): Lang {
+  return 'RO';
+}
+
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const lang = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setLang = (newLang: Lang) => {
-    setLangState(newLang);
-    localStorage.setItem('app_lang', newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_lang', newLang);
+      window.dispatchEvent(new Event('lang-change'));
+    }
   };
 
   const toggleLang = () => {
     const nextLang = lang === 'RO' ? 'EN' : 'RO';
     setLang(nextLang);
   };
-
-  // Evită randarea greșită pe server până când starea este preluată din localStorage
-  if (!mounted) {
-    return null;
-  }
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, toggleLang }}>

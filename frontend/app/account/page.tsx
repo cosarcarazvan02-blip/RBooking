@@ -24,14 +24,22 @@ export default function AccountPage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('rbooking_user_profile');
-    if (saved) {
-      try {
-        setProfile(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+    let ignore = false;
+    const timer = setTimeout(() => {
+      const saved = localStorage.getItem('rbooking_user_profile');
+      if (saved) {
+        try {
+          if (!ignore) setProfile(JSON.parse(saved));
+        } catch (e) {
+          console.error(e);
+        }
       }
-    }
+    }, 0);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSave = (e: React.FormEvent) => {

@@ -43,8 +43,8 @@ export default function LoginPage() {
     // Setăm starea de logare în localStorage
     localStorage.setItem('rbooking_logged_in', 'true');
 
-    // Redirecționare forțată către pagina principală
-    window.location.href = '/';
+    // Redirecționare către pagina principală
+    router.push('/');
   };
 
   return (
