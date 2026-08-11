@@ -180,7 +180,7 @@ export default function ManageAccommodationsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <span className="text-xs font-mono uppercase tracking-[0.2em] text-neutral-500">
-              [ PANOU MANAGEMENT ]
+              {lang === 'RO' ? '[ PANOU MANAGEMENT ]' : '[ MANAGEMENT PANEL ]'}
             </span>
             <h1 className="font-serif text-3xl font-medium mt-1">
               {lang === 'RO' ? 'Gestionare Cazări' : 'Manage Accommodations'}
@@ -235,20 +235,22 @@ export default function ManageAccommodationsPage() {
                     <div className="flex items-center gap-1 font-serif font-semibold text-lg">
                       <Euro className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       <span>{item.price}</span>
-                      <span className="text-xs font-mono text-neutral-400 font-normal">/ noapte</span>
+                      <span className="text-xs font-mono text-neutral-400 font-normal">
+                        {lang === 'RO' ? '/ noapte' : '/ night'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleEdit(item)}
                         className="p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-                        title="Editează"
+                        title={lang === 'RO' ? 'Editează' : 'Edit'}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
                         className="p-2 border border-red-200 dark:border-red-900/40 text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                        title="Șterge"
+                        title={lang === 'RO' ? 'Șterge' : 'Delete'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -279,31 +281,37 @@ export default function ManageAccommodationsPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Titlu Cazare</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Titlu Cazare' : 'Accommodation Title'}
+                  </label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
-                    placeholder="Ex: Conacul Transilvaniei"
+                    placeholder={lang === 'RO' ? 'Ex: Conacul Transilvaniei' : 'Ex: Transylvania Manor'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Locație</label>
+                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                      {lang === 'RO' ? 'Locație' : 'Location'}
+                    </label>
                     <input
                       type="text"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       required
-                      placeholder="Ex: Brașov, România"
+                      placeholder={lang === 'RO' ? 'Ex: Brașov, România' : 'Ex: Brasov, Romania'}
                       className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Preț / Noapte (€)</label>
+                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                      {lang === 'RO' ? 'Preț / Noapte (€)' : 'Price / Night (€)'}
+                    </label>
                     <input
                       type="number"
                       value={price}
@@ -315,19 +323,23 @@ export default function ManageAccommodationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Tip Cazare</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Tip Cazare' : 'Accommodation Type'}
+                  </label>
                   <input
                     type="text"
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                     required
-                    placeholder="Ex: Hotel Boutique, Conac, Apartament"
+                    placeholder={lang === 'RO' ? 'Ex: Hotel Boutique, Conac, Apartament' : 'Ex: Boutique Hotel, Manor, Apartment'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">URL Imagine</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'URL Imagine' : 'Image URL'}
+                  </label>
                   <input
                     type="url"
                     value={image}
@@ -338,12 +350,14 @@ export default function ManageAccommodationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Descriere</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Descriere' : 'Description'}
+                  </label>
                   <textarea
                     rows={3}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Detalii despre proprietate..."
+                    placeholder={lang === 'RO' ? 'Detalii despre proprietate...' : 'Property details...'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500 resize-none"
                   />
                 </div>
@@ -354,13 +368,15 @@ export default function ManageAccommodationsPage() {
                     onClick={() => setIsModalOpen(false)}
                     className="px-5 py-2.5 text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
                   >
-                    Anulează
+                    {lang === 'RO' ? 'Anulează' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2.5 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all rounded-xl shadow-sm cursor-pointer"
                   >
-                    {editingId ? 'Salvează Modificările' : 'Adaugă Cazare'}
+                    {editingId
+                      ? (lang === 'RO' ? 'Salvează Modificările' : 'Save Changes')
+                      : (lang === 'RO' ? 'Adaugă Cazare' : 'Add Stay')}
                   </button>
                 </div>
               </form>
