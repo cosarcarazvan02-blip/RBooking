@@ -1,9 +1,24 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
-import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit, MapPin, Euro, X, RefreshCw } from 'lucide-react';
+import { getActiveApiKey } from '@/lib/apiKey';
+
+const NO_PHOTO_PLACEHOLDER = 'https://www.tez-tour.ro/static/images/nophoto-hotel.png';
+
+interface RawAccommodationDto {
+  id: string;
+  name: string;
+  location?: string;
+  city?: string;
+  country?: string;
+  accommodationType?: string;
+  imageUrl?: string;
+  pricePerNight?: number;
+  description?: string;
+}
 
 interface Accommodation {
   id: string;
@@ -19,6 +34,7 @@ export default function ManageAccommodationsPage() {
   const router = useRouter();
   const { lang } = useLanguage();
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -51,39 +67,80 @@ export default function ManageAccommodationsPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    let ignore = false;
-    const loadData = () => {
-      const saved = localStorage.getItem('rbooking_accommodations');
-      if (saved) {
-        try {
-          if (!ignore) setAccommodations(JSON.parse(saved));
-          return;
-        } catch (e) {
-          console.error(e);
-        }
+  const fetchAccommodations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const apiKey = getActiveApiKey();
+
+      const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const items: RawAccommodationDto[] = Array.isArray(data)
+          ? data
+          : data.items || data.Items || [];
+
+        const mapped: Accommodation[] = items.map((item, index) => ({
+          id: item.id || `acc-${index}`,
+          title: item.name,
+          location: item.location || `${item.city || 'România'}, ${item.country || ''}`,
+          price: item.pricePerNight || 150,
+          type: item.accommodationType || 'Hotel Boutique',
+          description: item.description || '',
+          image: item.imageUrl && item.imageUrl.trim() ? item.imageUrl : NO_PHOTO_PLACEHOLDER,
+        }));
+
+        setAccommodations(mapped);
+        localStorage.setItem('rbooking_accommodations', JSON.stringify(mapped));
+        setIsLoading(false);
+        return;
       }
-      const initial: Accommodation[] = [
-        {
-          id: '1',
-          title: 'The Transylvanian Manor',
-          location: 'Sighișoara, România',
-          price: 220,
-          type: 'Historic Manor',
-          description: 'Un conac restaurat cu atenție la detalii, situat în inima Transilvaniei.',
-          image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'
+    } catch {
+      // ignore
+    }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Do NOT spawn any mock accommodations. Only load what exists or empty array.
+    const saved = localStorage.getItem('rbooking_accommodations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setAccommodations(parsed);
+          setIsLoading(false);
+          return;
         }
-      ];
-      if (!ignore) setAccommodations(initial);
-      localStorage.setItem('rbooking_accommodations', JSON.stringify(initial));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setAccommodations([]);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAccommodations();
+
+    const handleKeyChange = () => {
+      fetchAccommodations();
     };
 
-    const timer = setTimeout(loadData, 0);
+    window.addEventListener('api-key-change', handleKeyChange);
     return () => {
-      ignore = true;
-      clearTimeout(timer);
+      window.removeEventListener('api-key-change', handleKeyChange);
     };
-  }, []);
+  }, [fetchAccommodations]);
 
   const saveToStorage = (updated: Accommodation[]) => {
     setAccommodations(updated);
@@ -136,7 +193,7 @@ export default function ManageAccommodationsPage() {
         price: Number(price),
         type,
         description,
-        image: image || 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+        image: image || NO_PHOTO_PLACEHOLDER,
       };
       saveToStorage([...accommodations, newItem]);
     }
@@ -147,12 +204,12 @@ export default function ManageAccommodationsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
       <Navbar />
-
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <span className="text-xs font-mono uppercase tracking-[0.2em] text-neutral-500">
-              [ PANOU MANAGEMENT ]
+              {lang === 'RO' ? '[ PANOU MANAGEMENT ]' : '[ MANAGEMENT PANEL ]'}
             </span>
             <h1 className="font-serif text-3xl font-medium mt-1">
               {lang === 'RO' ? 'Gestionare Cazări' : 'Manage Accommodations'}
@@ -207,20 +264,22 @@ export default function ManageAccommodationsPage() {
                     <div className="flex items-center gap-1 font-serif font-semibold text-lg">
                       <Euro className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       <span>{item.price}</span>
-                      <span className="text-xs font-mono text-neutral-400 font-normal">/ noapte</span>
+                      <span className="text-xs font-mono text-neutral-400 font-normal">
+                        {lang === 'RO' ? '/ noapte' : '/ night'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleEdit(item)}
                         className="p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-                        title="Editează"
+                        title={lang === 'RO' ? 'Editează' : 'Edit'}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
                         className="p-2 border border-red-200 dark:border-red-900/40 text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                        title="Șterge"
+                        title={lang === 'RO' ? 'Șterge' : 'Delete'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -251,31 +310,37 @@ export default function ManageAccommodationsPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Titlu Cazare</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Titlu Cazare' : 'Accommodation Title'}
+                  </label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
-                    placeholder="Ex: Conacul Transilvaniei"
+                    placeholder={lang === 'RO' ? 'Ex: Conacul Transilvaniei' : 'Ex: Transylvania Manor'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Locație</label>
+                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                      {lang === 'RO' ? 'Locație' : 'Location'}
+                    </label>
                     <input
                       type="text"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       required
-                      placeholder="Ex: Brașov, România"
+                      placeholder={lang === 'RO' ? 'Ex: Brașov, România' : 'Ex: Brasov, Romania'}
                       className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Preț / Noapte (€)</label>
+                    <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                      {lang === 'RO' ? 'Preț / Noapte (€)' : 'Price / Night (€)'}
+                    </label>
                     <input
                       type="number"
                       value={price}
@@ -287,19 +352,23 @@ export default function ManageAccommodationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Tip Cazare</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Tip Cazare' : 'Accommodation Type'}
+                  </label>
                   <input
                     type="text"
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                     required
-                    placeholder="Ex: Hotel Boutique, Conac, Apartament"
+                    placeholder={lang === 'RO' ? 'Ex: Hotel Boutique, Conac, Apartament' : 'Ex: Boutique Hotel, Manor, Apartment'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">URL Imagine</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'URL Imagine' : 'Image URL'}
+                  </label>
                   <input
                     type="url"
                     value={image}
@@ -310,12 +379,14 @@ export default function ManageAccommodationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">Descriere</label>
+                  <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
+                    {lang === 'RO' ? 'Descriere' : 'Description'}
+                  </label>
                   <textarea
                     rows={3}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Detalii despre proprietate..."
+                    placeholder={lang === 'RO' ? 'Detalii despre proprietate...' : 'Property details...'}
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500 resize-none"
                   />
                 </div>
@@ -326,13 +397,15 @@ export default function ManageAccommodationsPage() {
                     onClick={() => setIsModalOpen(false)}
                     className="px-5 py-2.5 text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
                   >
-                    Anulează
+                    {lang === 'RO' ? 'Anulează' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2.5 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all rounded-xl shadow-sm cursor-pointer"
                   >
-                    {editingId ? 'Salvează Modificările' : 'Adaugă Cazare'}
+                    {editingId
+                      ? (lang === 'RO' ? 'Salvează Modificările' : 'Save Changes')
+                      : (lang === 'RO' ? 'Adaugă Cazare' : 'Add Stay')}
                   </button>
                 </div>
               </form>

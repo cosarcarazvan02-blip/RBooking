@@ -47,7 +47,7 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
-  const { lang, toggleLang } = useLanguage();
+  const { lang } = useLanguage();
 
   useEffect(() => {
     let ignore = false;
@@ -68,7 +68,6 @@ export default function ReservationsPage() {
     };
   }, []);
 
-
   const handleRemoveReservation = (id: string) => {
     const updated = reservations.filter((item) => item.id !== id);
     setReservations(updated);
@@ -81,8 +80,8 @@ export default function ReservationsPage() {
   return (
     <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
       <Navbar />
-
       <div className="w-full max-w-4xl mx-auto px-6 py-12">
+
         <div className="mb-10 pb-6 border-b border-neutral-300 dark:border-neutral-800">
           <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">
             [ {lang === 'RO' ? 'ISTORIC CONT' : 'ACCOUNT HISTORY'} ]

@@ -367,6 +367,39 @@ public class AccommodationCsvImportService : IAccommodationCsvImportService
                 acc.PricePerNight = price;
                 acc.OperatorId = operatorId;
 
+                // Process images from CSV (ImageUrl, Images, or ImageUrls column)
+                string rawImages = GetVal("ImageUrl");
+                if (string.IsNullOrWhiteSpace(rawImages))
+                {
+                    rawImages = GetVal("Images");
+                }
+                if (string.IsNullOrWhiteSpace(rawImages))
+                {
+                    rawImages = GetVal("ImageUrls");
+                }
+
+                if (!string.IsNullOrWhiteSpace(rawImages))
+                {
+                    var urls = rawImages
+                        .Split(new[] { ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(u => u.Trim())
+                        .Where(u => !string.IsNullOrEmpty(u))
+                        .Distinct()
+                        .ToList();
+
+                    bool isFirst = true;
+                    foreach (var url in urls)
+                    {
+                        acc.Images.Add(new AccommodationImage
+                        {
+                            AccommodationId = acc.Id,
+                            FilePath = url,
+                            IsMain = isFirst
+                        });
+                        isFirst = false;
+                    }
+                }
+
                 toInsert.Add(acc);
                 batchUniqueKeys.Add(uniqueKey);
                 result.SuccessfulInsertCount++;

@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Shield, User, Hotel, Check, AlertCircle } from "lucide-react";
 import { getActiveApiKey } from "@/lib/apiKey";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function LoginForm() {
+  const { lang } = useLanguage();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,21 +27,25 @@ export default function LoginForm() {
   const validateEmail = (val: string): string | null => {
     const trimmed = val.trim();
     if (!trimmed) {
-      return "Adresa de email este obligatorie.";
+      return lang === "RO" ? "Adresa de email este obligatorie." : "Email address is required.";
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
-      return "Introduceți o adresă de email validă (ex: utilizator@exemplu.com).";
+      return lang === "RO"
+        ? "Introduceți o adresă de email validă (ex: utilizator@exemplu.com)."
+        : "Enter a valid email address (e.g. user@example.com).";
     }
     return null;
   };
 
   const validatePassword = (val: string): string | null => {
     if (!val) {
-      return "Parola este obligatorie.";
+      return lang === "RO" ? "Parola este obligatorie." : "Password is required.";
     }
     if (val.length < 6) {
-      return "Parola trebuie să aibă cel puțin 6 caractere.";
+      return lang === "RO"
+        ? "Parola trebuie să aibă cel puțin 6 caractere."
+        : "Password must be at least 6 characters.";
     }
     return null;
   };
@@ -93,7 +99,11 @@ export default function LoginForm() {
     setTouched({ email: true, password: true });
 
     if (emailValidation || passwordValidation) {
-      setErrorMessage("Vă rugăm să corectați erorile din formular înainte de a continua.");
+      setErrorMessage(
+        lang === "RO"
+          ? "Vă rugăm să corectați erorile din formular înainte de a continua."
+          : "Please correct the form errors before continuing."
+      );
       return;
     }
 
@@ -129,12 +139,15 @@ export default function LoginForm() {
         localStorage.setItem("currentUser", JSON.stringify(data.user));
         localStorage.setItem("rbooking_user_profile", JSON.stringify(profileToSave));
         localStorage.setItem("rbooking_logged_in", "true");
-
         window.dispatchEvent(new Event("auth-state-change"));
         window.dispatchEvent(new Event("rbooking_auth_change"));
         window.dispatchEvent(new Event("storage"));
 
-        setSuccessMessage(`Acces autorizat — Bun venit, ${userObj.firstName || "Utilizator"}`);
+        setSuccessMessage(
+          lang === "RO"
+            ? `Acces autorizat — Bun venit, ${userObj.firstName || "Utilizator"}`
+            : `Access authorized — Welcome, ${userObj.firstName || "User"}`
+        );
         setTimeout(() => {
           const r = (profileToSave.role || "").toLowerCase();
           if (r === "operator" || r === "manager") {
@@ -145,15 +158,23 @@ export default function LoginForm() {
         }, 1000);
       } else {
         const errorData = await response.json().catch(() => null);
-        const serverError = errorData?.message || "Email sau parolă incorectă.";
-        
+        const serverError =
+          errorData?.message ||
+          (lang === "RO" ? "Email sau parolă incorectă." : "Invalid email or password.");
+
         // Demo fallback
-        const isDemo = email.includes("@booking.com") || email.includes("@hotel.com") || email.includes("@rbooking.com");
+        const isDemo =
+          email.includes("@booking.com") ||
+          email.includes("@hotel.com") ||
+          email.includes("@rbooking.com");
         if (isDemo) {
-          let detectedRole = "Client";
+          let detectedRole = "User";
           if (email.toLowerCase().includes("admin")) detectedRole = "Admin";
-          else if (email.toLowerCase().includes("operator") || email.toLowerCase().includes("manager"))
-            detectedRole = "Operator";
+          else if (
+            email.toLowerCase().includes("operator") ||
+            email.toLowerCase().includes("manager")
+          )
+            detectedRole = "Manager";
 
           const mockUser = {
             id: "demo-user-id",
@@ -169,12 +190,15 @@ export default function LoginForm() {
           localStorage.setItem("currentUser", JSON.stringify(mockUser));
           localStorage.setItem("rbooking_user_profile", JSON.stringify(mockUser));
           localStorage.setItem("rbooking_logged_in", "true");
-
           window.dispatchEvent(new Event("auth-state-change"));
           window.dispatchEvent(new Event("rbooking_auth_change"));
           window.dispatchEvent(new Event("storage"));
 
-          setSuccessMessage(`Autentificare reușită — Rol: ${mockUser.role}`);
+          setSuccessMessage(
+            lang === "RO"
+              ? `Autentificare reușită — Rol: ${mockUser.role}`
+              : `Login successful — Role: ${mockUser.role}`
+          );
           setTimeout(() => {
             if (detectedRole === "Operator") {
               window.location.href = "/manager/accommodation";
@@ -187,10 +211,13 @@ export default function LoginForm() {
         }
       }
     } catch {
-      let detectedRole = "Client";
+      let detectedRole = "User";
       if (email.toLowerCase().includes("admin")) detectedRole = "Admin";
-      else if (email.toLowerCase().includes("operator") || email.toLowerCase().includes("manager"))
-        detectedRole = "Operator";
+      else if (
+        email.toLowerCase().includes("operator") ||
+        email.toLowerCase().includes("manager")
+      )
+        detectedRole = "Manager";
 
       const mockUser = {
         id: "offline-user-id",
@@ -206,12 +233,15 @@ export default function LoginForm() {
       localStorage.setItem("currentUser", JSON.stringify(mockUser));
       localStorage.setItem("rbooking_user_profile", JSON.stringify(mockUser));
       localStorage.setItem("rbooking_logged_in", "true");
-
       window.dispatchEvent(new Event("auth-state-change"));
       window.dispatchEvent(new Event("rbooking_auth_change"));
       window.dispatchEvent(new Event("storage"));
 
-      setSuccessMessage(`Autentificare reușită — Conectat ca ${mockUser.role}`);
+      setSuccessMessage(
+        lang === "RO"
+          ? `Autentificare reușită — Conectat ca ${mockUser.role}`
+          : `Login successful — Connected as ${mockUser.role}`
+      );
       setTimeout(() => {
         if (detectedRole === "Operator") {
           window.location.href = "/manager/accommodation";
@@ -233,7 +263,7 @@ export default function LoginForm() {
             [ RBooking Platform ]
           </div>
           <h1 className="text-3xl sm:text-4xl font-serif text-neutral-900 dark:text-neutral-50 tracking-tight">
-            Autentificare Cont
+            {lang === "RO" ? "Autentificare Cont" : "Account Login"}
           </h1>
         </Link>
       </div>
@@ -262,7 +292,7 @@ export default function LoginForm() {
               htmlFor="email-input"
               className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 mb-2"
             >
-              Adresă Email <span className="text-red-500">*</span>
+              {lang === "RO" ? "Adresă Email" : "Email Address"} <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -272,7 +302,7 @@ export default function LoginForm() {
                 value={email}
                 onChange={handleEmailChange}
                 onBlur={() => handleBlur("email")}
-                placeholder="nume@exemplu.com"
+                placeholder={lang === "RO" ? "nume@exemplu.com" : "name@example.com"}
                 aria-invalid={!!emailError}
                 aria-describedby={emailError ? "email-error" : undefined}
                 className={`w-full pl-11 pr-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none transition-all font-sans border ${
@@ -297,9 +327,11 @@ export default function LoginForm() {
                 htmlFor="password-input"
                 className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300"
               >
-                Parolă <span className="text-red-500">*</span>
+                {lang === "RO" ? "Parolă" : "Password"} <span className="text-red-500">*</span>
               </label>
-              <span className="text-[10px] text-neutral-400 font-mono">Minim 6 caractere</span>
+              <span className="text-[10px] text-neutral-400 font-mono">
+                {lang === "RO" ? "Minim 6 caractere" : "Minimum 6 characters"}
+              </span>
             </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -322,7 +354,7 @@ export default function LoginForm() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white cursor-pointer"
-                title={showPassword ? "Ascunde parola" : "Arată parola"}
+                title={showPassword ? (lang === "RO" ? "Ascunde parola" : "Hide password") : (lang === "RO" ? "Arată parola" : "Show password")}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -344,7 +376,7 @@ export default function LoginForm() {
               <span className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
             ) : (
               <>
-                <span>Intră în cont</span>
+                <span>{lang === "RO" ? "Intră în cont" : "Sign In"}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -354,7 +386,7 @@ export default function LoginForm() {
         {/* Quick Role Selectors Demo */}
         <div className="mt-8 pt-8 border-t border-neutral-200 dark:border-neutral-800">
           <p className="text-[11px] font-mono font-semibold text-neutral-400 uppercase tracking-widest text-center mb-4">
-            [ Comutare Rapidă Rol • Demo ]
+            {lang === "RO" ? "[ Comutare Rapidă Rol • Demo ]" : "[ Quick Role Switcher • Demo ]"}
           </p>
           <div className="grid grid-cols-3 gap-2.5">
             <button
@@ -367,8 +399,12 @@ export default function LoginForm() {
               }`}
             >
               <User className="w-4 h-4 mb-2 text-neutral-700 dark:text-neutral-300" />
-              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">Client</div>
-              <div className="text-[10px] text-neutral-400 font-mono">User simplu</div>
+              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                {lang === "RO" ? "Client" : "Client"}
+              </div>
+              <div className="text-[10px] text-neutral-400 font-mono">
+                {lang === "RO" ? "User simplu" : "Regular user"}
+              </div>
             </button>
 
             <button
@@ -381,8 +417,12 @@ export default function LoginForm() {
               }`}
             >
               <Hotel className="w-4 h-4 mb-2 text-neutral-700 dark:text-neutral-300" />
-              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">Manager</div>
-              <div className="text-[10px] text-neutral-400 font-mono">Operator hotel</div>
+              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                {lang === "RO" ? "Manager" : "Manager"}
+              </div>
+              <div className="text-[10px] text-neutral-400 font-mono">
+                {lang === "RO" ? "Operator hotel" : "Hotel operator"}
+              </div>
             </button>
 
             <button
@@ -395,20 +435,37 @@ export default function LoginForm() {
               }`}
             >
               <Shield className="w-4 h-4 mb-2 text-neutral-700 dark:text-neutral-300" />
-              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">Admin</div>
-              <div className="text-[10px] text-neutral-400 font-mono">Administrator</div>
+              <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                {lang === "RO" ? "Admin" : "Admin"}
+              </div>
+              <div className="text-[10px] text-neutral-400 font-mono">
+                {lang === "RO" ? "Administrator" : "Administrator"}
+              </div>
             </button>
           </div>
         </div>
 
-        {/* Back Link */}
-        <div className="mt-8 text-center">
-          <Link
-            href="/"
-            className="text-xs font-mono uppercase tracking-wider text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors"
-          >
-            [ ← Înapoi la pagina principală ]
-          </Link>
+        {/* Register Link & Back Link */}
+        <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-neutral-800/60 text-center space-y-3 font-mono">
+          <div>
+            <Link
+              href="/register"
+              className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition tracking-wider"
+            >
+              {lang === "RO" ? "Nu ai un cont? " : "Don't have an account? "}
+              <span className="text-neutral-950 dark:text-white underline underline-offset-4">
+                {lang === "RO" ? "Înregistrează-te" : "Register"}
+              </span>
+            </Link>
+          </div>
+          <div>
+            <Link
+              href="/"
+              className="text-[11px] uppercase tracking-wider text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors block"
+            >
+              {lang === "RO" ? "[ ← Înapoi la pagina principală ]" : "[ ← Back to home page ]"}
+            </Link>
+          </div>
         </div>
       </div>
     </div>
