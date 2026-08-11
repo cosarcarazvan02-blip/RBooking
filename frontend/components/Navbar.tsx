@@ -185,6 +185,24 @@ export default function Navbar() {
     }
   };
 
+  const isPathActive = (href: string) => {
+    if (!pathname) return false;
+    if (href === '/') return pathname === '/';
+    if (href === '/hotels') return pathname === '/hotels' || pathname.startsWith('/hotels/');
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const getNavLinkClass = (href: string, isPrimaryAction = false) => {
+    const active = isPathActive(href);
+    if (active) {
+      return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-2 border-amber-600 dark:border-amber-400 rounded shadow-md ring-2 ring-amber-500/30 transition-all scale-[1.02]';
+    }
+    if (isPrimaryAction) {
+      return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-amber-300 transition-all border border-neutral-800 dark:border-neutral-200 rounded shadow-sm';
+    }
+    return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 dark:bg-neutral-900/80 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm';
+  };
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-xs text-neutral-900 dark:text-white transition-colors duration-300">
@@ -235,20 +253,20 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/hotels"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                  className={getNavLinkClass('/hotels')}
                 >
                   <Hotel className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                  className={getNavLinkClass('/register')}
                 >
                   <span>{lang === 'RO' ? 'Înregistrare' : 'Register'}</span>
                 </Link>
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all border border-neutral-950 dark:border-white rounded shadow-sm"
+                  className={getNavLinkClass('/login', true)}
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Autentificare' : 'Login'}</span>
@@ -261,14 +279,14 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/hotels"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/hotels')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
                     </Link>
                     <Link
                       href="/manager/accommodation"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/manager/accommodation')}
                     >
                       <Building2 className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Gestionează cazările mele' : 'Manage my accommodations'}</span>
@@ -279,14 +297,14 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/hotels"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/hotels')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
                     </Link>
                     <Link
                       href="/admin"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/admin')}
                     >
                       <Shield className="w-3.5 h-3.5" />
                       <span>Admin</span>
@@ -297,14 +315,14 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/hotels"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-900 dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/hotels')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
                     </Link>
                     <Link
                       href="/reservations"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                      className={getNavLinkClass('/reservations')}
                     >
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Rezervări' : 'Reservations'}</span>
@@ -315,7 +333,7 @@ export default function Navbar() {
                 {/* Comune pentru toți utilizatorii logați */}
                 <Link
                   href="/account"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm"
+                  className={getNavLinkClass('/account')}
                 >
                   <User className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Contul meu' : 'My Account'}</span>
