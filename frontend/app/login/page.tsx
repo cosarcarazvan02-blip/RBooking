@@ -43,6 +43,10 @@ export default function LoginPage() {
     // Setăm starea de logare în localStorage
     localStorage.setItem('rbooking_logged_in', 'true');
 
+    // Notificăm componentele active (ex: Navbar) despre schimbarea stării de autentificare
+    window.dispatchEvent(new Event('auth-state-change'));
+    window.dispatchEvent(new Event('storage'));
+
     // Redirecționare către pagina principală
     router.push('/');
   };

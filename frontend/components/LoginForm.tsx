@@ -117,6 +117,13 @@ const validateEmail = (val: string): string | null => {
         const data = await response.json();
         localStorage.setItem("authToken", data.token);
         localStorage.setItem("currentUser", JSON.stringify(data.user));
+        localStorage.setItem("rbooking_logged_in", "true");
+        localStorage.setItem("rbooking_user_profile", JSON.stringify({
+          name: data.user?.firstName ? `${data.user.firstName} ${data.user.lastName || ''}`.trim() : email.split('@')[0],
+          email: email.trim(),
+          phone: '+40 700 000 000',
+          role: data.user?.role || 'User',
+        }));
         window.dispatchEvent(new Event("auth-state-change"));
         window.dispatchEvent(new Event("storage"));
 
@@ -131,10 +138,10 @@ const validateEmail = (val: string): string | null => {
         // Demo fallback
         const isDemo = email.includes("@booking.com") || email.includes("@hotel.com") || email.includes("@rbooking.com");
         if (isDemo) {
-          let detectedRole = "Client";
+          let detectedRole = "User";
           if (email.toLowerCase().includes("admin")) detectedRole = "Admin";
           else if (email.toLowerCase().includes("operator") || email.toLowerCase().includes("manager"))
-            detectedRole = "Operator";
+            detectedRole = "Manager";
 
           const mockUser = {
             id: "demo-user-id",
@@ -146,6 +153,13 @@ const validateEmail = (val: string): string | null => {
 
           localStorage.setItem("authToken", "demo-token");
           localStorage.setItem("currentUser", JSON.stringify(mockUser));
+          localStorage.setItem("rbooking_logged_in", "true");
+          localStorage.setItem("rbooking_user_profile", JSON.stringify({
+            name: mockUser.firstName,
+            email: mockUser.email,
+            phone: '+40 700 000 000',
+            role: detectedRole,
+          }));
           window.dispatchEvent(new Event("auth-state-change"));
           window.dispatchEvent(new Event("storage"));
 
@@ -158,10 +172,10 @@ const validateEmail = (val: string): string | null => {
         }
       }
     } catch {
-      let detectedRole = "Client";
+      let detectedRole = "User";
       if (email.toLowerCase().includes("admin")) detectedRole = "Admin";
       else if (email.toLowerCase().includes("operator") || email.toLowerCase().includes("manager"))
-        detectedRole = "Operator";
+        detectedRole = "Manager";
 
       const mockUser = {
         id: "offline-user-id",
@@ -173,6 +187,13 @@ const validateEmail = (val: string): string | null => {
 
       localStorage.setItem("authToken", "offline-token");
       localStorage.setItem("currentUser", JSON.stringify(mockUser));
+      localStorage.setItem("rbooking_logged_in", "true");
+      localStorage.setItem("rbooking_user_profile", JSON.stringify({
+        name: mockUser.firstName,
+        email: mockUser.email,
+        phone: '+40 700 000 000',
+        role: detectedRole,
+      }));
       window.dispatchEvent(new Event("auth-state-change"));
       window.dispatchEvent(new Event("storage"));
 
