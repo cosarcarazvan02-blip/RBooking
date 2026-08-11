@@ -33,92 +33,82 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#070707] text-gray-200 flex flex-col justify-between px-6 py-8 font-sans selection:bg-neutral-800">
-      <div className="flex justify-between items-center max-w-7xl mx-auto w-full">
-        <Link href="/" className="bg-[#111] border border-neutral-800 px-4 py-2 text-white font-serif tracking-widest text-sm hover:border-neutral-700 transition">
-          R <span className="font-sans font-normal text-neutral-400 tracking-normal text-xs">RBOOKING</span>
-        </Link>
-      </div>
-
-      <div className="max-w-md w-full mx-auto bg-[#111111] border border-neutral-800/80 p-8 rounded-2xl shadow-2xl backdrop-blur-md">
+    <main className="min-h-[calc(100vh-80px)] flex flex-col justify-center items-center px-4 sm:px-6 py-12 text-neutral-900 dark:text-neutral-100 selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-neutral-900">
+      <div className="max-w-md w-full mx-auto bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-8 rounded-2xl shadow-xl">
         <div className="text-center mb-8">
           <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">[ RBOOKING HOSPITALITY ]</p>
-          <h1 className="text-2xl font-serif text-white tracking-wide">Creare Cont Nou</h1>
-          <div className="w-8 h-[1px] bg-neutral-700 mx-auto mt-3"></div>
+          <h1 className="text-2xl font-serif tracking-wide text-neutral-900 dark:text-white">Creare Cont Nou</h1>
+          <div className="w-8 h-[1px] bg-neutral-300 dark:bg-neutral-700 mx-auto mt-3"></div>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-950/40 border border-red-900/50 text-red-400 text-xs rounded text-center tracking-wider">
+          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs rounded-xl text-center font-mono">
             {error}
           </div>
         )}
 
         <form onSubmit={handleRegister} className="flex flex-col gap-4">
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Nume Complet</label>
+            <label className="block text-[11px] uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2 font-medium font-mono">Nume Complet</label>
             <input 
               type="text" 
               placeholder="Introduceți numele complet"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-[#181818] border border-neutral-800 p-3 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 text-sm transition"
+              className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400 text-sm transition"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Adresă Email</label>
+            <label className="block text-[11px] uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2 font-medium font-mono">Adresă Email</label>
             <input 
               type="email" 
               placeholder="nume@exemplu.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-[#181818] border border-neutral-800 p-3 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 text-sm transition"
+              className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400 text-sm transition"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Parolă</label>
+            <label className="block text-[11px] uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2 font-medium font-mono">Parolă</label>
             <input 
               type="password" 
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-[#181818] border border-neutral-800 p-3 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 text-sm transition"
+              className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400 text-sm transition"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Confirmă Parola</label>
+            <label className="block text-[11px] uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2 font-medium font-mono">Confirmă Parola</label>
             <input 
               type="password" 
               placeholder="••••••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full bg-[#181818] border border-neutral-800 p-3 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 text-sm transition"
+              className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400 text-sm transition"
             />
           </div>
 
           <button 
             type="submit" 
-            className="w-full bg-white text-black py-3 rounded-lg font-medium hover:bg-neutral-200 transition text-xs tracking-[0.15em] uppercase mt-3 shadow-lg cursor-pointer"
+            className="w-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 py-3 rounded-xl font-medium hover:bg-neutral-800 dark:hover:bg-amber-300 transition text-xs tracking-[0.15em] uppercase mt-3 shadow-md cursor-pointer font-mono"
           >
             Finalizare Înregistrare
           </button>
         </form>
 
-        <div className="text-center mt-6 pt-6 border-t border-neutral-800/60">
-          <Link href="/login" className="text-xs text-neutral-400 hover:text-white transition tracking-wider">
-            Ai deja un cont? <span className="text-white underline underline-offset-4">Autentifică-te</span>
+        <div className="text-center mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800/60 font-mono">
+          <Link href="/login" className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition tracking-wider">
+            Ai deja un cont? <span className="text-neutral-950 dark:text-white underline underline-offset-4">Autentifică-te</span>
           </Link>
         </div>
-      </div>
-
-      <div className="text-center text-[11px] text-neutral-600 tracking-wider">
-        © 2026 RBooking Hospitality Platform. Toate drepturile rezervate.
       </div>
     </main>
   );
