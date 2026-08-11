@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Trash2, CheckCircle2 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface Reservation {
@@ -78,9 +77,8 @@ export default function ReservationsPage() {
   const pastBookings = reservations.filter((r) => r.type === 'past');
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
-      <Navbar />
-      <div className="w-full max-w-4xl mx-auto px-6 py-12">
+    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans flex flex-col">
+      <main className="w-full max-w-4xl mx-auto px-6 py-12 flex-1">
 
         <div className="mb-10 pb-6 border-b border-neutral-300 dark:border-neutral-800">
           <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">
@@ -196,7 +194,7 @@ export default function ReservationsPage() {
             </div>
           )}
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
