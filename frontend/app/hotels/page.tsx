@@ -9,7 +9,7 @@ export default function HotelsPage() {
   const { lang } = useLanguage();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-neutral-900 transition-colors duration-300">
       <Navbar />
 
       <main className="flex-1">
@@ -21,7 +21,7 @@ export default function HotelsPage() {
           <div className="flex items-center gap-2">
             <span className="font-serif text-sm font-medium text-neutral-950 dark:text-neutral-200">RBooking</span>
             <span>/</span>
-            <span>{lang === 'RO' ? 'Catalog cazări' : 'Accommodations catalog'}</span>
+            <span>{lang === 'RO' ? 'Colecție editorială de cazări' : 'Curated stay collection'}</span>
           </div>
           <div>© {new Date().getFullYear()} RBooking. {lang === 'RO' ? 'Toate drepturile rezervate.' : 'All rights reserved.'}</div>
         </div>

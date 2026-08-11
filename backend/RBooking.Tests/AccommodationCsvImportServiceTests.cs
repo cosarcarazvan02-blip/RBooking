@@ -99,4 +99,40 @@ Existing Hotel,Center,Bucharest,Romania,250,Hotel";
         Assert.Single(result.FailedInserts);
         Assert.Contains("duplicat", result.FailedInserts[0]);
     }
+
+    [Fact]
+    public async Task ImportCsvAsync_WithImages_ShouldAttachImagesCorrectly()
+    {
+        // Arrange
+        var csvContent = @"Name,Location,City,Country,PricePerNight,AccommodationType,ImageUrl
+Hotel Sunset,Beach,Mamaia,Romania,400,Hotel,https://example.com/img1.jpg;https://example.com/img2.jpg";
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csvContent));
+
+        _mockRepo.Setup(r => r.GetExistingUniqueKeysAsync())
+            .ReturnsAsync(new HashSet<string>());
+
+        IEnumerable<Accommodation>? capturedAccommodations = null;
+        _mockRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Accommodation>>()))
+            .Callback<IEnumerable<Accommodation>>(list => capturedAccommodations = list)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _service.ImportCsvAsync(stream, "operator-123");
+
+        // Assert
+        Assert.Equal(1, result.SuccessfulInsertCount);
+        Assert.NotNull(capturedAccommodations);
+        var inserted = capturedAccommodations!.First();
+        Assert.Equal(2, inserted.Images.Count);
+        
+        var mainImg = inserted.Images.First();
+        Assert.Equal("https://example.com/img1.jpg", mainImg.FilePath);
+        Assert.True(mainImg.IsMain);
+
+        var secondImg = inserted.Images.Last();
+        Assert.Equal("https://example.com/img2.jpg", secondImg.FilePath);
+        Assert.False(secondImg.IsMain);
+    }
 }
+

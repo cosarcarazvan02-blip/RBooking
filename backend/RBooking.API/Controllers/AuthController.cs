@@ -22,22 +22,45 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginRequestDto request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (request == null)
         {
-            return BadRequest("Email is required.");
+            return BadRequest(new { message = "Datele de autentificare sunt obligatorii." });
         }
 
-        var user = await _userRepository.GetByEmailAsync(request.Email);
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { message = "Adresa de email este obligatorie." });
+        }
+
+        var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        if (!emailValidator.IsValid(request.Email.Trim()))
+        {
+            return BadRequest(new { message = "Formatul adresei de email este invalid (ex: nume@exemplu.com)." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { message = "Parola este obligatorie." });
+        }
+
+        if (request.Password.Length < 6)
+        {
+            return BadRequest(new { message = "Parola trebuie să conțină cel puțin 6 caractere." });
+        }
+
+        var emailTrimmed = request.Email.Trim();
+        var user = await _userRepository.GetByEmailAsync(emailTrimmed);
 
         // Determinăm rolul corect pe baza emailului de fiecare dată
         var role = UserRole.Client;
-        if (request.Email.Contains("admin", StringComparison.OrdinalIgnoreCase))
+        if (emailTrimmed.Contains("admin", StringComparison.OrdinalIgnoreCase))
         {
             role = UserRole.Admin;
         }
-        else if (request.Email.Contains("operator", StringComparison.OrdinalIgnoreCase) || request.Email.Contains("manager", StringComparison.OrdinalIgnoreCase))
+        else if (emailTrimmed.Contains("operator", StringComparison.OrdinalIgnoreCase) || emailTrimmed.Contains("manager", StringComparison.OrdinalIgnoreCase))
         {
             role = UserRole.Operator;
         }
@@ -47,8 +70,8 @@ public class AuthController : ControllerBase
             // Auto-create user for demo/testing if email is provided
             user = new User
             {
-                Email = request.Email,
-                FirstName = request.Email.Split('@')[0],
+                Email = emailTrimmed,
+                FirstName = emailTrimmed.Split('@')[0],
                 LastName = "User",
                 Role = role,
                 CreatedAt = DateTime.UtcNow
