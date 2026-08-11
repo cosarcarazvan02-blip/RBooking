@@ -4,23 +4,50 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { Shield, Building2, Users, CalendarCheck, ArrowUpRight } from 'lucide-react';
+import { getActiveApiKey } from '@/lib/apiKey';
 
 export default function AdminPage() {
   const { lang } = useLanguage();
   const [accommodationsCount, setAccommodationsCount] = useState(0);
 
   useEffect(() => {
-    try {
+    const fetchStats = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+        const apiKey = getActiveApiKey();
+        const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=1`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': apiKey,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const total =
+            typeof data.totalCount === 'number'
+              ? data.totalCount
+              : Array.isArray(data)
+              ? data.length
+              : data.items?.length || 0;
+          setAccommodationsCount(total);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
       const saved = localStorage.getItem('rbooking_accommodations');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setAccommodationsCount(Array.isArray(parsed) ? parsed.length : 1);
-      } else {
-        setAccommodationsCount(1);
+        try {
+          const parsed = JSON.parse(saved);
+          setAccommodationsCount(Array.isArray(parsed) ? parsed.length : 0);
+          return;
+        } catch {}
       }
-    } catch {
-      setAccommodationsCount(1);
-    }
+      setAccommodationsCount(0);
+    };
+
+    fetchStats();
   }, []);
 
   return (
