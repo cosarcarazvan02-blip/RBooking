@@ -1,6 +1,5 @@
 'use client';
 import React from "react";
-import Navbar from "@/components/Navbar";
 import HeroBanner from "@/components/HeroBanner";
 import Accommodations from "@/components/Accommodations";
 import { useLanguage } from "@/context/LanguageContext";
@@ -10,9 +9,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-neutral-900 transition-colors duration-300">
-      {/* Componenta Navbar dinamică */}
-      <Navbar />
-
       {/* Hero Banner */}
       <HeroBanner />
 

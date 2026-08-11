@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
 import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
 
@@ -123,9 +122,8 @@ export default function ManageAccommodationsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
-      <Navbar />
-
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <span className="text-xs font-mono uppercase tracking-[0.2em] text-neutral-500">

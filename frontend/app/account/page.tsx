@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
-import { ArrowLeft } from 'lucide-react';
 
 interface UserProfile {
   name: string;
@@ -51,18 +49,7 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-neutral-900 dark:text-neutral-100">
-      {/* Buton Înapoi Acasă */}
-      <div className="mb-6 flex justify-between items-center">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{lang === 'RO' ? 'Înapoi Acasă' : 'Back to Home'}</span>
-        </Link>
-      </div>
-
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-neutral-900 dark:text-neutral-100">
       <div className="mb-8 pb-6 border-b border-neutral-300 dark:border-neutral-800">
         <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">
           [ {lang === 'RO' ? 'CONFIGURARE CONT' : 'ACCOUNT SETTINGS'} ]
@@ -96,7 +83,7 @@ export default function AccountPage() {
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-lg text-xs font-mono uppercase tracking-wider hover:opacity-90 transition cursor-pointer"
+              className="px-4 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider transition cursor-pointer"
             >
               {lang === 'RO' ? 'Editează' : 'Edit'}
             </button>
@@ -113,7 +100,7 @@ export default function AccountPage() {
                 type="text"
                 value={profile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-blue-600"
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400"
                 required
               />
             </div>
@@ -125,7 +112,7 @@ export default function AccountPage() {
                 type="email"
                 value={profile.email}
                 onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-blue-600"
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400"
                 required
               />
             </div>
@@ -137,13 +124,13 @@ export default function AccountPage() {
                 type="text"
                 value={profile.phone}
                 onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-blue-600"
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400"
               />
             </div>
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-mono uppercase tracking-wider hover:bg-blue-700 transition cursor-pointer"
+                className="px-5 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider transition cursor-pointer"
               >
                 {lang === 'RO' ? 'Salvează' : 'Save'}
               </button>
