@@ -105,10 +105,6 @@ export default function ManageAccommodationsPage() {
     } catch {
       // ignore
     }
-      }
-    } catch {
-      // ignore
-    }
 
     // Do NOT spawn any mock accommodations. Only load what exists or empty array.
     const saved = localStorage.getItem('rbooking_accommodations');
