@@ -200,21 +200,21 @@ export default function Accommodations() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <span className="text-xs font-mono font-semibold tracking-[0.25em] uppercase text-amber-700 dark:text-amber-300">
-              [ 02 / ACCOMMODATIONS ]
+              {lang === "RO" ? "[ 02 / CAZĂRI ]" : "[ 02 / ACCOMMODATIONS ]"}
             </span>
             {isClient && isFromDatabase ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 <Database className="w-3 h-3" />
-                <span>Live PostgreSQL DB</span>
+                <span>{lang === "RO" ? "Bază de Date Live (PostgreSQL)" : "Live PostgreSQL DB"}</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-700">
-                <span>Colecție Curată</span>
+                <span>{lang === "RO" ? "Colecție Curată" : "Curated Collection"}</span>
               </span>
             )}
           </div>
           <h2 className="text-3xl sm:text-5xl font-serif font-normal text-neutral-950 dark:text-white tracking-tight">
-            Accommodations
+            {lang === "RO" ? "Cazări Disponibile" : "Accommodations"}
           </h2>
         </div>
 
@@ -223,14 +223,20 @@ export default function Accommodations() {
             onClick={() => void reloadData()}
             disabled={!isClient ? false : isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer disabled:opacity-50"
-            title="Reîmprospătează datele din baza de date"
+            title={lang === "RO" ? "Reîmprospătează datele din baza de date" : "Refresh database records"}
           >
             <RefreshCw className={`w-3 h-3 ${isClient && isLoading ? "animate-spin" : ""}`} />
-            <span>Reîncarcă DB</span>
+            <span>{lang === "RO" ? "Reîncarcă DB" : "Reload DB"}</span>
           </button>
           <span>
             {filteredAccommodations.length}{" "}
-            {filteredAccommodations.length === 1 ? "opțiune" : "opțiuni găsite"}
+            {filteredAccommodations.length === 1
+              ? lang === "RO"
+                ? "opțiune găsită"
+                : "option found"
+              : lang === "RO"
+              ? "opțiuni găsite"
+              : "options found"}
           </span>
         </div>
       </div>
@@ -245,7 +251,7 @@ export default function Accommodations() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Caută după nume hotel sau locație..."
+              placeholder={lang === "RO" ? "Caută după nume hotel sau locație..." : "Search by hotel name or location..."}
               className="w-full pl-11 pr-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white border border-neutral-300 dark:border-neutral-800 font-sans transition-all"
             />
             {searchQuery && (
@@ -267,7 +273,7 @@ export default function Accommodations() {
             >
               {cities.map((city) => (
                 <option key={city} value={city} className="bg-white dark:bg-[#181a20]">
-                  {city === "All" ? "Toate Orașele" : city}
+                  {city === "All" ? (lang === "RO" ? "Toate Orașele" : "All Cities") : city}
                 </option>
               ))}
             </select>
@@ -285,7 +291,7 @@ export default function Accommodations() {
                     : "bg-neutral-50 dark:bg-[#181a20] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-500"
                 }`}
               >
-                {type === "All" ? "Toate" : type}
+                {type === "All" ? (lang === "RO" ? "Toate" : "All") : type}
               </button>
             ))}
           </div>
@@ -295,7 +301,9 @@ export default function Accommodations() {
         {hasActiveFilters && (
           <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-mono">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-neutral-500 dark:text-neutral-400 uppercase">Filtre active:</span>
+              <span className="text-neutral-500 dark:text-neutral-400 uppercase">
+                {lang === "RO" ? "Filtre active:" : "Active filters:"}
+              </span>
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
                   „{searchQuery}”
@@ -303,12 +311,12 @@ export default function Accommodations() {
               )}
               {selectedCity !== "All" && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
-                  Oraș: {selectedCity}
+                  {lang === "RO" ? "Oraș:" : "City:"} {selectedCity}
                 </span>
               )}
               {selectedType !== "All" && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
-                  Tip: {selectedType}
+                  {lang === "RO" ? "Tip:" : "Type:"} {selectedType}
                 </span>
               )}
             </div>
@@ -316,7 +324,7 @@ export default function Accommodations() {
               onClick={clearFilters}
               className="text-amber-800 dark:text-amber-300 hover:underline uppercase tracking-wider font-semibold cursor-pointer"
             >
-              [ Resetează ]
+              {lang === "RO" ? "[ Resetează ]" : "[ Reset ]"}
             </button>
           </div>
         )}
@@ -361,7 +369,7 @@ export default function Accommodations() {
           )}
         </div>
       ) : (
-        /* Hotel Cards Grid (Strict: Imagine, Nume, Locatie, Buton Detalii) */
+        /* Hotel Cards Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
           {filteredAccommodations.map((hotel) => (
             <article
@@ -386,7 +394,7 @@ export default function Accommodations() {
                 )}
               </div>
 
-              {/* 2. Informații: Strict Nume & Locație */}
+              {/* 2. Informații */}
               <div className="p-6 flex-1 flex flex-col justify-between">
                 <div>
                   <h3 className="text-xl sm:text-2xl font-serif text-neutral-950 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors leading-snug mb-2">
@@ -405,7 +413,7 @@ export default function Accommodations() {
                     href={`/hotels/${hotel.id}`}
                     className="w-full py-3.5 px-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs font-semibold uppercase tracking-widest flex items-center justify-between group-hover:bg-amber-700 dark:group-hover:bg-amber-300 dark:group-hover:text-neutral-950 transition-all duration-200 border border-neutral-950 dark:border-white cursor-pointer shadow-xs active:scale-[0.99]"
                   >
-                    <span>Vezi detalii</span>
+                    <span>{lang === "RO" ? "Vezi detalii" : "View details"}</span>
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </Link>
                 </div>
