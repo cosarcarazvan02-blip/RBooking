@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw } from "lucide-react";
+import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
@@ -242,17 +242,77 @@ export default function Accommodations() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-6 mb-12 shadow-xs transition-colors duration-300">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+      <div className="bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-6 mb-12 shadow-xs transition-colors duration-300 space-y-5">
+        {/* Category Tabs with Icons */}
+        <div>
+          <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2.5 flex items-center justify-between">
+            <span>{lang === "RO" ? "Categorie Cazare" : "Accommodation Category"}</span>
+            <span className="text-[10px] text-neutral-400 font-mono">
+              {filteredAccommodations.length}{" "}
+              {filteredAccommodations.length === 1
+                ? lang === "RO"
+                  ? "rezultat"
+                  : "result"
+                : lang === "RO"
+                ? "rezultate"
+                : "results"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            {[
+              {
+                id: "All",
+                label: lang === "RO" ? "Toate" : "All",
+                icon: LayoutGrid,
+              },
+              {
+                id: "Hotel",
+                label: lang === "RO" ? "Hoteluri" : "Hotels",
+                icon: Hotel,
+              },
+              {
+                id: "Apartment",
+                label: lang === "RO" ? "Apartamente" : "Apartments",
+                icon: Building,
+              },
+              {
+                id: "Hostel",
+                label: lang === "RO" ? "Hosteluri" : "Hostels",
+                icon: BedDouble,
+              },
+            ].map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = selectedType === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedType(cat.id)}
+                  className={`px-4 py-3 text-xs font-mono uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 border ${
+                    isSelected
+                      ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white font-bold shadow-xs scale-[1.01]"
+                      : "bg-neutral-50 dark:bg-[#181a20] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${isSelected ? "text-amber-400 dark:text-amber-600" : "text-neutral-400"}`} />
+                  <span className="truncate">{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Search Input + City Dropdown */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 pt-4 border-t border-neutral-200 dark:border-neutral-800/80 items-center">
           {/* Search Input */}
-          <div className="md:col-span-6 relative">
+          <div className="md:col-span-8 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={lang === "RO" ? "Caută după nume hotel sau locație..." : "Search by hotel name or location..."}
-              className="w-full pl-11 pr-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white border border-neutral-300 dark:border-neutral-800 font-sans transition-all"
+              className="w-full pl-11 pr-10 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white border border-neutral-300 dark:border-neutral-800 font-sans transition-all"
             />
             {searchQuery && (
               <button
@@ -265,7 +325,7 @@ export default function Accommodations() {
           </div>
 
           {/* City Filter */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-4">
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
@@ -278,28 +338,11 @@ export default function Accommodations() {
               ))}
             </select>
           </div>
-
-          {/* Type Filter Buttons */}
-          <div className="md:col-span-3 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-            {accommodationTypes.map((type) => (
-              <button
-                key={type}
-                onClick={() => setSelectedType(type)}
-                className={`px-3 py-2.5 text-xs font-mono uppercase tracking-wider transition-all duration-150 whitespace-nowrap cursor-pointer flex-1 text-center border ${
-                  selectedType === type
-                    ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white font-bold"
-                    : "bg-neutral-50 dark:bg-[#181a20] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-500"
-                }`}
-              >
-                {type === "All" ? (lang === "RO" ? "Toate" : "All") : type}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Active Filter Indicators */}
         {hasActiveFilters && (
-          <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-mono">
+          <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-mono">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-neutral-500 dark:text-neutral-400 uppercase">
                 {lang === "RO" ? "Filtre active:" : "Active filters:"}
@@ -316,7 +359,7 @@ export default function Accommodations() {
               )}
               {selectedType !== "All" && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
-                  {lang === "RO" ? "Tip:" : "Type:"} {selectedType}
+                  {lang === "RO" ? "Categorie:" : "Category:"} {selectedType}
                 </span>
               )}
             </div>
