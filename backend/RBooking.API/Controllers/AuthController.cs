@@ -30,18 +30,20 @@ public class AuthController : ControllerBase
         }
 
         var user = await _userRepository.GetByEmailAsync(request.Email);
+
+        // Determinăm rolul corect pe baza emailului de fiecare dată
+        var role = UserRole.Client;
+        if (request.Email.Contains("admin", StringComparison.OrdinalIgnoreCase))
+        {
+            role = UserRole.Admin;
+        }
+        else if (request.Email.Contains("operator", StringComparison.OrdinalIgnoreCase) || request.Email.Contains("manager", StringComparison.OrdinalIgnoreCase))
+        {
+            role = UserRole.Operator;
+        }
+
         if (user == null)
         {
-            var role = UserRole.Client;
-            if (request.Email.Contains("admin", StringComparison.OrdinalIgnoreCase))
-            {
-                role = UserRole.Admin;
-            }
-            else if (request.Email.Contains("operator", StringComparison.OrdinalIgnoreCase))
-            {
-                role = UserRole.Operator;
-            }
-
             // Auto-create user for demo/testing if email is provided
             user = new User
             {
@@ -52,6 +54,11 @@ public class AuthController : ControllerBase
                 CreatedAt = DateTime.UtcNow
             };
             await _userRepository.AddAsync(user);
+        }
+        else
+        {
+            // Actualizăm rolul utilizatorului existent dacă emailul dictează un rol superior
+            user.Role = role;
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user);

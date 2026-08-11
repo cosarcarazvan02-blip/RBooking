@@ -28,6 +28,7 @@ export default function RegisterPage() {
     };
 
     localStorage.setItem('rbooking_user_profile', JSON.stringify(newUserProfile));
+    localStorage.setItem('currentUser', JSON.stringify(newUserProfile));
 
     router.push('/login');
   };

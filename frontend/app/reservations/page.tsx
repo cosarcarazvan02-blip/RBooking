@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Calendar, MapPin, Trash2, CheckCircle2, Globe, Home, LogOut } from 'lucide-react';
-
+import { Calendar, MapPin, Trash2, CheckCircle2 } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface Reservation {
@@ -80,40 +79,8 @@ export default function ReservationsPage() {
   const pastBookings = reservations.filter((r) => r.type === 'past');
 
   return (
-    <main className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
-      <nav className="border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-md sticky top-0 z-50 px-8 py-4 flex justify-between items-center">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 flex items-center justify-center font-serif font-bold text-sm shadow-sm">
-            R
-          </div>
-          <span className="font-serif font-medium text-lg tracking-tight">RBooking</span>
-        </Link>
-        <div className="flex items-center gap-4 text-xs font-mono uppercase tracking-wider">
-          <button 
-            onClick={toggleLang}
-            className="flex items-center gap-1.5 px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>{lang}</span>
-          </button>
-
-          <Link href="/" className="flex items-center gap-1.5 px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
-            <Home className="w-3.5 h-3.5" />
-            <span>{lang === 'RO' ? 'Acasă' : 'Home'}</span>
-          </Link>
-
-          <button 
-            onClick={() => {
-              localStorage.removeItem('rbooking_logged_in');
-              window.location.href = '/';
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 rounded hover:opacity-90 transition cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>{lang === 'RO' ? 'Ieșire' : 'Logout'}</span>
-          </button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
+      <Navbar />
 
       <div className="w-full max-w-4xl mx-auto px-6 py-12">
         <div className="mb-10 pb-6 border-b border-neutral-300 dark:border-neutral-800">
