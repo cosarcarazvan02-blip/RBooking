@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
+import { useLanguage } from "@/context/LanguageContext";
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -23,6 +24,7 @@ interface RawAccommodationDto {
 const emptySubscribe = () => () => {};
 
 export default function Accommodations() {
+  const { lang } = useLanguage();
   const isClient = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -339,20 +341,22 @@ export default function Accommodations() {
         </div>
       ) : filteredAccommodations.length === 0 ? (
         /* Empty State */
-        <div className="text-center py-20 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-8">
+        <div className="text-center py-20 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-8 rounded-2xl shadow-xs">
           <Compass className="w-12 h-12 mx-auto text-neutral-400 mb-4" />
           <h3 className="text-xl font-serif text-neutral-900 dark:text-white mb-2">
-            Nicio cazare găsită
+            {lang === 'RO' ? 'Nicio cazare în baza de date' : 'No accommodations in database'}
           </h3>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md mx-auto mb-6">
-            Nu există nicio cazare care să corespundă criteriilor sau baza de date este goală. Puteți adăuga cazări noi direct din Swagger UI (/swagger).
+            {lang === 'RO'
+              ? 'Baza de date este în prezent goală. Cazările adăugate prin panoul de management sau Swagger vor apărea aici în timp real.'
+              : 'The database is currently empty. Accommodations added via the management panel or Swagger will appear here in real-time.'}
           </p>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white cursor-pointer"
+              className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white rounded-xl cursor-pointer"
             >
-              Resetează Filtrele
+              {lang === 'RO' ? 'Resetează Filtrele' : 'Reset Filters'}
             </button>
           )}
         </div>

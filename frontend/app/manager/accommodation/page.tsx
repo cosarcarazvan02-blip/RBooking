@@ -1,7 +1,22 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
-import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit, MapPin, Euro, X, RefreshCw } from 'lucide-react';
+import { getActiveApiKey } from '@/lib/apiKey';
+
+const NO_PHOTO_PLACEHOLDER = 'https://www.tez-tour.ro/static/images/nophoto-hotel.png';
+
+interface RawAccommodationDto {
+  id: string;
+  name: string;
+  location?: string;
+  city?: string;
+  country?: string;
+  accommodationType?: string;
+  imageUrl?: string;
+  pricePerNight?: number;
+  description?: string;
+}
 
 interface Accommodation {
   id: string;
@@ -16,6 +31,7 @@ interface Accommodation {
 export default function ManageAccommodationsPage() {
   const { lang } = useLanguage();
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -27,39 +43,76 @@ export default function ManageAccommodationsPage() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
 
-  useEffect(() => {
-    let ignore = false;
-    const loadData = () => {
-      const saved = localStorage.getItem('rbooking_accommodations');
-      if (saved) {
-        try {
-          if (!ignore) setAccommodations(JSON.parse(saved));
-          return;
-        } catch (e) {
-          console.error(e);
-        }
+  const fetchAccommodations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const apiKey = getActiveApiKey();
+
+      const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const items: RawAccommodationDto[] = Array.isArray(data)
+          ? data
+          : data.items || data.Items || [];
+
+        const mapped: Accommodation[] = items.map((item, index) => ({
+          id: item.id || `acc-${index}`,
+          title: item.name,
+          location: item.location || `${item.city || 'România'}, ${item.country || ''}`,
+          price: item.pricePerNight || 150,
+          type: item.accommodationType || 'Hotel Boutique',
+          description: item.description || '',
+          image: item.imageUrl && item.imageUrl.trim() ? item.imageUrl : NO_PHOTO_PLACEHOLDER,
+        }));
+
+        setAccommodations(mapped);
+        localStorage.setItem('rbooking_accommodations', JSON.stringify(mapped));
+        setIsLoading(false);
+        return;
       }
-      const initial: Accommodation[] = [
-        {
-          id: '1',
-          title: 'The Transylvanian Manor',
-          location: 'Sighișoara, România',
-          price: 220,
-          type: 'Historic Manor',
-          description: 'Un conac restaurat cu atenție la detalii, situat în inima Transilvaniei.',
-          image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'
+    } catch {
+      // ignore
+    }
+
+    // Do NOT spawn any mock accommodations. Only load what exists or empty array.
+    const saved = localStorage.getItem('rbooking_accommodations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setAccommodations(parsed);
+          setIsLoading(false);
+          return;
         }
-      ];
-      if (!ignore) setAccommodations(initial);
-      localStorage.setItem('rbooking_accommodations', JSON.stringify(initial));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setAccommodations([]);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAccommodations();
+
+    const handleKeyChange = () => {
+      fetchAccommodations();
     };
 
-    const timer = setTimeout(loadData, 0);
+    window.addEventListener('api-key-change', handleKeyChange);
     return () => {
-      ignore = true;
-      clearTimeout(timer);
+      window.removeEventListener('api-key-change', handleKeyChange);
     };
-  }, []);
+  }, [fetchAccommodations]);
 
   const saveToStorage = (updated: Accommodation[]) => {
     setAccommodations(updated);
@@ -112,7 +165,7 @@ export default function ManageAccommodationsPage() {
         price: Number(price),
         type,
         description,
-        image: image || 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+        image: image || NO_PHOTO_PLACEHOLDER,
       };
       saveToStorage([...accommodations, newItem]);
     }
