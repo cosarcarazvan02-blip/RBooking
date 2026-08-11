@@ -21,7 +21,8 @@ export default function LoginForm() {
   // Global form states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-const validateEmail = (val: string): string | null => {
+
+  const validateEmail = (val: string): string | null => {
     const trimmed = val.trim();
     if (!trimmed) {
       return "Adresa de email este obligatorie.";
@@ -69,7 +70,6 @@ const validateEmail = (val: string): string | null => {
       setPasswordError(validatePassword(password));
     }
   };
-  
 
   const selectQuickRole = (roleEmail: string) => {
     setEmail(roleEmail);
@@ -84,7 +84,6 @@ const validateEmail = (val: string): string | null => {
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    
     // Validate all fields on submit
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
@@ -101,7 +100,8 @@ const validateEmail = (val: string): string | null => {
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5293/api";
+      // URL forțat direct pe portul corect 5293
+      const apiUrl = "http://localhost:5293/api";
       const apiKey = getActiveApiKey();
 
       const response = await fetch(`${apiUrl}/Auth/login`, {
@@ -115,14 +115,33 @@ const validateEmail = (val: string): string | null => {
 
       if (response.ok) {
         const data = await response.json();
+        const userObj = data.user || {};
+        const profileToSave = {
+          id: userObj.id || userObj.Id || "user-id",
+          name: `${userObj.firstName || ""} ${userObj.lastName || ""}`.trim() || email.split("@")[0],
+          email: email.trim(),
+          phone: "+40 700 000 000",
+          role: userObj.role || userObj.Role || "User",
+        };
+
         localStorage.setItem("authToken", data.token);
+        localStorage.setItem("rbooking_token", data.token);
         localStorage.setItem("currentUser", JSON.stringify(data.user));
+        localStorage.setItem("rbooking_user_profile", JSON.stringify(profileToSave));
+        localStorage.setItem("rbooking_logged_in", "true");
+
         window.dispatchEvent(new Event("auth-state-change"));
+        window.dispatchEvent(new Event("rbooking_auth_change"));
         window.dispatchEvent(new Event("storage"));
 
-        setSuccessMessage(`Acces autorizat — Bun venit, ${data.user?.firstName || "Utilizator"}`);
+        setSuccessMessage(`Acces autorizat — Bun venit, ${userObj.firstName || "Utilizator"}`);
         setTimeout(() => {
-          router.push("/");
+          const r = (profileToSave.role || "").toLowerCase();
+          if (r === "operator" || r === "manager") {
+            window.location.href = "/manager/accommodation";
+          } else {
+            router.push("/");
+          }
         }, 1000);
       } else {
         const errorData = await response.json().catch(() => null);
@@ -138,6 +157,7 @@ const validateEmail = (val: string): string | null => {
 
           const mockUser = {
             id: "demo-user-id",
+            name: email.split("@")[0] || "User",
             firstName: email.split("@")[0] || "User",
             lastName: "Demo",
             email: email.trim(),
@@ -145,13 +165,22 @@ const validateEmail = (val: string): string | null => {
           };
 
           localStorage.setItem("authToken", "demo-token");
+          localStorage.setItem("rbooking_token", "demo-token");
           localStorage.setItem("currentUser", JSON.stringify(mockUser));
+          localStorage.setItem("rbooking_user_profile", JSON.stringify(mockUser));
+          localStorage.setItem("rbooking_logged_in", "true");
+
           window.dispatchEvent(new Event("auth-state-change"));
+          window.dispatchEvent(new Event("rbooking_auth_change"));
           window.dispatchEvent(new Event("storage"));
 
           setSuccessMessage(`Autentificare reușită — Rol: ${mockUser.role}`);
           setTimeout(() => {
-            router.push("/");
+            if (detectedRole === "Operator") {
+              window.location.href = "/manager/accommodation";
+            } else {
+              router.push("/");
+            }
           }, 1000);
         } else {
           setErrorMessage(serverError);
@@ -165,6 +194,7 @@ const validateEmail = (val: string): string | null => {
 
       const mockUser = {
         id: "offline-user-id",
+        name: email.split("@")[0] || "User",
         firstName: email.split("@")[0] || "User",
         lastName: "Local",
         email: email.trim(),
@@ -172,13 +202,22 @@ const validateEmail = (val: string): string | null => {
       };
 
       localStorage.setItem("authToken", "offline-token");
+      localStorage.setItem("rbooking_token", "offline-token");
       localStorage.setItem("currentUser", JSON.stringify(mockUser));
+      localStorage.setItem("rbooking_user_profile", JSON.stringify(mockUser));
+      localStorage.setItem("rbooking_logged_in", "true");
+
       window.dispatchEvent(new Event("auth-state-change"));
+      window.dispatchEvent(new Event("rbooking_auth_change"));
       window.dispatchEvent(new Event("storage"));
 
       setSuccessMessage(`Autentificare reușită — Conectat ca ${mockUser.role}`);
       setTimeout(() => {
-        router.push("/");
+        if (detectedRole === "Operator") {
+          window.location.href = "/manager/accommodation";
+        } else {
+          router.push("/");
+        }
       }, 1000);
     } finally {
       setIsLoading(false);

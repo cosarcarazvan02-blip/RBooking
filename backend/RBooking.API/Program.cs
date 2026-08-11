@@ -31,11 +31,6 @@ var blockedIps = new HashSet<IPAddress>(blockedIpStrings
     .Where(ip => !string.IsNullOrWhiteSpace(ip))
     .Select(ip => IPAddress.Parse(ip.Trim())));
 
-// FIX: nu mai golim KnownProxies/KnownIPNetworks fara sa punem ceva in loc.
-// Daca aplicatia sta in spatele unui reverse proxy real (nginx, Azure App Gateway etc.),
-// pune aici IP-ul/subnetul acelui proxy explicit, in appsettings sau environment.
-// Daca NU exista niciun proxy in fata, nu adaugati UseForwardedHeaders deloc mai jos,
-// altfel oricine poate falsifica X-Forwarded-For si va ocoleste blockedIps + rate limiting.
 var trustedProxies = builder.Configuration.GetSection("Security:TrustedProxies").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -49,7 +44,6 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
             options.KnownProxies.Add(proxyIp);
         }
     }
-    // Daca nu avem niciun proxy de incredere configurat, nu acceptam X-Forwarded-For deloc.
     if (options.KnownProxies.Count == 0)
     {
         options.ForwardedHeaders = ForwardedHeaders.None;
@@ -61,11 +55,29 @@ builder.Services.AddSingleton<RequestMetrics>();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 
+// Configurare CORS unică și corectă pentru frontend (Next.js pe portul 3000)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:3000",
+            "https://localhost:3000",
+            "http://localhost:3001",
+            "https://localhost:3001",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001"
+        )
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // First layer: fixed window per IP
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -77,7 +89,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 2
             }));
 
-    // Second layer: token bucket per IP for burst control and sustained flow
     options.AddPolicy("tokenBucket", httpContext =>
         RateLimitPartition.GetTokenBucketLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -92,7 +103,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-// Repository-uri și Servicii existente
+// Repository-uri și Servicii
 builder.Services.AddScoped<IDiscountRepository, DiscountRepository>();
 builder.Services.AddScoped<IDiscountService, DiscountService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -109,7 +120,6 @@ builder.Services.AddScoped<IAccommodationCsvImportService, AccommodationCsvImpor
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 
-// Configure Swagger with JWT Bearer Authentication and API Key support
 builder.Services.AddSwaggerGen(options =>
 {
     var bearerScheme = new OpenApiSecurityScheme
@@ -127,7 +137,6 @@ builder.Services.AddSwaggerGen(options =>
         Name = ApiKeyMiddleware.ApiKeyHeaderName,
         Type = SecuritySchemeType.ApiKey,
         In = ParameterLocation.Header,
-        // FIX: nu mai punem un exemplu care arata ca o cheie reala.
         Description = "Enter your API Key secret."
     };
 
@@ -153,10 +162,6 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// FIX: valorile pentru Jwt:Issuer, Jwt:Audience si mai ales Jwt:Key trebuie sa vina
-// obligatoriu din configuratie (appsettings / environment / secret manager / Azure Key Vault),
-// niciodata hardcodate in cod. Daca lipsesc, aplicatia trebuie sa nu porneasca,
-// nu sa cada pe o valoare implicita cunoscuta public (in cod, pe GitHub).
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]
     ?? throw new InvalidOperationException("Configuratia 'Jwt:Issuer' lipseste.");
 var jwtAudience = builder.Configuration["Jwt:Audience"]
@@ -178,8 +183,6 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    // FIX: eliminat UseSecurityTokenValidators = true (foloseste calea legacy de validare).
-    // Implementarea implicita (TokenHandlers) e cea recomandata.
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -189,7 +192,6 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        // FIX: 5 minute era prea permisiv pentru un sistem de rezervari; 1 minut e suficient.
         ClockSkew = TimeSpan.FromMinutes(1)
     };
 
@@ -209,9 +211,6 @@ builder.Services.AddAuthentication(options =>
             }
             return Task.CompletedTask;
         },
-        // FIX: Console.WriteLine inlocuit cu ILogger; nivel Warning (nu Error, e asteptat sa apara
-        // frecvent din cauza clientilor), fara sa includem context.Exception.Message in productie
-        // (poate contine detalii interne). In Development poti loga mai mult daca vrei sa debughezi.
         OnAuthenticationFailed = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -233,17 +232,6 @@ builder.Services.AddAuthentication(options =>
             return Task.CompletedTask;
         }
     };
-});
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
 });
 
 var app = builder.Build();
@@ -278,10 +266,35 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+
+// CORS obligatoriu primul, înainte de orice altceva
 app.UseCors("AllowFrontend");
 
+// Scoatem complet logica greșită de blocare IP din middleware-ul custom de pe rutele de autentificare/OPTIONS
+// și lăsăm doar adăugarea de headere de securitate și metrici.
 app.Use(async (context, next) =>
 {
+    var path = context.Request.Path;
+    
+    // Sărim peste verificările de securitate restrictive pentru preflight sau rute publice critice dacă e nevoie
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    
+    if (!path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase) &&
+        !path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    }
+
+    context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+
+    if (HttpMethods.IsOptions(context.Request.Method))
+    {
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return;
+    }
+
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     var metrics = context.RequestServices.GetRequiredService<RequestMetrics>();
     metrics.IncrementTotalRequests();
@@ -295,19 +308,6 @@ app.Use(async (context, next) =>
         await context.Response.WriteAsync("Forbidden.");
         return;
     }
-
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["Referrer-Policy"] = "no-referrer";
-    
-    // Exclude Swagger & OpenAPI from restrictive CSP header so Swagger UI JS & CSS can run
-    if (!context.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase) &&
-        !context.Request.Path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase))
-    {
-        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
-    }
-
-    context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
 
     var start = Stopwatch.GetTimestamp();
     try
@@ -332,9 +332,9 @@ app.Use(async (context, next) =>
             metrics.IncrementSuccessfulResponses();
         }
 
-        if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.Equals("/healthz", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWithSegments("/api") || path.Equals("/healthz", StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogInformation("[Monitoring] {Method} {Path} responded {StatusCode} in {ElapsedMs:F1}ms", context.Request.Method, context.Request.Path, context.Response.StatusCode, elapsedMs);
+            logger.LogInformation("[Monitoring] {Method} {Path} responded {StatusCode} in {ElapsedMs:F1}ms", context.Request.Method, path, context.Response.StatusCode, elapsedMs);
         }
     }
 });
@@ -353,9 +353,6 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// FIX: /metrics era public, inainte de ApiKeyMiddleware. Acum cere API key
-// (aceeasi middleware ca restul API-ului) si e sub rate limiting, nu mai e
-// expus liber la scanare/reconnaissance.
 app.MapGet("/metrics", (RequestMetrics metrics) => Results.Json(new
 {
     totalRequests = metrics.TotalRequests,

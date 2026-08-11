@@ -29,7 +29,15 @@ export default function AccountPage() {
       const saved = localStorage.getItem('rbooking_user_profile');
       if (saved) {
         try {
-          if (!ignore) setProfile(JSON.parse(saved));
+          if (!ignore) {
+            const parsed = JSON.parse(saved);
+            setProfile({
+              name: parsed.name || parsed.Name || '',
+              email: parsed.email || parsed.Email || '',
+              phone: parsed.phone || parsed.Phone || '',
+              role: parsed.role || parsed.Role || 'User',
+            });
+          }
         } catch (e) {
           console.error(e);
         }
@@ -44,7 +52,8 @@ export default function AccountPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('rbooking_user_profile', JSON.stringify(profile));
+    const updatedProfile = { ...profile };
+    localStorage.setItem('rbooking_user_profile', JSON.stringify(updatedProfile));
     setIsEditing(false);
     setSuccessMessage(lang === 'RO' ? 'Modificările au fost salvate cu succes!' : 'Changes saved successfully!');
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -52,7 +61,6 @@ export default function AccountPage() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-neutral-900 dark:text-neutral-100">
-      {/* Buton Înapoi Acasă */}
       <div className="mb-6 flex justify-between items-center">
         <Link 
           href="/" 
@@ -169,6 +177,10 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 py-2 border-b border-neutral-100 dark:border-neutral-800/50">
               <span className="text-neutral-500">{lang === 'RO' ? 'Telefon:' : 'Phone:'}</span>
               <span className="sm:col-span-2 font-medium">{profile.phone || (lang === 'RO' ? 'Nespecificat' : 'Not specified')}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 py-2 border-b border-neutral-100 dark:border-neutral-800/50">
+              <span className="text-neutral-500">{lang === 'RO' ? 'Rol:' : 'Role:'}</span>
+              <span className="sm:col-span-2 font-medium">{profile.role || 'User'}</span>
             </div>
           </div>
         )}

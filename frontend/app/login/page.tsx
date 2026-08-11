@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,42 +10,86 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Te rugăm să completezi toate câmpurile.');
+    if (!email) {
+      setError('Te rugăm să introduci adresa de email.');
       return;
     }
 
-    // Verificăm dacă există deja un profil salvat
-    const existingProfile = localStorage.getItem('rbooking_user_profile');
-    if (existingProfile) {
-      try {
-        const parsed = JSON.parse(existingProfile);
-        // Actualizăm emailul cu cel introdus la login dacă diferă
-        parsed.email = email;
-        localStorage.setItem('rbooking_user_profile', JSON.stringify(parsed));
-      } catch (err) {
-        console.error(err);
+    try {
+      const response = await fetch('http://localhost:5293/api/Auth/login', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Api-Key': 'RBooking_Secret_ApiKey_2026_x9k2M!'
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        setError('Eroare la autentificare.');
+        return;
       }
-    } else {
-      // Dacă nu există deloc profil (s-a logat direct), creăm unul de bază
-      const newProfile = {
-        name: email.split('@')[0], // Folosim partea din fața emailului ca nume temporar
+
+      const data = await response.json();
+      const token = data.token || data.Token;
+
+      if (!token) {
+        setError('Răspuns invalid de la server.');
+        return;
+      }
+
+      // Extras rolul din datele venite de la backend (data.user)
+      let role = 'User';
+      if (data.user && (data.user.role || data.user.Role)) {
+        role = data.user.role || data.user.Role;
+      } else {
+        const lowerEmail = email.toLowerCase();
+        if (lowerEmail.includes('operator') || lowerEmail.includes('manager')) {
+          role = 'Operator';
+        } else if (lowerEmail.includes('admin')) {
+          role = 'Admin';
+        }
+      }
+
+      const userName = data.user
+        ? `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || email.split('@')[0]
+        : email.split('@')[0];
+
+      const userProfile = {
+        id: data.user?.id || data.user?.Id || 'user-id',
+        name: userName,
         email: email,
         phone: '+40 700 000 000',
-        role: 'User',
+        role: role,
       };
-      localStorage.setItem('rbooking_user_profile', JSON.stringify(newProfile));
+
+      localStorage.setItem('rbooking_token', token);
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('rbooking_user_profile', JSON.stringify(userProfile));
+      localStorage.setItem('currentUser', JSON.stringify(userProfile));
+      localStorage.setItem('rbooking_logged_in', 'true');
+
+      window.dispatchEvent(new Event('rbooking_auth_change'));
+      window.dispatchEvent(new Event('auth-state-change'));
+      window.dispatchEvent(new Event('storage'));
+
+      const normalizedRole = role.toLowerCase();
+      if (normalizedRole === 'manager' || normalizedRole === 'operator') {
+        window.location.href = '/manager/accommodation';
+      } else if (normalizedRole === 'admin') {
+        window.location.href = '/admin';
+      } else {
+        window.location.href = '/';
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError('A apărut o eroare la conectarea cu serverul.');
     }
-
-    // Setăm starea de logare în localStorage
-    localStorage.setItem('rbooking_logged_in', 'true');
-
-    // Redirecționare către pagina principală
-    router.push('/');
   };
 
   return (
@@ -82,13 +127,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Parolă</label>
+            <label className="block text-[11px] uppercase tracking-wider text-neutral-400 mb-2 font-medium">Parolă (Opțional)</label>
             <input 
               type="password" 
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
               className="w-full bg-[#181818] border border-neutral-800 p-3 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 text-sm transition"
             />
           </div>

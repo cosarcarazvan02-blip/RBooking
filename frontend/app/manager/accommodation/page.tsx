@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
 import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
@@ -15,6 +16,7 @@ interface Accommodation {
 }
 
 export default function ManageAccommodationsPage() {
+  const router = useRouter();
   const { lang } = useLanguage();
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,6 +29,27 @@ export default function ManageAccommodationsPage() {
   const [type, setType] = useState('Hotel Boutique');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+
+  // Verificăm tokenul și rolul de Manager/Operator la încărcarea paginii
+  useEffect(() => {
+    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+    const savedProfile = localStorage.getItem('rbooking_user_profile') || localStorage.getItem('currentUser');
+
+    if (!token || !savedProfile) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const profile = JSON.parse(savedProfile);
+      const userRole = (profile.role || profile.Role || '').toLowerCase();
+      if (userRole !== 'manager' && userRole !== 'operator' && userRole !== 'admin') {
+        router.push('/');
+      }
+    } catch (e) {
+      router.push('/login');
+    }
+  }, [router]);
 
   useEffect(() => {
     let ignore = false;
