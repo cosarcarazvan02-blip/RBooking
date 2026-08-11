@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
 import { useLanguage } from '@/context/LanguageContext';
 import { Shield, Users, Building2, Calendar, Trash2, Edit, CheckCircle2, UserCheck, Search, Plus, Server } from 'lucide-react';
 import { getActiveApiKey } from '@/lib/apiKey';
@@ -101,8 +100,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
-      <Navbar />
-
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Admin Header */}
         <div className="mb-8 pb-6 border-b border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -302,8 +299,5 @@ export default function AdminDashboardPage() {
         )}
       </main>
     </div>
-  );
-}
->>>>>>> cd6ac81a2e0ee847a5da766af1fa325774d73a49
   );
 }
