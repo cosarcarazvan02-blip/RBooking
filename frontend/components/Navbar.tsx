@@ -1,37 +1,56 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useLanguage } from '@/context/LanguageContext';
 import { LogIn, Calendar, LogOut, Globe, User, Building2, Shield, Hotel } from 'lucide-react';
 
 export default function Navbar() {
+  const pathname = usePathname();
   const { lang, toggleLang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('User');
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const logged = localStorage.getItem('rbooking_logged_in');
-      if (logged === 'true') {
-        setIsLoggedIn(true);
-      } else {
-        setIsLoggedIn(false);
-      }
+  const checkAuth = useCallback(() => {
+    if (typeof window === 'undefined') return;
 
-      const profile = localStorage.getItem('rbooking_user_profile');
-      if (profile) {
-        try {
-          const parsed = JSON.parse(profile);
-          if (parsed.role) {
-            setUserRole(parsed.role);
-          }
-        } catch (e) {
-          console.error(e);
+    const logged = localStorage.getItem('rbooking_logged_in');
+    const authToken = localStorage.getItem('authToken');
+    const currentUser = localStorage.getItem('currentUser');
+    const profile = localStorage.getItem('rbooking_user_profile');
+
+    const isUserLoggedIn = logged === 'true' || Boolean(authToken) || Boolean(currentUser);
+    setIsLoggedIn(isUserLoggedIn);
+
+    if (profile) {
+      try {
+        const parsed = JSON.parse(profile);
+        if (parsed.role) {
+          setUserRole(parsed.role);
+          return;
         }
+      } catch (e) {
+        console.error(e);
       }
-    };
+    }
 
+    if (currentUser) {
+      try {
+        const parsed = JSON.parse(currentUser);
+        if (parsed.role) {
+          setUserRole(parsed.role === 'Operator' ? 'Manager' : parsed.role);
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setUserRole('User');
+  }, []);
+
+  useEffect(() => {
     checkAuth();
     window.addEventListener('storage', checkAuth);
     window.addEventListener('auth-state-change', checkAuth);
@@ -39,14 +58,24 @@ export default function Navbar() {
       window.removeEventListener('storage', checkAuth);
       window.removeEventListener('auth-state-change', checkAuth);
     };
-  }, []);
+  }, [checkAuth]);
+
+  // Re-verificare automată la schimbarea rutei (ex: navigare de la /login la /)
+  useEffect(() => {
+    checkAuth();
+  }, [pathname, checkAuth]);
 
   const handleLogout = () => {
     localStorage.removeItem('rbooking_logged_in');
     localStorage.removeItem('rbooking_user_profile');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
     setIsLoggedIn(false);
+    window.dispatchEvent(new Event('auth-state-change'));
+    window.dispatchEvent(new Event('storage'));
     window.location.href = '/';
   };
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-xs text-neutral-900 dark:text-white transition-colors duration-300">
