@@ -1,0 +1,26 @@
+{
+  "_README": "Copiază acest fișier ca 'appsettings.json' în același folder și completează valorile tale locale. appsettings.json este în .gitignore, deci nu se urcă niciodată în git.",
+
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=RBooking;Username=postgres;Password=YOUR_DB_PASSWORD"
+  },
+  "Jwt": {
+    "Issuer": "RBookingAPI",
+    "Audience": "RBookingClient",
+    "Key": "CHANGE_ME_orice_string_lung_si_secret_pentru_semnat_JWT"
+  },
+  "Security": {
+    "ApiKey": "CHANGE_ME_cheia_ceruta_de_ApiKeyMiddleware_pe_orice_request"
+  },
+  "Webhooks": {
+    "_comment": "Trebuie sa coincida EXACT cu Webhooks:Secret din RBooking.WebhookAPI/appsettings.json - e cheia HMAC folosita ca sa semnezi/verifici webhook-ul de accommodation-updated.",
+    "AccommodationUpdatedUrl": "http://localhost:5310/api/webhooks/accommodation-updated",
+    "Secret": "CHANGE_ME_acelasi_secret_ca_in_WebhookAPI"
+  }
+}

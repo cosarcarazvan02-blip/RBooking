@@ -8,10 +8,12 @@ namespace RBooking.Application.Services;
 public class AccommodationService : IAccommodationService
 {
     private readonly IAccommodationRepository _accommodationRepository;
+    private readonly IWebhookSender _webhookSender;
 
-    public AccommodationService(IAccommodationRepository accommodationRepository)
+    public AccommodationService(IAccommodationRepository accommodationRepository, IWebhookSender webhookSender)
     {
         _accommodationRepository = accommodationRepository;
+        _webhookSender = webhookSender;
     }
 
     public async Task<PagedResultDto<AccommodationDto>> GetFilteredAccommodationsAsync(AccommodationFilterDto filter)
@@ -156,6 +158,8 @@ public class AccommodationService : IAccommodationService
             throw new UnauthorizedAccessException("Nu poți modifica o cazare care nu îți aparține.");
         }
 
+        var oldSnapshot = BuildFieldSnapshot(accommodation);
+
         accommodation.Name = dto.Name;
         accommodation.Location = dto.Location;
         accommodation.City = dto.City;
@@ -186,7 +190,83 @@ public class AccommodationService : IAccommodationService
         }
 
         var updated = await _accommodationRepository.UpdateAsync(accommodation);
-        return updated != null;
+        if (updated == null) return false;
+
+        var newSnapshot = BuildFieldSnapshot(updated);
+        var (oldValues, newValues) = DiffSnapshots(oldSnapshot, newSnapshot);
+
+        if (oldValues.Count > 0)
+        {
+            await _webhookSender.SendAccommodationUpdatedAsync(new AccommodationUpdatedWebhookDto
+            {
+                AccommodationId = updated.Id,
+                ModifiedByUserId = currentUserId,
+                ModifiedAt = DateTime.UtcNow,
+                OldValues = oldValues,
+                NewValues = newValues
+            });
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Captures only the accommodation's own scalar fields (no related entities),
+    /// used to compute the minimal old/new diff sent in the accommodation-updated webhook.
+    /// </summary>
+    private static Dictionary<string, object?> BuildFieldSnapshot(Accommodation a)
+    {
+        var snapshot = new Dictionary<string, object?>
+        {
+            ["Name"] = a.Name,
+            ["Description"] = a.Description,
+            ["Location"] = a.Location,
+            ["City"] = a.City,
+            ["Country"] = a.Country,
+            ["PricePerNight"] = a.PricePerNight
+        };
+
+        if (a is Hotel hotel)
+        {
+            snapshot["Stars"] = hotel.Stars;
+            snapshot["HasPool"] = hotel.HasPool;
+            snapshot["HasRoomService"] = hotel.HasRoomService;
+            snapshot["TotalRooms"] = hotel.TotalRooms;
+        }
+        else if (a is Apartment apartment)
+        {
+            snapshot["FloorNumber"] = apartment.FloorNumber;
+            snapshot["HasElevator"] = apartment.HasElevator;
+            snapshot["NumberOfRooms"] = apartment.NumberOfRooms;
+            snapshot["IsFurnished"] = apartment.IsFurnished;
+        }
+        else if (a is Hostel hostel)
+        {
+            snapshot["BedInSharedRoomPrice"] = hostel.BedInSharedRoomPrice;
+            snapshot["HasSharedKitchen"] = hostel.HasSharedKitchen;
+            snapshot["TotalBeds"] = hostel.TotalBeds;
+        }
+
+        return snapshot;
+    }
+
+    private static (Dictionary<string, object?> OldValues, Dictionary<string, object?> NewValues) DiffSnapshots(
+        Dictionary<string, object?> oldSnapshot, Dictionary<string, object?> newSnapshot)
+    {
+        var oldValues = new Dictionary<string, object?>();
+        var newValues = new Dictionary<string, object?>();
+
+        foreach (var (field, oldValue) in oldSnapshot)
+        {
+            var newValue = newSnapshot.TryGetValue(field, out var v) ? v : null;
+            if (!Equals(oldValue, newValue))
+            {
+                oldValues[field] = oldValue;
+                newValues[field] = newValue;
+            }
+        }
+
+        return (oldValues, newValues);
     }
 
     public async Task<bool> DeleteAccommodationAsync(Guid id, Guid currentUserId, UserRole currentUserRole)
