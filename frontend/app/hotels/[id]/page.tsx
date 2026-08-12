@@ -503,12 +503,12 @@ export default function HotelDetailsPage() {
 
   return (
     <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans flex flex-col">
-      {/* Top Floating Glass Buttons (Bară invizibilă, doar butoane cu blur) */}
+      {/* Top Floating Glass Buttons (Bară invizibilă, doar butoane cu blur și colțuri ușor rotunjite) */}
       <div className="sticky top-20 z-30 pointer-events-none py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <Link
             href="/#accommodations"
-            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-full shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono uppercase tracking-wider text-neutral-800 dark:text-neutral-200 hover:text-neutral-950 dark:hover:text-white transition-all active:scale-[0.98]"
+            className="pointer-events-auto inline-flex items-center gap-2 px-3.5 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-lg shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono uppercase tracking-wider text-neutral-800 dark:text-neutral-200 hover:text-neutral-950 dark:hover:text-white transition-all active:scale-[0.98]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>{lang === 'RO' ? '← Înapoi la Colecție' : '← Back to stays'}</span>
@@ -518,7 +518,7 @@ export default function HotelDetailsPage() {
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-full shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-lg shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer active:scale-[0.98]"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>{copiedLink ? (lang === 'RO' ? 'Copiat!' : 'Copied!') : (lang === 'RO' ? 'Distribuie' : 'Share')}</span>
@@ -527,7 +527,7 @@ export default function HotelDetailsPage() {
             <button
               type="button"
               onClick={handleToggleFavorite}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 backdrop-blur-md rounded-full border shadow-xs hover:shadow-md transition-all cursor-pointer text-xs font-mono active:scale-[0.98] ${
+              className={`inline-flex items-center gap-1.5 px-3 py-2 backdrop-blur-md rounded-lg border shadow-xs hover:shadow-md transition-all cursor-pointer text-xs font-mono active:scale-[0.98] ${
                 isSaved
                   ? 'bg-rose-50/80 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/80'
                   : 'bg-white/75 text-neutral-800 border-neutral-200/80 dark:bg-[#131519]/75 dark:text-neutral-200 dark:border-white/10 hover:bg-white/95 dark:hover:bg-[#1a1d24]/95'

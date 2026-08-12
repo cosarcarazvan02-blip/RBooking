@@ -545,7 +545,7 @@ export default function Accommodations() {
                 <button
                   type="button"
                   onClick={(e) => handleToggleFavorite(hotel, e)}
-                  className={`absolute top-4 right-4 z-10 p-2 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-xs active:scale-90 ${
+                  className={`absolute top-4 right-4 z-10 p-2 rounded-lg backdrop-blur-md border transition-all cursor-pointer shadow-xs active:scale-90 ${
                     favoriteIds.has(hotel.id)
                       ? "bg-rose-600 text-white border-rose-600 dark:border-rose-400 shadow-md"
                       : "bg-white/80 dark:bg-black/60 text-neutral-700 dark:text-neutral-200 border-white/40 dark:border-white/20 hover:bg-white dark:hover:bg-black/90"
