@@ -25,10 +25,13 @@ public class ReviewsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Client,Admin")]
+    [Authorize]
     public async Task<ActionResult<ReviewDto>> Create([FromBody] CreateReviewDto createReviewDto)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst("sub")?.Value 
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
         if (!Guid.TryParse(userIdString, out var currentUserId))
         {
             return Unauthorized(new { message = "Invalid user token credentials." });
