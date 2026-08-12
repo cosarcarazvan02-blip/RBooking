@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
+import BookingCalendar from '@/components/BookingCalendar';
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -746,34 +747,27 @@ export default function HotelDetailsPage() {
               </div>
 
               <form onSubmit={handleBookingSubmit} className="space-y-4">
-                {/* Date Inputs */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 dark:text-neutral-400 font-bold">
-                      {lang === 'RO' ? 'Check-in' : 'Check-in'}
-                    </label>
-                    <input
-                      type="date"
-                      value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
-                      min={tomorrow}
-                      required
-                      className="w-full p-2.5 bg-neutral-50 dark:bg-[#1A1D24] border border-neutral-300 dark:border-neutral-700 text-xs font-mono rounded focus:outline-none focus:border-neutral-950 dark:focus:border-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 dark:text-neutral-400 font-bold">
-                      {lang === 'RO' ? 'Check-out' : 'Check-out'}
-                    </label>
-                    <input
-                      type="date"
-                      value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
-                      min={checkIn}
-                      required
-                      className="w-full p-2.5 bg-neutral-50 dark:bg-[#1A1D24] border border-neutral-300 dark:border-neutral-700 text-xs font-mono rounded focus:outline-none focus:border-neutral-950 dark:focus:border-white"
-                    />
-                  </div>
+                {/* Calendar Vizual Interactiv cu Pătrățele Evidențiate */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-600 dark:text-neutral-400 font-bold block">
+                    {lang === 'RO' ? 'Perioadă Sejur (Pătrățele Evidențiate)' : 'Stay Period (Highlighted Dates)'}
+                  </label>
+                  <BookingCalendar
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    onRangeChange={(newIn, newOut) => {
+                      setCheckIn(newIn);
+                      if (newOut <= newIn) {
+                        const d = new Date(newIn);
+                        d.setDate(d.getDate() + 1);
+                        setCheckOut(d.toISOString().split('T')[0]);
+                      } else {
+                        setCheckOut(newOut);
+                      }
+                    }}
+                    lang={lang}
+                    minNights={1}
+                  />
                 </div>
 
                 {/* Guests input */}
