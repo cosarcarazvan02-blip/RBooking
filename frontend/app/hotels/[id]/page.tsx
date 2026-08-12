@@ -149,7 +149,19 @@ export default function HotelDetailsPage() {
         console.error(e);
       }
     }
-  }, []);
+
+    const savedFavs = localStorage.getItem('rbooking_favorites');
+    if (savedFavs) {
+      try {
+        const favs = JSON.parse(savedFavs);
+        if (Array.isArray(favs)) {
+          setIsSaved(favs.some((item: any) => (item.id || item) === hotelId));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [hotelId]);
 
   // Fetch hotel details and reviews
   const loadData = useCallback(async () => {
@@ -446,6 +458,38 @@ export default function HotelDetailsPage() {
     }
   };
 
+  const handleToggleFavorite = () => {
+    if (typeof window === 'undefined' || !hotel) return;
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('rbooking_favorites') || '[]');
+      let updated: any[];
+      if (nextSaved) {
+        const favItem = {
+          id: hotel.id,
+          name: hotel.name,
+          location: hotel.location,
+          city: hotel.city,
+          country: hotel.country,
+          pricePerNight: hotel.pricePerNight,
+          imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
+          accommodationType: hotel.accommodationType,
+          averageRating: hotel.averageRating,
+          savedAt: new Date().toISOString()
+        };
+        updated = [favItem, ...existing.filter((item: any) => (item.id || item) !== hotel.id)];
+      } else {
+        updated = existing.filter((item: any) => (item.id || item) !== hotel.id);
+      }
+      localStorage.setItem('rbooking_favorites', JSON.stringify(updated));
+      window.dispatchEvent(new Event('rbooking_favorites_change'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] flex flex-col items-center justify-center text-neutral-900 dark:text-neutral-100">
@@ -482,7 +526,7 @@ export default function HotelDetailsPage() {
 
             <button
               type="button"
-              onClick={() => setIsSaved(!isSaved)}
+              onClick={handleToggleFavorite}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 backdrop-blur-md rounded-full border shadow-xs hover:shadow-md transition-all cursor-pointer text-xs font-mono active:scale-[0.98] ${
                 isSaved
                   ? 'bg-rose-50/80 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/80'
