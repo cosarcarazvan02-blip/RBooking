@@ -7,33 +7,20 @@ import Image from 'next/image';
 import {
   Star,
   MapPin,
-  Calendar,
-  Users,
-  Check,
-  Sparkles,
   ShieldCheck,
   ArrowLeft,
-  BedDouble,
-  Building,
-  Hotel,
   Wifi,
   Coffee,
   Car,
-  Tv,
   Waves,
   Utensils,
   X,
-  ChevronRight,
-  Info,
   Clock,
-  ArrowRight,
   Lock,
   Share2,
   Heart,
   MessageSquarePlus,
-  Send,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
@@ -75,6 +62,12 @@ interface ReviewItem {
   reservationId: string;
   createdAt: string;
   userEmail?: string;
+}
+
+interface UserReservation {
+  id: string;
+  hotelName?: string;
+  dates?: string;
 }
 
 export default function HotelDetailsPage() {
@@ -121,47 +114,53 @@ export default function HotelDetailsPage() {
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [userReservations, setUserReservations] = useState<any[]>([]);
+  const [userReservations, setUserReservations] = useState<UserReservation[]>([]);
 
   // Check auth
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
-    const profile = localStorage.getItem('rbooking_user_profile') || localStorage.getItem('currentUser');
-    const logged = localStorage.getItem('rbooking_logged_in') === 'true' || Boolean(token);
-    setIsLoggedIn(logged);
+    queueMicrotask(() => {
+      const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+      const profile = localStorage.getItem('rbooking_user_profile') || localStorage.getItem('currentUser');
+      const logged = localStorage.getItem('rbooking_logged_in') === 'true' || Boolean(token);
+      setIsLoggedIn(logged);
 
-    if (profile) {
-      try {
-        const parsed = JSON.parse(profile);
-        if (parsed.id || parsed.Id) {
-          setCurrentUserId(parsed.id || parsed.Id);
+      if (profile) {
+        try {
+          const parsed = JSON.parse(profile);
+          if (parsed.id || parsed.Id) {
+            setCurrentUserId(parsed.id || parsed.Id);
+          }
+        } catch (e) {
+          console.error(e);
         }
-      } catch (e) {
-        console.error(e);
       }
-    }
 
-    const savedRes = localStorage.getItem('rbooking_user_reservations');
-    if (savedRes) {
-      try {
-        setUserReservations(JSON.parse(savedRes));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    const savedFavs = localStorage.getItem('rbooking_favorites');
-    if (savedFavs) {
-      try {
-        const favs = JSON.parse(savedFavs);
-        if (Array.isArray(favs)) {
-          setIsSaved(favs.some((item: any) => (item.id || item) === hotelId));
+      const savedRes = localStorage.getItem('rbooking_user_reservations');
+      if (savedRes) {
+        try {
+          setUserReservations(JSON.parse(savedRes));
+        } catch (e) {
+          console.error(e);
         }
-      } catch (e) {
-        console.error(e);
       }
-    }
+
+      const savedFavs = localStorage.getItem('rbooking_favorites');
+      if (savedFavs) {
+        try {
+          const favs = JSON.parse(savedFavs);
+          if (Array.isArray(favs)) {
+            setIsSaved(favs.some((item: unknown) => {
+              if (typeof item === 'string') return item === hotelId;
+              if (item && typeof item === 'object' && 'id' in item) return (item as { id: unknown }).id === hotelId;
+              return false;
+            }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
   }, [hotelId]);
 
   // Fetch hotel details and reviews
@@ -286,7 +285,9 @@ export default function HotelDetailsPage() {
   }, [hotelId, lang]);
 
   useEffect(() => {
-    loadData();
+    queueMicrotask(() => {
+      void loadData();
+    });
   }, [loadData]);
 
   // Calculations for Price
@@ -304,7 +305,7 @@ export default function HotelDetailsPage() {
   const totalPrice = basePriceTotal + serviceFee;
 
   // Handle Booking
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBookingError('');
 
@@ -375,7 +376,7 @@ export default function HotelDetailsPage() {
   };
 
   // Handle Review Submission (Triggers Webhook A => B)
-  const handleReviewSubmit = async (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setReviewStatusMessage(null);
 
@@ -465,8 +466,10 @@ export default function HotelDetailsPage() {
     setIsSaved(nextSaved);
 
     try {
-      const existing = JSON.parse(localStorage.getItem('rbooking_favorites') || '[]');
-      let updated: any[];
+      const existing: unknown[] = JSON.parse(localStorage.getItem('rbooking_favorites') || '[]');
+      const favoriteIdOf = (item: unknown): unknown =>
+        item && typeof item === 'object' && 'id' in item ? (item as { id: unknown }).id : item;
+      let updated: unknown[];
       if (nextSaved) {
         const favItem = {
           id: hotel.id,
@@ -480,9 +483,9 @@ export default function HotelDetailsPage() {
           averageRating: hotel.averageRating,
           savedAt: new Date().toISOString()
         };
-        updated = [favItem, ...existing.filter((item: any) => (item.id || item) !== hotel.id)];
+        updated = [favItem, ...existing.filter((item) => favoriteIdOf(item) !== hotel.id)];
       } else {
-        updated = existing.filter((item: any) => (item.id || item) !== hotel.id);
+        updated = existing.filter((item) => favoriteIdOf(item) !== hotel.id);
       }
       localStorage.setItem('rbooking_favorites', JSON.stringify(updated));
       window.dispatchEvent(new Event('rbooking_favorites_change'));
@@ -615,7 +618,7 @@ export default function HotelDetailsPage() {
                       : 'border-neutral-300 dark:border-neutral-800 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
+                  <Image src={img} alt={`Thumbnail ${idx}`} fill className="object-cover" />
                 </button>
               ))}
             </div>

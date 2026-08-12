@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useLanguage } from '@/context/LanguageContext';
 import {
@@ -26,6 +26,7 @@ import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey'
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { lang, toggleLang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('User');
@@ -97,9 +98,11 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    checkAuth();
-    checkFavorites();
-    setCurrentApiKey(getActiveApiKey());
+    queueMicrotask(() => {
+      checkAuth();
+      checkFavorites();
+      setCurrentApiKey(getActiveApiKey());
+    });
 
     const handleApiKeyUpdate = () => {
       setCurrentApiKey(getActiveApiKey());
@@ -124,8 +127,10 @@ export default function Navbar() {
 
   // Re-verificare automată la schimbarea rutei
   useEffect(() => {
-    checkAuth();
-    checkFavorites();
+    queueMicrotask(() => {
+      checkAuth();
+      checkFavorites();
+    });
   }, [pathname, checkAuth, checkFavorites]);
 
   const handleLogout = () => {
@@ -139,7 +144,7 @@ export default function Navbar() {
     window.dispatchEvent(new Event('rbooking_auth_change'));
     window.dispatchEvent(new Event('auth-state-change'));
     window.dispatchEvent(new Event('storage'));
-    window.location.href = '/';
+    router.push('/');
   };
 
   // Handlers pentru Cheia API

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft, Heart, Trash2, ArrowUpRight, MapPin } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -63,7 +64,9 @@ export default function AccountPage() {
 
   useEffect(() => {
     let ignore = false;
-    loadFavorites();
+    queueMicrotask(() => {
+      loadFavorites();
+    });
 
     const handleFavoritesChange = () => {
       loadFavorites();
@@ -96,7 +99,7 @@ export default function AccountPage() {
     };
   }, [loadFavorites]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const updatedProfile = { ...profile };
     localStorage.setItem('rbooking_user_profile', JSON.stringify(updatedProfile));
@@ -271,7 +274,7 @@ export default function AccountPage() {
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-900 shrink-0 relative">
-                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                   </div>
                   <div className="min-w-0 space-y-0.5">
                     <h3 className="text-sm font-serif font-medium truncate text-neutral-900 dark:text-neutral-100">

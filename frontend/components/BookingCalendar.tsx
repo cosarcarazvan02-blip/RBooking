@@ -1,7 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info } from 'lucide-react';
+
+const MONTH_NAMES_RO = [
+  'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
+  'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
+];
+const MONTH_NAMES_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 interface BookingCalendarProps {
   checkIn: string; // Format: 'YYYY-MM-DD'
@@ -39,34 +48,16 @@ export default function BookingCalendar({
     return today.toISOString().split('T')[0];
   }, []);
 
-  const monthNamesRO = [
-    'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
-    'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
-  ];
-  const monthNamesEN = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
   const weekDaysRO = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ', 'Du'];
   const weekDaysEN = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
   const monthLabel = useMemo(() => {
-    const names = lang === 'RO' ? monthNamesRO : monthNamesEN;
+    const names = lang === 'RO' ? MONTH_NAMES_RO : MONTH_NAMES_EN;
     return `${names[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
   }, [currentMonth, lang]);
 
-  const nextMonthDate = useMemo(() => {
-    return new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-  }, [currentMonth]);
-
-  const nextMonthLabel = useMemo(() => {
-    const names = lang === 'RO' ? monthNamesRO : monthNamesEN;
-    return `${names[nextMonthDate.getMonth()]} ${nextMonthDate.getFullYear()}`;
-  }, [nextMonthDate, lang]);
-
   // Generare zile pentru o lună specificată
-  const generateMonthDays = (baseMonth: Date) => {
+  const generateMonthDays = useCallback((baseMonth: Date) => {
     const year = baseMonth.getFullYear();
     const month = baseMonth.getMonth();
 
@@ -92,7 +83,6 @@ export default function BookingCalendar({
 
     // Zilele lunii
     for (let day = 1; day <= daysInMonth; day++) {
-      const d = new Date(year, month, day);
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isPast = dateStr < todayStr;
 
@@ -105,9 +95,9 @@ export default function BookingCalendar({
     }
 
     return days;
-  };
+  }, [todayStr]);
 
-  const currentMonthDays = useMemo(() => generateMonthDays(currentMonth), [currentMonth, todayStr]);
+  const currentMonthDays = useMemo(() => generateMonthDays(currentMonth), [currentMonth, generateMonthDays]);
 
   const handlePrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -254,7 +244,7 @@ export default function BookingCalendar({
               return <div key={`empty-${index}`} className="h-9 w-full" />;
             }
 
-            const { isStart, isEnd, isInRange, isHoverRange, isSelected } = getDayStatus(dayItem.dateStr);
+            const { isStart, isEnd, isInRange, isHoverRange } = getDayStatus(dayItem.dateStr);
 
             // Stilizare pătrățel
             let containerClass = "relative h-9 w-full flex items-center justify-center text-xs font-mono transition-all ";

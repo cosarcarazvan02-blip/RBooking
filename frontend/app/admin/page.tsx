@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { Shield, Users, Building2, Trash2, CheckCircle2, Search, Server } from 'lucide-react';
@@ -159,7 +159,7 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   // Preluăm token-ul activ din localStorage și eliminăm ghilimelele sau prefixul Bearer existent
-  const getAuthToken = (): string | null => {
+  const getAuthToken = useCallback((): string | null => {
     const rawToken =
       localStorage.getItem('rbooking_token') ||
       localStorage.getItem('authToken') ||
@@ -172,14 +172,14 @@ export default function AdminDashboardPage() {
       .replace(/^"|"$/g, '')
       .replace(/^Bearer\s+/i, '')
       .trim();
-  };
+  }, []);
 
   // FIX: header-ele se construiesc o singura data, intr-un singur loc.
   // Inainte, 'x-api-key' si 'X-Api-Key' erau setate ca doua chei distincte
   // in obiectul JS (case-sensitive la nivel de proprietate), iar fetch() le
   // combina automat cu ", " intre ele - server-ul primea un string diferit
   // de cheia configurata si respingea cererea cu 401.
-  const buildAuthHeaders = (): HeadersInit => {
+  const buildAuthHeaders = useCallback((): HeadersInit => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -200,10 +200,10 @@ export default function AdminDashboardPage() {
     }
 
     return headers;
-  };
+  }, [getAuthToken]);
 
   // Preia toți utilizatorii din API
-  const fetchUsersFromApi = async (): Promise<void> => {
+  const fetchUsersFromApi = useCallback(async (): Promise<void> => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
 
@@ -222,11 +222,13 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error('Eroare de rețea la fetchUsersFromApi:', error);
     }
-  };
+  }, [buildAuthHeaders]);
 
   useEffect(() => {
-    void fetchUsersFromApi();
-  }, []);
+    queueMicrotask(() => {
+      void fetchUsersFromApi();
+    });
+  }, [fetchUsersFromApi]);
 
   const handleChangeRole = (userId: string, newRole: Role): void => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));

@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
 import { getActiveApiKey } from '@/lib/apiKey';
@@ -276,7 +277,9 @@ export default function ManageAccommodationsPage() {
   }, [apiUrl]);
 
   useEffect(() => {
-    fetchAccommodations();
+    queueMicrotask(() => {
+      void fetchAccommodations();
+    });
 
     const handleKeyChange = () => {
       fetchAccommodations();
@@ -374,7 +377,7 @@ export default function ManageAccommodationsPage() {
 
   // FIX: trimite POST/PUT catre backend, cu payload aliniat exact la CreateAccommodationDto,
   // inclusiv campurile specifice de tip (Hotel/Apartment/Hostel) si imageUrl.
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title || !location) return;
 
@@ -482,7 +485,7 @@ export default function ManageAccommodationsPage() {
                 className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden bg-white dark:bg-[#121418] flex flex-col shadow-xs transition-all hover:border-neutral-400 dark:hover:border-neutral-700"
               >
                 <div className="h-48 overflow-hidden relative">
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                  <Image src={item.image} alt={item.title} fill className="object-cover" />
                   <span className="absolute top-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-widest rounded-lg">
                     {item.type}
                   </span>

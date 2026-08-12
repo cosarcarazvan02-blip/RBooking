@@ -85,7 +85,7 @@ export default function LoginForm() {
     setErrorMessage(null);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -151,7 +151,7 @@ export default function LoginForm() {
         setTimeout(() => {
           const r = (profileToSave.role || "").toLowerCase();
           if (r === "operator" || r === "manager") {
-            window.location.href = "/manager/accommodation";
+            router.push("/manager/accommodation");
           } else {
             router.push("/");
           }
@@ -201,7 +201,7 @@ export default function LoginForm() {
           );
           setTimeout(() => {
             if (detectedRole === "Operator") {
-              window.location.href = "/manager/accommodation";
+              router.push("/manager/accommodation");
             } else {
               router.push("/");
             }
@@ -244,7 +244,7 @@ export default function LoginForm() {
       );
       setTimeout(() => {
         if (detectedRole === "Operator") {
-          window.location.href = "/manager/accommodation";
+          router.push("/manager/accommodation");
         } else {
           router.push("/");
         }

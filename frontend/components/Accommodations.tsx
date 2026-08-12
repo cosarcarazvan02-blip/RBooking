@@ -3,13 +3,16 @@
 import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart, Star } from "lucide-react";
+import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
 import StarRating from "@/components/StarRating";
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
+
+const favoriteIdOf = (item: unknown): string =>
+  String(item && typeof item === "object" && "id" in item ? (item as { id: unknown }).id : item);
 
 interface RawAccommodationDto {
   id: string;
@@ -172,7 +175,7 @@ export default function Accommodations() {
         try {
           const favs = JSON.parse(saved);
           if (Array.isArray(favs)) {
-            setFavoriteIds(new Set(favs.map((item: any) => item.id || item)));
+            setFavoriteIds(new Set(favs.map((item: unknown) => favoriteIdOf(item))));
             return;
           }
         } catch (e) {
@@ -186,9 +189,10 @@ export default function Accommodations() {
     window.addEventListener("rbooking_favorites_change", updateFavs);
     window.addEventListener("storage", updateFavs);
 
-    const handleSelectCat = (e: any) => {
-      if (e?.detail) {
-        setSelectedType(e.detail);
+    const handleSelectCat = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) {
+        setSelectedType(detail);
       }
     };
     window.addEventListener("rbooking_select_category", handleSelectCat);
@@ -206,8 +210,8 @@ export default function Accommodations() {
     if (typeof window === "undefined") return;
 
     const isFav = favoriteIds.has(hotel.id);
-    const existing = JSON.parse(localStorage.getItem("rbooking_favorites") || "[]");
-    let updated: any[];
+    const existing: unknown[] = JSON.parse(localStorage.getItem("rbooking_favorites") || "[]");
+    let updated: unknown[];
 
     if (!isFav) {
       const favItem = {
@@ -222,13 +226,13 @@ export default function Accommodations() {
         averageRating: hotel.averageRating,
         savedAt: new Date().toISOString(),
       };
-      updated = [favItem, ...existing.filter((item: any) => (item.id || item) !== hotel.id)];
+      updated = [favItem, ...existing.filter((item) => favoriteIdOf(item) !== hotel.id)];
     } else {
-      updated = existing.filter((item: any) => (item.id || item) !== hotel.id);
+      updated = existing.filter((item) => favoriteIdOf(item) !== hotel.id);
     }
 
     localStorage.setItem("rbooking_favorites", JSON.stringify(updated));
-    setFavoriteIds(new Set(updated.map((item: any) => item.id || item)));
+    setFavoriteIds(new Set(updated.map((item) => favoriteIdOf(item))));
     window.dispatchEvent(new Event("rbooking_favorites_change"));
   };
 

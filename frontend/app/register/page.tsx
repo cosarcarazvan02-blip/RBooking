@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 

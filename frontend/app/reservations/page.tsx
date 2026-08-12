@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Trash2, CheckCircle2 } from 'lucide-react';
+import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface Reservation {
@@ -115,7 +116,7 @@ export default function ReservationsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
-                      <img src={item.imageUrl} alt={item.hotelName} className="object-cover w-full h-full" />
+                      <Image src={item.imageUrl} alt={item.hotelName} fill className="object-cover" />
                     </div>
                     <div className="space-y-1">
                       <div className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-600 dark:text-amber-400">
@@ -168,7 +169,7 @@ export default function ReservationsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
-                      <img src={item.imageUrl} alt={item.hotelName} className="object-cover w-full h-full" />
+                      <Image src={item.imageUrl} alt={item.hotelName} fill className="object-cover" />
                     </div>
                     <div className="space-y-1">
                       <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50">
