@@ -52,4 +52,36 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public string GenerateServiceToken(ServiceClient client)
+    {
+        var secretKey = _configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
+        var issuer = _configuration["Jwt:Issuer"]
+            ?? throw new InvalidOperationException("JWT Issuer is not configured.");
+        var audience = _configuration["Jwt:Audience"]
+            ?? throw new InvalidOperationException("JWT Audience is not configured.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, client.ClientId),
+            new Claim("client_id", client.ClientId),
+            new Claim(ClaimTypes.Name, client.ClientName),
+            new Claim(ClaimTypes.Role, string.IsNullOrEmpty(client.Role) ? "Service" : client.Role),
+            new Claim("scheme", "ServiceBearer"),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(2),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 }

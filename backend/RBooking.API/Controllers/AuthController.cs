@@ -14,11 +14,16 @@ public class AuthController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IServiceClientService _serviceClientService;
 
-    public AuthController(IUserRepository userRepository, IJwtTokenGenerator jwtTokenGenerator)
+    public AuthController(
+        IUserRepository userRepository,
+        IJwtTokenGenerator jwtTokenGenerator,
+        IServiceClientService serviceClientService)
     {
         _userRepository = userRepository;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _serviceClientService = serviceClientService;
     }
 
     [HttpPost("login")]
@@ -153,5 +158,51 @@ public class AuthController : ControllerBase
             Role = user.Role.ToString(),
             CreatedAt = user.CreatedAt
         });
+    }
+
+    /// <summary>
+    /// Authenticates an external service (e.g. API B) via Client ID + Client Secret and issues a ServiceBearer JWT token.
+    /// </summary>
+    [HttpPost("client-token")]
+    [HttpPost("token")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ServiceClientTokenResponseDto>> GetClientToken([FromBody] ServiceClientTokenRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.ClientId) || string.IsNullOrWhiteSpace(request.ClientSecret))
+        {
+            return BadRequest(new { message = "Client ID și Client Secret sunt obligatorii." });
+        }
+
+        var tokenResponse = await _serviceClientService.AuthenticateClientAsync(request.ClientId, request.ClientSecret);
+        if (tokenResponse == null)
+        {
+            return Unauthorized(new { message = "Autentificare eșuată: Client ID sau Client Secret invalid." });
+        }
+
+        return Ok(tokenResponse);
+    }
+
+    /// <summary>
+    /// Generates a new Client ID and Client Secret pair for a service and saves it to database.
+    /// </summary>
+    [HttpPost("clients/generate")]
+    [HttpPost("generate-client")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ServiceClientDto>> GenerateClient([FromBody] RegisterServiceClientDto? request)
+    {
+        var clientName = request?.ClientName ?? "API B Review Analytics Service";
+        var client = await _serviceClientService.GenerateClientAsync(clientName);
+        return Ok(client);
+    }
+
+    /// <summary>
+    /// Returns all registered service clients.
+    /// </summary>
+    [HttpGet("clients")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
+    public async Task<ActionResult<IEnumerable<ServiceClientDto>>> GetClients()
+    {
+        var clients = await _serviceClientService.GetAllClientsAsync();
+        return Ok(clients);
     }
 }

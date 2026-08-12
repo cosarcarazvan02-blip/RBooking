@@ -8,13 +8,16 @@ public class ReviewService : IReviewService
 {
     private readonly IReviewRepository _reviewRepository;
     private readonly IReservationRepository _reservationRepository;
+    private readonly IWebhookSenderService _webhookSenderService;
 
     public ReviewService(
         IReviewRepository reviewRepository,
-        IReservationRepository reservationRepository)
+        IReservationRepository reservationRepository,
+        IWebhookSenderService webhookSenderService)
     {
         _reviewRepository = reviewRepository;
         _reservationRepository = reservationRepository;
+        _webhookSenderService = webhookSenderService;
     }
 
     public async Task<IEnumerable<ReviewDto>> GetReviewsByAccommodationIdAsync(Guid accommodationId)
@@ -40,6 +43,20 @@ public class ReviewService : IReviewService
         };
 
         var created = await _reviewRepository.AddAsync(review);
+
+        // Declanșează webhook asincron către API B
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _webhookSenderService.SendReviewCreatedWebhookAsync(created.Id, created.ReservationId);
+            }
+            catch
+            {
+                // Ignorăm erorile de fundal pentru a nu afecta salvarea recenziei
+            }
+        });
+
         return MapToDto(created);
     }
 
