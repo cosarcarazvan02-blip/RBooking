@@ -614,9 +614,6 @@ export default function Accommodations() {
                       {Array.from({ length: hotel.stars || 4 }).map((_, i) => (
                         <Star key={i} className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
                       ))}
-                      <span className="text-[11px] font-mono text-neutral-500 font-bold ml-1">
-                        {hotel.stars || 4}★
-                      </span>
                     </div>
                     {hotel.pricePerNight && (
                       <span className="font-mono text-xs text-neutral-900 dark:text-neutral-100 font-bold">
