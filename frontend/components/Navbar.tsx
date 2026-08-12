@@ -193,9 +193,29 @@ export default function Navbar() {
 
   const isPathActive = (href: string) => {
     if (!pathname) return false;
-    if (href === '/') return pathname === '/';
-    if (href === '/hotels') return pathname === '/hotels' || pathname.startsWith('/hotels/');
+    if (href === '/' || href === '/#accommodations' || href === '/hotels') {
+      return pathname === '/' || pathname === '/hotels';
+    }
     return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const handleAccommodationsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      const element = document.getElementById('accommodations');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        window.history.pushState(null, '', '#accommodations');
+      }
+    }
+  };
+
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.history.pushState(null, '', '/');
+    }
   };
 
   const getNavLinkClass = (href: string, isPrimaryAction = false) => {
@@ -215,9 +235,9 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-neutral-200 dark:border-white/10 bg-white/90 dark:bg-[#0D0E11]/85 backdrop-blur-xs text-neutral-900 dark:text-white transition-colors duration-300">
+      <header className="sticky top-0 z-50 w-full border-b border-neutral-200/40 dark:border-white/10 bg-transparent backdrop-blur-md text-neutral-900 dark:text-white transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3.5 group">
+          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3.5 group">
             <div className="w-9 h-9 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 flex items-center justify-center font-serif font-bold text-lg shadow-sm group-hover:bg-amber-600 dark:group-hover:bg-amber-300 transition-colors">
               R
             </div>
@@ -262,8 +282,9 @@ export default function Navbar() {
               // 1. Vizitator neautentificat: Accommodations | Register | Login
               <div className="flex items-center gap-2">
                 <Link
-                  href="/hotels"
-                  className={getNavLinkClass('/hotels')}
+                  href="/#accommodations"
+                  onClick={handleAccommodationsClick}
+                  className={getNavLinkClass('/#accommodations')}
                 >
                   <Hotel className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
@@ -288,8 +309,9 @@ export default function Navbar() {
                   // 2. Manager hotel: Accommodations | Manage my accommodations | My account | Logout
                   <>
                     <Link
-                      href="/hotels"
-                      className={getNavLinkClass('/hotels')}
+                      href="/#accommodations"
+                      onClick={handleAccommodationsClick}
+                      className={getNavLinkClass('/#accommodations')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
@@ -306,8 +328,9 @@ export default function Navbar() {
                   // 3. Admin: Accommodations | Admin | My account | Logout
                   <>
                     <Link
-                      href="/hotels"
-                      className={getNavLinkClass('/hotels')}
+                      href="/#accommodations"
+                      onClick={handleAccommodationsClick}
+                      className={getNavLinkClass('/#accommodations')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
@@ -324,8 +347,9 @@ export default function Navbar() {
                   // 4. User simplu: Hotels (Accommodations) | Reservations | My account | Logout
                   <>
                     <Link
-                      href="/hotels"
-                      className={getNavLinkClass('/hotels')}
+                      href="/#accommodations"
+                      onClick={handleAccommodationsClick}
+                      className={getNavLinkClass('/#accommodations')}
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
