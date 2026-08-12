@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<AccommodationImage> AccommodationImages { get; set; }
+    public DbSet<ServiceClient> ServiceClients => Set<ServiceClient>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
@@ -18,8 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<AbsoluteValueDiscount> AbsoluteValueDiscounts => Set<AbsoluteValueDiscount>();
     public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
     public DbSet<Discount> Discounts => Set<Discount>();
-    public DbSet<ServiceClient> ServiceClients => Set<ServiceClient>();
-    
+
     // TPH Accommodation hierarchy
     public DbSet<Accommodation> Accommodations => Set<Accommodation>();
     public DbSet<Hotel> Hotels => Set<Hotel>();

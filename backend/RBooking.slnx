@@ -4,5 +4,6 @@
   <Project Path="RBooking.Domain/RBooking.Domain.csproj" />
   <Project Path="RBooking.Infrastructure/RBooking.Infrastructure.csproj" />
   <Project Path="RBooking.Tests/RBooking.Tests.csproj" />
+  <Project Path="RBooking.WebhookAPI/RBooking.WebhookAPI.csproj" />
   <Project Path="RBooking.ApiB/RBooking.ApiB.csproj" />
 </Solution>

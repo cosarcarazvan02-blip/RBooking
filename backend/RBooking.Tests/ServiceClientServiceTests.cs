@@ -48,7 +48,7 @@ public class ServiceClientServiceTests
         {
             Id = Guid.NewGuid(),
             ClientId = "test_client_id",
-            ClientSecret = "secret123456",
+            ClientSecretHash = HashSecret("secret123456"),
             ClientName = "Test Service",
             IsActive = true
         };
@@ -76,7 +76,7 @@ public class ServiceClientServiceTests
         {
             Id = Guid.NewGuid(),
             ClientId = "test_client_id",
-            ClientSecret = "secret123456",
+            ClientSecretHash = HashSecret("secret123456"),
             IsActive = true
         };
 
@@ -88,5 +88,11 @@ public class ServiceClientServiceTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    private static string HashSecret(string secret)
+    {
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }

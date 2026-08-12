@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using RBooking.Application.Constants;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
 
@@ -72,8 +73,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim(JwtRegisteredClaimNames.Sub, client.ClientId),
             new Claim("client_id", client.ClientId),
             new Claim(ClaimTypes.Name, client.ClientName),
-            new Claim(ClaimTypes.Role, string.IsNullOrEmpty(client.Role) ? "Service" : client.Role),
-            new Claim("scheme", "ServiceBearer"),
+            new Claim(ClaimTypes.Role, string.IsNullOrEmpty(client.Role) ? ServiceAuthConstants.ServiceRoleClaimValue : client.Role),
+            new Claim("scheme", ServiceAuthConstants.SchemeName),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
