@@ -38,6 +38,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
 import BookingCalendar from '@/components/BookingCalendar';
+import StarRating from '@/components/StarRating';
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -547,13 +548,10 @@ export default function HotelDetailsPage() {
             <span className="px-3 py-1 text-[11px] font-mono uppercase tracking-widest font-semibold bg-amber-500/10 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300 border border-amber-500/30">
               [ {hotel?.accommodationType?.toUpperCase() || 'HOTEL'} ]
             </span>
-            {hotel?.stars && (
-              <div className="flex items-center gap-1 text-amber-500">
-                {Array.from({ length: hotel.stars }).map((_, i) => (
-                  <Star key={i} className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                ))}
-              </div>
-            )}
+            <StarRating
+              rating={hotel?.averageRating || hotel?.stars || 5}
+              size="sm"
+            />
             <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-700 dark:text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>{lang === 'RO' ? 'Verificat RBooking 2026' : 'RBooking Verified 2026'}</span>
@@ -746,11 +744,7 @@ export default function HotelDetailsPage() {
                       className="p-5 bg-white dark:bg-[#131519] border border-neutral-200 dark:border-neutral-800 space-y-3 shadow-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-amber-500">
-                          {Array.from({ length: rev.rating }).map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                          ))}
-                        </div>
+                        <StarRating rating={rev.rating} size="xs" />
                         <span className="text-[11px] font-mono text-neutral-500">
                           {new Date(rev.createdAt).toLocaleDateString(lang === 'RO' ? 'ro-RO' : 'en-US', {
                             year: 'numeric',
@@ -785,9 +779,7 @@ export default function HotelDetailsPage() {
                   </span>
                   <span className="text-xs font-mono text-neutral-500"> / {lang === 'RO' ? 'noapte' : 'night'}</span>
                 </div>
-                <div className="text-xs font-mono text-amber-700 dark:text-amber-300 font-bold">
-                  ★ {hotel?.averageRating.toFixed(2)}
-                </div>
+                <StarRating rating={hotel?.averageRating || 4.9} size="xs" showNumber />
               </div>
 
               <form onSubmit={handleBookingSubmit} className="space-y-4">

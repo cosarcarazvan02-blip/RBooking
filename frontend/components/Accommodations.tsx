@@ -7,6 +7,7 @@ import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGr
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
+import StarRating from "@/components/StarRating";
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -610,11 +611,10 @@ export default function Accommodations() {
               <div className="p-6 flex-1 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-0.5 text-amber-500">
-                      {Array.from({ length: hotel.stars || 4 }).map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      ))}
-                    </div>
+                    <StarRating
+                      rating={hotel.averageRating || hotel.stars || 4.7}
+                      size="sm"
+                    />
                     {hotel.pricePerNight && (
                       <span className="font-mono text-xs text-neutral-900 dark:text-neutral-100 font-bold">
                         {hotel.pricePerNight} LEI <span className="text-[10px] text-neutral-500 font-normal">/ {lang === "RO" ? "noapte" : "night"}</span>
