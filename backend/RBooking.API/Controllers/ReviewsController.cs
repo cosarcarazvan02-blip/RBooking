@@ -31,7 +31,6 @@ public class ReviewsController : ControllerBase
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
             ?? User.FindFirst("sub")?.Value 
             ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-
         if (!Guid.TryParse(userIdString, out var currentUserId))
         {
             return Unauthorized(new { message = "Invalid user token credentials." });
