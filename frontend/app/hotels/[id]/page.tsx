@@ -149,7 +149,19 @@ export default function HotelDetailsPage() {
         console.error(e);
       }
     }
-  }, []);
+
+    const savedFavs = localStorage.getItem('rbooking_favorites');
+    if (savedFavs) {
+      try {
+        const favs = JSON.parse(savedFavs);
+        if (Array.isArray(favs)) {
+          setIsSaved(favs.some((item: any) => (item.id || item) === hotelId));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [hotelId]);
 
   // Fetch hotel details and reviews
   const loadData = useCallback(async () => {
@@ -446,6 +458,38 @@ export default function HotelDetailsPage() {
     }
   };
 
+  const handleToggleFavorite = () => {
+    if (typeof window === 'undefined' || !hotel) return;
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('rbooking_favorites') || '[]');
+      let updated: any[];
+      if (nextSaved) {
+        const favItem = {
+          id: hotel.id,
+          name: hotel.name,
+          location: hotel.location,
+          city: hotel.city,
+          country: hotel.country,
+          pricePerNight: hotel.pricePerNight,
+          imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
+          accommodationType: hotel.accommodationType,
+          averageRating: hotel.averageRating,
+          savedAt: new Date().toISOString()
+        };
+        updated = [favItem, ...existing.filter((item: any) => (item.id || item) !== hotel.id)];
+      } else {
+        updated = existing.filter((item: any) => (item.id || item) !== hotel.id);
+      }
+      localStorage.setItem('rbooking_favorites', JSON.stringify(updated));
+      window.dispatchEvent(new Event('rbooking_favorites_change'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] flex flex-col items-center justify-center text-neutral-900 dark:text-neutral-100">
@@ -459,22 +503,22 @@ export default function HotelDetailsPage() {
 
   return (
     <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans flex flex-col">
-      {/* Top Breadcrumbs & Action Bar */}
-      <div className="border-b border-neutral-200 dark:border-neutral-800/80 bg-white/50 dark:bg-[#131519]/50 backdrop-blur-sm sticky top-20 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      {/* Top Floating Glass Buttons (Bară invizibilă, doar butoane cu blur) */}
+      <div className="sticky top-20 z-30 pointer-events-none py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <Link
             href="/#accommodations"
-            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white transition"
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-full shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono uppercase tracking-wider text-neutral-800 dark:text-neutral-200 hover:text-neutral-950 dark:hover:text-white transition-all active:scale-[0.98]"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             <span>{lang === 'RO' ? '← Înapoi la Colecție' : '← Back to stays'}</span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="pointer-events-auto flex items-center gap-2">
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-lg border border-neutral-300 dark:border-neutral-700 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/75 dark:bg-[#131519]/75 backdrop-blur-md border border-neutral-200/80 dark:border-white/10 rounded-full shadow-xs hover:shadow-md hover:bg-white/95 dark:hover:bg-[#1a1d24]/95 text-xs font-mono text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer active:scale-[0.98]"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>{copiedLink ? (lang === 'RO' ? 'Copiat!' : 'Copied!') : (lang === 'RO' ? 'Distribuie' : 'Share')}</span>
@@ -482,11 +526,11 @@ export default function HotelDetailsPage() {
 
             <button
               type="button"
-              onClick={() => setIsSaved(!isSaved)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border transition cursor-pointer ${
+              onClick={handleToggleFavorite}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 backdrop-blur-md rounded-full border shadow-xs hover:shadow-md transition-all cursor-pointer text-xs font-mono active:scale-[0.98] ${
                 isSaved
-                  ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-                  : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 border-neutral-300 dark:border-neutral-700'
+                  ? 'bg-rose-50/80 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/80'
+                  : 'bg-white/75 text-neutral-800 border-neutral-200/80 dark:bg-[#131519]/75 dark:text-neutral-200 dark:border-white/10 hover:bg-white/95 dark:hover:bg-[#1a1d24]/95'
               }`}
             >
               <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-rose-600 text-rose-600' : ''}`} />
@@ -603,7 +647,7 @@ export default function HotelDetailsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-xs text-neutral-800 dark:text-neutral-200">
                 <div className="p-4 bg-white dark:bg-[#131519] border border-neutral-200 dark:border-neutral-800 flex items-center gap-3 shadow-xs">
                   <Wifi className="w-4 h-4 text-amber-600 dark:text-amber-300" />
-                  <span>Wi-Fi High-Speed</span>
+                  <span>{lang === 'RO' ? 'Wi-Fi de Mare Viteză' : 'High-Speed Wi-Fi'}</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-[#131519] border border-neutral-200 dark:border-neutral-800 flex items-center gap-3 shadow-xs">
                   <Coffee className="w-4 h-4 text-amber-600 dark:text-amber-300" />
@@ -721,7 +765,7 @@ export default function HotelDetailsPage() {
                       </p>
 
                       <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[10px] font-mono text-neutral-500">
-                        <span>{rev.userEmail || 'Client Verificat RBooking'}</span>
+                        <span>{rev.userEmail || (lang === 'RO' ? 'Client Verificat RBooking' : 'RBooking Verified Guest')}</span>
                         <span className="text-emerald-600 dark:text-emerald-400">✓ {lang === 'RO' ? 'Sejur Confirmat' : 'Confirmed Stay'}</span>
                       </div>
                     </div>
