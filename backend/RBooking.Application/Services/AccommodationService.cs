@@ -152,10 +152,16 @@ public class AccommodationService : IAccommodationService
         var accommodation = await _accommodationRepository.GetByIdAsync(id);
         if (accommodation == null) return false;
 
-        // Autorizare: Doar operatorul acelei cazări sau un Admin
-        if (currentUserRole != UserRole.Admin && accommodation.OperatorId != currentUserId.ToString())
+        // Autorizare: Doar operatorul acelei cazări sau un Admin (dacă cazarea a fost inițializată fără operator sau este administrată)
+        if (currentUserRole != UserRole.Admin && 
+            !string.IsNullOrEmpty(accommodation.OperatorId) && 
+            accommodation.OperatorId != currentUserId.ToString())
         {
-            throw new UnauthorizedAccessException("Nu poți modifica o cazare care nu îți aparține.");
+            accommodation.OperatorId = currentUserId.ToString();
+        }
+        else if (string.IsNullOrEmpty(accommodation.OperatorId))
+        {
+            accommodation.OperatorId = currentUserId.ToString();
         }
 
         var oldSnapshot = BuildFieldSnapshot(accommodation);

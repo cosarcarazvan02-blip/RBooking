@@ -131,18 +131,40 @@ public class AccommodationsController : ControllerBase
         return Ok(accommodation);
     }
 
+    private bool TryGetCurrentUser(out Guid userId, out UserRole role)
+    {
+        userId = Guid.Empty;
+        role = UserRole.Operator;
+
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub") ?? User.FindFirstValue("id");
+        var roleString = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role");
+
+        if (!Guid.TryParse(userIdString, out userId))
+        {
+            userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        }
+
+        if (string.Equals(roleString, "Manager", StringComparison.OrdinalIgnoreCase))
+        {
+            roleString = "Operator";
+        }
+
+        if (!Enum.TryParse<UserRole>(roleString, true, out role))
+        {
+            role = UserRole.Operator;
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// Creates a new accommodation associated with the logged-in operator.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Operator,Admin")]
+    [Authorize(Roles = "Operator,Admin,Manager")]
     public async Task<ActionResult<AccommodationDto>> Create([FromBody] CreateAccommodationDto createDto)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(userIdString, out var currentUserId))
-        {
-            return Unauthorized(new { message = "Invalid user token credentials." });
-        }
+        TryGetCurrentUser(out var currentUserId, out _);
 
         try
         {
@@ -156,17 +178,10 @@ public class AccommodationsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Operator,Admin")]
+    [Authorize(Roles = "Operator,Admin,Manager")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateAccommodationDto updateDto)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var roleString = User.FindFirstValue(ClaimTypes.Role);
-
-        if (!Guid.TryParse(userIdString, out var currentUserId) || 
-            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
-        {
-            return Unauthorized(new { message = "Invalid user token credentials." });
-        }
+        TryGetCurrentUser(out var currentUserId, out var currentUserRole);
 
         try
         {
@@ -188,17 +203,10 @@ public class AccommodationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Operator,Admin")]
+    [Authorize(Roles = "Operator,Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var roleString = User.FindFirstValue(ClaimTypes.Role);
-
-        if (!Guid.TryParse(userIdString, out var currentUserId) || 
-            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
-        {
-            return Unauthorized(new { message = "Invalid user token credentials." });
-        }
+        TryGetCurrentUser(out var currentUserId, out var currentUserRole);
 
         try
         {

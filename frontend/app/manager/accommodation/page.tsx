@@ -409,8 +409,10 @@ export default function ManageAccommodationsPage() {
       payload.totalBeds = totalBeds === '' ? undefined : Number(totalBeds);
     }
 
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(editingId || '');
+
     try {
-      const res = editingId
+      const res = (editingId && isGuid)
         ? await fetch(`${apiUrl}/Accommodations/${editingId}`, {
             method: 'PUT',
             headers: buildAuthHeaders(),
