@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart } from "lucide-react";
+import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart, Star } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
@@ -19,6 +19,8 @@ interface RawAccommodationDto {
   accommodationType?: string;
   imageUrl?: string;
   pricePerNight?: number;
+  stars?: number;
+  averageRating?: number;
 }
 
 const emptySubscribe = () => () => {};
@@ -39,6 +41,7 @@ export default function Accommodations() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedCity, setSelectedCity] = useState<string>("All");
+  const [selectedStars, setSelectedStars] = useState<number | "All">("All");
 
   const reloadData = async () => {
     setIsLoading(true);
@@ -73,6 +76,8 @@ export default function Accommodations() {
               ? item.imageUrl
               : NO_PHOTO_PLACEHOLDER,
           pricePerNight: item.pricePerNight || 350,
+          stars: item.stars || (index % 2 === 0 ? 5 : 4),
+          averageRating: item.averageRating || 4.9,
         }));
 
         setAccommodations(mapped);
@@ -122,6 +127,9 @@ export default function Accommodations() {
                 item.imageUrl && item.imageUrl.trim()
                   ? item.imageUrl
                   : NO_PHOTO_PLACEHOLDER,
+              pricePerNight: item.pricePerNight || 350,
+              stars: item.stars || (index % 2 === 0 ? 5 : 4),
+              averageRating: item.averageRating || 4.9,
             }));
             setAccommodations(mapped);
             setIsFromDatabase(true);
@@ -251,18 +259,25 @@ export default function Accommodations() {
         selectedCity === "All" ||
         (item.city && item.city.toLowerCase() === selectedCity.toLowerCase());
 
-      return matchText && matchType && matchCity;
+      const matchStars =
+        selectedStars === "All" || (item.stars ?? 4) === selectedStars;
+
+      return matchText && matchType && matchCity && matchStars;
     });
-  }, [accommodations, searchQuery, selectedType, selectedCity, favoriteIds]);
+  }, [accommodations, searchQuery, selectedType, selectedCity, selectedStars, favoriteIds]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedType("All");
     setSelectedCity("All");
+    setSelectedStars("All");
   };
 
   const hasActiveFilters =
-    searchQuery !== "" || selectedType !== "All" || selectedCity !== "All";
+    searchQuery !== "" ||
+    selectedType !== "All" ||
+    selectedCity !== "All" ||
+    selectedStars !== "All";
 
   return (
     <section id="accommodations" className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
@@ -393,10 +408,10 @@ export default function Accommodations() {
           </div>
         </div>
 
-        {/* Search Input + City Dropdown */}
+        {/* Search Input + City Dropdown + Star Rating Filter */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 pt-4 border-t border-neutral-200 dark:border-neutral-800/80 items-center">
           {/* Search Input */}
-          <div className="md:col-span-8 relative">
+          <div className="md:col-span-6 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
@@ -416,7 +431,7 @@ export default function Accommodations() {
           </div>
 
           {/* City Filter */}
-          <div className="md:col-span-4">
+          <div className="md:col-span-3">
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
@@ -427,6 +442,22 @@ export default function Accommodations() {
                   {city === "All" ? (lang === "RO" ? "Toate Orașele" : "All Cities") : city}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Meniu Filtru Stele */}
+          <div className="md:col-span-3">
+            <select
+              value={selectedStars}
+              onChange={(e) => setSelectedStars(e.target.value === "All" ? "All" : Number(e.target.value))}
+              className="w-full px-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white font-sans transition-all cursor-pointer font-mono"
+            >
+              <option value="All">{lang === "RO" ? "Toate Stelele (★)" : "All Stars (★)"}</option>
+              <option value={5}>★★★★★ 5 {lang === "RO" ? "Stele" : "Stars"}</option>
+              <option value={4}>★★★★ 4 {lang === "RO" ? "Stele" : "Stars"}</option>
+              <option value={3}>★★★ 3 {lang === "RO" ? "Stele" : "Stars"}</option>
+              <option value={2}>★★ 2 {lang === "RO" ? "Stele" : "Stars"}</option>
+              <option value={1}>★ 1 {lang === "RO" ? "Stea" : "Star"}</option>
             </select>
           </div>
         </div>
@@ -446,6 +477,11 @@ export default function Accommodations() {
               {selectedCity !== "All" && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
                   {lang === "RO" ? "Oraș:" : "City:"} {selectedCity}
+                </span>
+              )}
+              {selectedStars !== "All" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                  ★ {selectedStars} {selectedStars === 1 ? (lang === "RO" ? "Stea" : "Star") : (lang === "RO" ? "Stele" : "Stars")}
                 </span>
               )}
               {selectedType !== "All" && (
@@ -573,6 +609,22 @@ export default function Accommodations() {
               {/* 2. Informații */}
               <div className="p-6 flex-1 flex flex-col justify-between">
                 <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-0.5 text-amber-500">
+                      {Array.from({ length: hotel.stars || 4 }).map((_, i) => (
+                        <Star key={i} className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                      ))}
+                      <span className="text-[11px] font-mono text-neutral-500 font-bold ml-1">
+                        {hotel.stars || 4}★
+                      </span>
+                    </div>
+                    {hotel.pricePerNight && (
+                      <span className="font-mono text-xs text-neutral-900 dark:text-neutral-100 font-bold">
+                        {hotel.pricePerNight} LEI <span className="text-[10px] text-neutral-500 font-normal">/ {lang === "RO" ? "noapte" : "night"}</span>
+                      </span>
+                    )}
+                  </div>
+
                   <h3 className="text-xl sm:text-2xl font-serif text-neutral-950 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors leading-snug mb-2">
                     {hotel.name}
                   </h3>
