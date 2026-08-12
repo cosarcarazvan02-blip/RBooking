@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
-import { Shield, Users, Building2, Calendar, Trash2, Edit, CheckCircle2, UserCheck, Search, Plus, Server } from 'lucide-react';
+import { Shield, Users, Building2, Trash2, CheckCircle2, Search, Server } from 'lucide-react';
 import { getActiveApiKey } from '@/lib/apiKey';
+
+type Role = 'Client' | 'Operator' | 'Admin';
 
 interface UserItem {
   id: string;
   name: string;
   email: string;
-  role: 'Client' | 'Operator' | 'Admin' | string;
+  role: Role;
   createdAt?: string;
 }
 
@@ -22,18 +24,101 @@ interface AccommodationItem {
   type: string;
 }
 
+// Forma bruta primita de la backend - campurile pot veni in orice casing
+// (camelCase din System.Text.Json sau PascalCase, in functie de configurare),
+// asa ca le declaram optionale in ambele variante in loc sa folosim `any`.
+interface RawUser {
+  id?: string;
+  Id?: string;
+  userId?: string;
+  UserId?: string;
+  firstName?: string;
+  FirstName?: string;
+  first_name?: string;
+  lastName?: string;
+  LastName?: string;
+  last_name?: string;
+  email?: string;
+  Email?: string;
+  userName?: string;
+  UserName?: string;
+  role?: string | number;
+  Role?: string | number;
+  roleId?: string | number;
+  createdAt?: string;
+  CreatedAt?: string;
+}
+
+// Wrapper-e posibile in care backend-ul poate impacheta lista (array simplu,
+// { data: [...] }, sau serializarea speciala $values din System.Text.Json
+// pentru referinte ciclice).
+interface RawUserListWrapper {
+  data?: RawUser[];
+  items?: RawUser[];
+  users?: RawUser[];
+  result?: RawUser[];
+  $values?: RawUser[];
+}
+
+interface ApiErrorBody {
+  message?: string;
+}
+
+function isRawUserArray(value: unknown): value is RawUser[] {
+  return Array.isArray(value);
+}
+
+function extractUserList(rawData: unknown): RawUser[] {
+  if (isRawUserArray(rawData)) {
+    return rawData;
+  }
+  if (rawData && typeof rawData === 'object') {
+    const wrapper = rawData as RawUserListWrapper;
+    return wrapper.data ?? wrapper.items ?? wrapper.users ?? wrapper.result ?? wrapper.$values ?? [];
+  }
+  return [];
+}
+
+// Conversie rol din baza de date (ex: 0, 1, 2 sau string) in text
+function formatRole(roleVal: string | number | undefined): Role {
+  const normalized = String(roleVal ?? '').toLowerCase();
+  if (roleVal === 2 || normalized === '2' || normalized === 'admin') return 'Admin';
+  if (roleVal === 1 || normalized === '1' || normalized === 'operator' || normalized === 'manager') return 'Operator';
+  return 'Client';
+}
+
+function formatRawUser(u: RawUser): UserItem {
+  const firstName = u.firstName ?? u.FirstName ?? u.first_name ?? '';
+  const lastName = u.lastName ?? u.LastName ?? u.last_name ?? '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const email = u.email ?? u.Email ?? u.userName ?? u.UserName ?? '-';
+  const createdAtRaw = u.createdAt ?? u.CreatedAt;
+
+  return {
+    id: String(u.id ?? u.Id ?? u.userId ?? u.UserId ?? crypto.randomUUID()),
+    name: fullName.length > 0 ? fullName : email,
+    email,
+    role: formatRole(u.role ?? u.Role ?? u.roleId),
+    createdAt: createdAtRaw ? createdAtRaw.split('T')[0] : '',
+  };
+}
+
+async function extractErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await res.json()) as ApiErrorBody;
+    return data.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<'users' | 'accommodations' | 'system'>('users');
-  const [users, setUsers] = useState<UserItem[]>([
-    { id: 'usr-1', name: 'System Admin', email: 'admin@booking.com', role: 'Admin', createdAt: '2026-01-10' },
-    { id: 'usr-2', name: 'Alex Operator', email: 'operator@hotel.com', role: 'Operator', createdAt: '2026-02-15' },
-    { id: 'usr-3', name: 'Elena Popescu', email: 'client@booking.com', role: 'Client', createdAt: '2026-03-01' },
-    { id: 'usr-4', name: 'Ion Ionescu', email: 'ion.ionescu@example.com', role: 'Client', createdAt: '2026-04-12' },
-  ]);
+  const [users, setUsers] = useState<UserItem[]>([]);
 
-  const [accommodations, setAccommodations] = useState<AccommodationItem[]>([
+  const [accommodations] = useState<AccommodationItem[]>([
     { id: 'acc-1', title: 'Grand Hotel Continental', location: 'București', price: 450, type: 'Hotel' },
     { id: 'acc-2', title: 'Kronwell Alpine Retreat', location: 'Brașov', price: 320, type: 'Hotel' },
     { id: 'acc-3', title: 'Skyline Luxury Penthouse', location: 'București', price: 380, type: 'Apartment' },
@@ -44,58 +129,150 @@ export default function AdminDashboardPage() {
 
   // Verificăm rolul de Admin la încărcarea paginii
   useEffect(() => {
-    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
-    const savedProfile = localStorage.getItem('rbooking_user_profile') || localStorage.getItem('currentUser');
+    const token =
+      localStorage.getItem('rbooking_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('jwt');
 
-    if (!token || !savedProfile) {
+    const savedProfile =
+      localStorage.getItem('rbooking_user_profile') ||
+      localStorage.getItem('currentUser') ||
+      localStorage.getItem('user');
+
+    if (!token && !savedProfile) {
       router.push('/login');
       return;
     }
 
-    try {
-      const profile = JSON.parse(savedProfile);
-      const userRole = (profile.role || profile.Role || '').toLowerCase();
-      if (userRole !== 'admin') {
-        router.push('/');
+    if (savedProfile) {
+      try {
+        const profile = JSON.parse(savedProfile) as { role?: string; Role?: string };
+        const userRole = (profile.role ?? profile.Role ?? '').toString().toLowerCase();
+        if (userRole !== 'admin' && userRole !== '2') {
+          router.push('/');
+        }
+      } catch {
+        // Ignorăm erorile de parsare JSON
       }
-    } catch (e) {
-      router.push('/login');
     }
   }, [router]);
 
-  // Încărcăm datele salvate din localStorage dacă există
-  useEffect(() => {
-    const savedUsers = localStorage.getItem('rbooking_admin_users');
-    if (savedUsers) {
-      try {
-        setUsers(JSON.parse(savedUsers));
-      } catch (e) {}
+  // Preluăm token-ul activ din localStorage și eliminăm ghilimelele sau prefixul Bearer existent
+  const getAuthToken = (): string | null => {
+    const rawToken =
+      localStorage.getItem('rbooking_token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('jwt');
+
+    if (!rawToken) return null;
+
+    return rawToken
+      .replace(/^"|"$/g, '')
+      .replace(/^Bearer\s+/i, '')
+      .trim();
+  };
+
+  // FIX: header-ele se construiesc o singura data, intr-un singur loc.
+  // Inainte, 'x-api-key' si 'X-Api-Key' erau setate ca doua chei distincte
+  // in obiectul JS (case-sensitive la nivel de proprietate), iar fetch() le
+  // combina automat cu ", " intre ele - server-ul primea un string diferit
+  // de cheia configurata si respingea cererea cu 401.
+  const buildAuthHeaders = (): HeadersInit => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    const cleanToken = getAuthToken();
+    if (cleanToken) {
+      headers['Authorization'] = `Bearer ${cleanToken}`;
     }
+
+    let apiKey: string | null = null;
+    try {
+      apiKey = getActiveApiKey();
+    } catch {
+      apiKey = localStorage.getItem('rbooking_api_key');
+    }
+    if (apiKey) {
+      headers['X-Api-Key'] = apiKey;
+    }
+
+    return headers;
+  };
+
+  // Preia toți utilizatorii din API
+  const fetchUsersFromApi = async (): Promise<void> => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+
+      const res = await fetch(`${apiUrl}/Users`, {
+        method: 'GET',
+        headers: buildAuthHeaders(),
+      });
+
+      if (res.ok) {
+        const rawData: unknown = await res.json();
+        const userList = extractUserList(rawData);
+        setUsers(userList.map(formatRawUser));
+      } else {
+        console.warn(`API Error Response Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error('Eroare de rețea la fetchUsersFromApi:', error);
+    }
+  };
+
+  useEffect(() => {
+    void fetchUsersFromApi();
   }, []);
 
-  const saveUsers = (updated: UserItem[]) => {
-    setUsers(updated);
-    localStorage.setItem('rbooking_admin_users', JSON.stringify(updated));
-  };
-
-  const handleChangeRole = (userId: string, newRole: string) => {
-    const updated = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
-    saveUsers(updated);
-    setSuccessMessage(lang === 'RO' ? `Rolul utilizatorului a fost schimbat în ${newRole}!` : `User role updated to ${newRole}!`);
+  const handleChangeRole = (userId: string, newRole: Role): void => {
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+    setSuccessMessage(
+      lang === 'RO' ? `Rolul utilizatorului a fost schimbat în ${newRole}!` : `User role updated to ${newRole}!`
+    );
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const handleDeleteUser = (userId: string) => {
-    const updated = users.filter(u => u.id !== userId);
-    saveUsers(updated);
-    setSuccessMessage(lang === 'RO' ? 'Utilizatorul a fost șters!' : 'User deleted successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const handleDeleteUser = async (userId: string): Promise<void> => {
+    const confirmed = window.confirm(
+      lang === 'RO' ? 'Sigur doriți să ștergeți acest utilizator?' : 'Are you sure you want to delete this user?'
+    );
+    if (!confirmed) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+
+      const res = await fetch(`${apiUrl}/Users/${userId}`, {
+        method: 'DELETE',
+        headers: buildAuthHeaders(),
+      });
+
+      if (res.ok || res.status === 204) {
+        await fetchUsersFromApi();
+        setSuccessMessage(
+          lang === 'RO' ? 'Utilizatorul a fost șters din baza de date!' : 'User deleted successfully from database!'
+        );
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const message = await extractErrorMessage(
+          res,
+          lang === 'RO' ? 'Eroare la ștergerea din baza de date.' : 'Error deleting from database.'
+        );
+        alert(message);
+      }
+    } catch (error) {
+      console.error('Eroare de rețea:', error);
+    }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
-    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.role.toLowerCase().includes(userSearch.toLowerCase())
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.role.toLowerCase().includes(userSearch.toLowerCase())
   );
 
   return (
@@ -114,8 +291,8 @@ export default function AdminDashboardPage() {
               {lang === 'RO' ? 'Administrare Platformă RBooking' : 'Platform System Admin'}
             </h1>
             <p className="text-xs text-neutral-500 font-mono mt-1">
-              {lang === 'RO' 
-                ? 'Gestionare globală utilizatori, cazări, roluri și setări de securitate.' 
+              {lang === 'RO'
+                ? 'Gestionare globală utilizatori, cazări, roluri și setări de securitate.'
                 : 'Global management for users, accommodations, roles and security.'}
             </p>
           </div>
@@ -140,7 +317,9 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-[#121418] border border-neutral-200 dark:border-neutral-800 p-6 rounded-2xl shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-mono uppercase text-neutral-500">{lang === 'RO' ? 'Total Utilizatori' : 'Total Users'}</p>
+              <p className="text-xs font-mono uppercase text-neutral-500">
+                {lang === 'RO' ? 'Total Utilizatori' : 'Total Users'}
+              </p>
               <h3 className="text-3xl font-serif font-semibold mt-1">{users.length}</h3>
             </div>
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-950/50 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400">
@@ -150,7 +329,9 @@ export default function AdminDashboardPage() {
 
           <div className="bg-white dark:bg-[#121418] border border-neutral-200 dark:border-neutral-800 p-6 rounded-2xl shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-mono uppercase text-neutral-500">{lang === 'RO' ? 'Total Cazări' : 'Accommodations'}</p>
+              <p className="text-xs font-mono uppercase text-neutral-500">
+                {lang === 'RO' ? 'Total Cazări' : 'Accommodations'}
+              </p>
               <h3 className="text-3xl font-serif font-semibold mt-1">{accommodations.length}</h3>
             </div>
             <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/50 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400">
@@ -160,8 +341,12 @@ export default function AdminDashboardPage() {
 
           <div className="bg-white dark:bg-[#121418] border border-neutral-200 dark:border-neutral-800 p-6 rounded-2xl shadow-xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-mono uppercase text-neutral-500">{lang === 'RO' ? 'Bază de Date API' : 'Database API'}</p>
-              <h3 className="text-lg font-mono text-emerald-600 dark:text-emerald-400 font-semibold mt-1">Active (Port 5293)</h3>
+              <p className="text-xs font-mono uppercase text-neutral-500">
+                {lang === 'RO' ? 'Bază de Date API' : 'Database API'}
+              </p>
+              <h3 className="text-lg font-mono text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                Active (Port 5293)
+              </h3>
             </div>
             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/50 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <Server className="w-6 h-6" />
@@ -225,45 +410,55 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 text-xs font-mono">
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition">
-                      <td className="py-3.5 px-4 font-sans font-medium text-sm text-neutral-900 dark:text-neutral-100">
-                        {u.name}
-                      </td>
-                      <td className="py-3.5 px-4 text-neutral-600 dark:text-neutral-400">{u.email}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider ${
-                          u.role === 'Admin'
-                            ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800'
-                            : u.role === 'Operator' || u.role === 'Manager'
-                            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleChangeRole(u.id, e.target.value)}
-                          className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-xs focus:outline-none focus:border-purple-500 cursor-pointer"
-                        >
-                          <option value="Client">Client / User</option>
-                          <option value="Operator">Operator / Manager</option>
-                          <option value="Admin">Admin</option>
-                        </select>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteUser(u.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition cursor-pointer"
-                          title="Șterge utilizator"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition">
+                        <td className="py-3.5 px-4 font-sans font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                          {u.name}
+                        </td>
+                        <td className="py-3.5 px-4 text-neutral-600 dark:text-neutral-400">{u.email}</td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider ${
+                              u.role === 'Admin'
+                                ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800'
+                                : u.role === 'Operator'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleChangeRole(u.id, e.target.value as Role)}
+                            className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-xs focus:outline-none focus:border-purple-500 cursor-pointer"
+                          >
+                            <option value="Client">Client / User</option>
+                            <option value="Operator">Operator / Manager</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => void handleDeleteUser(u.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition cursor-pointer"
+                            title="Șterge utilizator"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-neutral-500 font-mono text-xs">
+                        {lang === 'RO' ? 'Nu s-a găsit niciun utilizator.' : 'No users found.'}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -279,7 +474,10 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accommodations.map((acc) => (
-                <div key={acc.id} className="p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-neutral-50 dark:bg-[#181a20] flex flex-col justify-between">
+                <div
+                  key={acc.id}
+                  className="p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-neutral-50 dark:bg-[#181a20] flex flex-col justify-between"
+                >
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-serif font-semibold text-lg">{acc.title}</h3>
