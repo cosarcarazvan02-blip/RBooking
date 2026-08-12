@@ -4,6 +4,7 @@ namespace RBooking.Application.Interfaces;
 
 public interface IServiceClientRepository
 {
-    Task<ServiceClient> AddAsync(ServiceClient serviceClient);
     Task<ServiceClient?> GetByClientIdAsync(string clientId);
+    Task<IEnumerable<ServiceClient>> GetAllAsync();
+    Task<ServiceClient> AddAsync(ServiceClient client);
 }

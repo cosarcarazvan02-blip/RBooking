@@ -16,10 +16,10 @@
     "Secret": "CHANGE_ME_acelasi_secret_ca_in_RBooking.API"
   },
   "ApiA": {
-    "_comment": "ClientId/ClientSecret se obtin facand POST /api/service-clients pe RBooking.API (ca Admin) - secretul se afiseaza o singura data la creare, nu se mai poate recupera dupa.",
+    "_comment": "ClientId/ClientSecret se obtin facand POST /api/auth/generate-client pe RBooking.API (ca Admin) - secretul se afiseaza o singura data la creare, nu se mai poate recupera dupa.",
     "BaseUrl": "http://localhost:5293",
-    "ClientId": "CHANGE_ME_client_id_de_la_POST_api_service-clients",
-    "ClientSecret": "CHANGE_ME_client_secret_de_la_POST_api_service-clients",
+    "ClientId": "CHANGE_ME_client_id_de_la_POST_api_auth_generate-client",
+    "ClientSecret": "CHANGE_ME_client_secret_de_la_POST_api_auth_generate-client",
     "ApiKey": "CHANGE_ME_acelasi_Security_ApiKey_ca_in_RBooking.API"
   },
   "Smtp": {

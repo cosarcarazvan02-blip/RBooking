@@ -12,6 +12,7 @@ public interface IReservationService
     Task<IEnumerable<ReservationDto>> GetReservationsByUserIdAsync(Guid userId);
     Task<PagedResultDto<ReservationDto>> GetPagedReservationsByUserIdAsync(Guid userId, PaginationParamsDto paginationParams);
     Task<PagedResultDto<ReservationDto>> GetPagedFutureReservationsByAccommodationIdAsync(Guid accommodationId, PaginationParamsDto paginationParams);
+    Task<PagedResultDto<ReservationDto>> GetPagedReservationsByAccommodationIdAsync(Guid accommodationId, PaginationParamsDto paginationParams);
     Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto);
     Task<ReservationDto?> UpdateReservationStatusAsync(Guid id, ReservationStatus newStatus);
     Task<bool> CancelReservationAsync(Guid id);

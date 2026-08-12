@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using RBooking.Domain.Entities;
 using RBooking.Domain.Enums;
@@ -53,7 +55,32 @@ public static class DbSeeder
             context.Users.Add(adminUser);
         }
 
+        // Seed default ServiceClient for API B
+        var defaultServiceClient = await context.ServiceClients.FirstOrDefaultAsync(sc => sc.ClientId == "api-b-service-client");
+        if (defaultServiceClient == null)
+        {
+            defaultServiceClient = new ServiceClient
+            {
+                Id = Guid.NewGuid(),
+                ClientId = "api-b-service-client",
+                // Secretul in clar ("API_B_Super_Secret_Client_Key_2026_x9k2M!") e cel folosit de RBooking.ApiB
+                // ca sa se autentifice - stocam doar hash-ul lui, la fel ca la clientii generati prin API.
+                ClientSecretHash = HashSecret("API_B_Super_Secret_Client_Key_2026_x9k2M!"),
+                ClientName = "API B Review Analytics Service",
+                Role = "Service",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.ServiceClients.Add(defaultServiceClient);
+        }
+
         await context.SaveChangesAsync();
+    }
+
+    private static string HashSecret(string secret)
+    {
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
     public static async Task<int> SeedMockAccommodationsAsync(AppDbContext context)
