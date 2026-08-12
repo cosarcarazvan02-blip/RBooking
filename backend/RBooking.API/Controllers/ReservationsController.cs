@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RBooking.Application.Constants;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
@@ -42,6 +43,18 @@ public class ReservationsController : ControllerBase
             return NotFound(new { message = $"Reservation with ID {id} was not found." });
         }
         return Ok(reservation);
+    }
+
+    /// <summary>
+    /// Service-to-service endpoint: returns a page of future, non-cancelled reservations
+    /// for an accommodation. Called by API B to notify affected users after an accommodation update.
+    /// </summary>
+    [HttpGet("by-accommodation/{accommodationId:guid}/future")]
+    [Authorize(AuthenticationSchemes = ServiceAuthConstants.SchemeName)]
+    public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetFutureByAccommodationId(Guid accommodationId, [FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _reservationService.GetPagedFutureReservationsByAccommodationIdAsync(accommodationId, paginationParams);
+        return Ok(result);
     }
 
     [HttpGet("user/{userId:guid}")]

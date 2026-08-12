@@ -1,0 +1,34 @@
+{
+  "_README": "Copiază acest fișier ca 'appsettings.json' în același folder și completează valorile tale locale. appsettings.json este în .gitignore, deci nu se urcă niciodată în git.",
+
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=RBookingWebhooks;Username=postgres;Password=YOUR_DB_PASSWORD"
+  },
+  "Webhooks": {
+    "_comment": "Trebuie sa coincida EXACT cu Webhooks:Secret din RBooking.API/appsettings.json.",
+    "Secret": "CHANGE_ME_acelasi_secret_ca_in_RBooking.API"
+  },
+  "ApiA": {
+    "_comment": "ClientId/ClientSecret se obtin facand POST /api/service-clients pe RBooking.API (ca Admin) - secretul se afiseaza o singura data la creare, nu se mai poate recupera dupa.",
+    "BaseUrl": "http://localhost:5293",
+    "ClientId": "CHANGE_ME_client_id_de_la_POST_api_service-clients",
+    "ClientSecret": "CHANGE_ME_client_secret_de_la_POST_api_service-clients",
+    "ApiKey": "CHANGE_ME_acelasi_Security_ApiKey_ca_in_RBooking.API"
+  },
+  "Smtp": {
+    "_comment": "Optional - daca Host ramane gol, email-urile nu se trimit efectiv, doar se loghează în consolă.",
+    "Host": "",
+    "Port": "587",
+    "User": "",
+    "Password": "",
+    "From": "",
+    "EnableSsl": "true"
+  }
+}
