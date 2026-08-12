@@ -11,16 +11,18 @@ interface StarRatingProps {
   totalReviews?: number;
   className?: string;
   starClassName?: string;
+  numberClassName?: string;
 }
 
 export default function StarRating({
   rating,
   maxStars = 5,
   size = 'sm',
-  showNumber = false,
+  showNumber = true,
   totalReviews,
   className = '',
   starClassName = '',
+  numberClassName = '',
 }: StarRatingProps) {
   const normalizedRating = Math.max(0, Math.min(maxStars, Number(rating) || 0));
 
@@ -63,7 +65,7 @@ export default function StarRating({
       </div>
 
       {showNumber && (
-        <span className="text-xs font-mono font-bold text-neutral-900 dark:text-neutral-100 tabular-nums">
+        <span className={`text-xs font-mono font-bold text-amber-500 dark:text-amber-400 tabular-nums ml-0.5 ${numberClassName}`}>
           {normalizedRating.toFixed(1)}
         </span>
       )}
