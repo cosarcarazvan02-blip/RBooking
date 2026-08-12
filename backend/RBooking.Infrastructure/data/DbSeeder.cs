@@ -53,6 +53,23 @@ public static class DbSeeder
             context.Users.Add(adminUser);
         }
 
+        // Seed default ServiceClient for API B
+        var defaultServiceClient = await context.ServiceClients.FirstOrDefaultAsync(sc => sc.ClientId == "api-b-service-client");
+        if (defaultServiceClient == null)
+        {
+            defaultServiceClient = new ServiceClient
+            {
+                Id = Guid.NewGuid(),
+                ClientId = "api-b-service-client",
+                ClientSecret = "API_B_Super_Secret_Client_Key_2026_x9k2M!",
+                ClientName = "API B Review Analytics Service",
+                Role = "Service",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.ServiceClients.Add(defaultServiceClient);
+        }
+
         await context.SaveChangesAsync();
     }
 

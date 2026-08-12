@@ -34,6 +34,7 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
     public async Task<ActionResult<ReservationDto>> GetById(Guid id)
     {
         var reservation = await _reservationService.GetReservationByIdAsync(id);
@@ -42,6 +43,14 @@ public class ReservationsController : ControllerBase
             return NotFound(new { message = $"Reservation with ID {id} was not found." });
         }
         return Ok(reservation);
+    }
+
+    [HttpGet("accommodation/{accommodationId:guid}")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
+    public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetByAccommodationId(Guid accommodationId, [FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _reservationService.GetPagedReservationsByAccommodationIdAsync(accommodationId, paginationParams);
+        return Ok(result);
     }
 
     [HttpGet("user/{userId:guid}")]

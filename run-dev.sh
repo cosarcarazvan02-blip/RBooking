@@ -1,43 +1,15 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Oprește toate serviciile de fundal la ieșire (Ctrl+C)
+trap 'kill $(jobs -p) 2>/dev/null' EXIT
 
-# Start backend and frontend in parallel and stop both on first exit.
-cd "$root_dir"
+echo "Starting Backend API A (http://localhost:5293)..."
+dotnet run --project backend/RBooking.API &
 
-echo "Starting backend (backend/RBooking.API)..."
-cd backend/RBooking.API
-if ! command -v dotnet >/dev/null 2>&1; then
-  echo "Error: dotnet is not installed or not available on PATH." >&2
-  exit 1
-fi
+echo "Starting Backend API B (http://localhost:5294)..."
+dotnet run --project backend/RBooking.ApiB &
 
-dotnet run &
-backend_pid=$!
+echo "Starting Frontend (http://localhost:3000)..."
+npm --prefix frontend run dev &
 
-echo "Starting frontend (frontend)..."
-cd "$root_dir/frontend"
-if ! command -v npm >/dev/null 2>&1; then
-  echo "Error: npm is not installed or not available on PATH." >&2
-  kill "$backend_pid" 2>/dev/null || true
-  exit 1
-fi
-
-npm run dev &
-frontend_pid=$!
-
-cleanup() {
-  echo "Shutting down..."
-  kill "$backend_pid" "$frontend_pid" 2>/dev/null || true
-  wait "$backend_pid" 2>/dev/null || true
-  wait "$frontend_pid" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-wait -n "$backend_pid" "$frontend_pid"
-status=$?
-
-echo "One process exited with status $status. Stopping the other process..."
-cleanup
-exit "$status"
+wait
