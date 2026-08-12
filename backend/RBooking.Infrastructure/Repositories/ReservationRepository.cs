@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
+using RBooking.Domain.Enums;
 using RBooking.Infrastructure.Data;
 
 namespace RBooking.Infrastructure.Repositories;
@@ -77,6 +78,26 @@ public class ReservationRepository : IReservationRepository
             .Include(r => r.Accommodation)
             .Where(r => r.AccommodationId == accommodationId)
             .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<Reservation> Items, int TotalCount)> GetPagedFutureByAccommodationIdAsync(Guid accommodationId, int pageNumber, int pageSize)
+    {
+        var now = DateTime.UtcNow;
+        var query = _context.Reservations
+            .Include(r => r.User)
+            .Include(r => r.Accommodation)
+            .Where(r => r.AccommodationId == accommodationId
+                     && r.CheckInDate > now
+                     && r.Status != ReservationStatus.Cancelled);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(r => r.CheckInDate)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
     }
 
     public async Task<Reservation> AddAsync(Reservation reservation)

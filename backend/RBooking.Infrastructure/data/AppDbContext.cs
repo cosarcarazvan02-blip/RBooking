@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<AccommodationImage> AccommodationImages { get; set; }
+    public DbSet<ServiceClient> ServiceClients => Set<ServiceClient>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();

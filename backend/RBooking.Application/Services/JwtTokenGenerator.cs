@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using RBooking.Application.Constants;
 using RBooking.Application.Interfaces;
 using RBooking.Domain.Entities;
 
@@ -48,6 +49,34 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             audience: audience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateServiceToken(string clientId)
+    {
+        var secretKey = _configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
+        var issuer = _configuration["Jwt:Issuer"]
+            ?? throw new InvalidOperationException("JWT Issuer is not configured.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, clientId),
+            new Claim("client_id", clientId),
+            new Claim(ClaimTypes.Role, ServiceAuthConstants.ServiceRoleClaimValue),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: ServiceAuthConstants.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

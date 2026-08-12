@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RBooking.API.Middleware;
+using RBooking.Application.Constants;
 using RBooking.Application.Interfaces;
 using RBooking.Application.Services;
 using RBooking.Infrastructure.Data;
@@ -112,6 +113,8 @@ builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IServiceClientRepository, ServiceClientRepository>();
+builder.Services.AddHttpClient<IWebhookSender, WebhookSender>();
 
 builder.Services.AddScoped<IAccommodationRepository, AccommodationRepository>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();
@@ -231,6 +234,22 @@ builder.Services.AddAuthentication(options =>
             logger.LogInformation("[JWT] Challenge issued: {Error}", context.Error);
             return Task.CompletedTask;
         }
+    };
+})
+.AddJwtBearer(ServiceAuthConstants.SchemeName, options =>
+{
+    // Tokens issued to other services (e.g. API B) via /api/service-auth/token,
+    // authenticated with a client_id + client_secret pair instead of a user login.
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = ServiceAuthConstants.Audience,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.FromMinutes(1)
     };
 });
 

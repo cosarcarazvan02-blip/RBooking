@@ -30,7 +30,7 @@ namespace RBooking.Tests
             mockRepo.Setup(r => r.GetFilteredAsync(It.IsAny<AccommodationFilterDto>()))
                     .ReturnsAsync((accommodations, 1, ratingStats));
 
-            var service = new AccommodationService(mockRepo.Object);
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
             var filter = new AccommodationFilterDto { PageNumber = 1, PageSize = 10 };
 
             // Act
@@ -54,7 +54,7 @@ namespace RBooking.Tests
             var missingId = Guid.NewGuid();
             mockRepo.Setup(r => r.GetByIdAsync(missingId)).ReturnsAsync((Accommodation?)null);
 
-            var service = new AccommodationService(mockRepo.Object);
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
 
             // Act
             var result = await service.GetAccommodationByIdAsync(missingId);
@@ -82,7 +82,7 @@ namespace RBooking.Tests
             mockRepo.Setup(r => r.GetByIdAsync(aptId)).ReturnsAsync(apartment);
             mockRepo.Setup(r => r.GetRatingStatsAsync(aptId)).ReturnsAsync((4.0, 5));
 
-            var service = new AccommodationService(mockRepo.Object);
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
 
             // Act
             var result = await service.GetAccommodationByIdAsync(aptId);
@@ -114,7 +114,7 @@ namespace RBooking.Tests
             mockRepo.Setup(r => r.GetByIdAsync(hostelId)).ReturnsAsync(hostel);
             mockRepo.Setup(r => r.GetRatingStatsAsync(hostelId)).ReturnsAsync((3.8, 2));
 
-            var service = new AccommodationService(mockRepo.Object);
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
 
             // Act
             var result = await service.GetAccommodationByIdAsync(hostelId);
