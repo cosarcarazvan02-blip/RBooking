@@ -5,5 +5,5 @@ namespace RBooking.Application.Interfaces;
 public interface IJwtTokenGenerator
 {
     string GenerateToken(User user);
-    string GenerateServiceToken(string clientId);
+    string GenerateServiceToken(ServiceClient client);
 }

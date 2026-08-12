@@ -114,7 +114,9 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IServiceClientRepository, ServiceClientRepository>();
+builder.Services.AddScoped<IServiceClientService, ServiceClientService>();
 builder.Services.AddHttpClient<IWebhookSender, WebhookSender>();
+builder.Services.AddHttpClient<IWebhookSenderService, WebhookSenderService>();
 
 builder.Services.AddScoped<IAccommodationRepository, AccommodationRepository>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();
@@ -179,78 +181,70 @@ if (jwtKey.Length < 32)
 
 builder.Services.AddAuthorization();
 
+// Helper pentru configurare TokenValidationParameters
+var tokenValidationParams = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidIssuer = jwtIssuer,
+    ValidateAudience = true,
+    ValidAudience = jwtAudience,
+    ValidateLifetime = true,
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+    ClockSkew = TimeSpan.FromMinutes(1)
+};
+
+var jwtBearerEvents = new JwtBearerEvents
+{
+    OnMessageReceived = context =>
+    {
+        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(authHeader))
+        {
+            var token = authHeader.Trim();
+            while (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                token = token.Substring("Bearer ".Length).Trim();
+            }
+            context.Token = token;
+        }
+        return Task.CompletedTask;
+    },
+    OnAuthenticationFailed = context =>
+    {
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning("[JWT] Authentication failed: {ExceptionType}", context.Exception.GetType().Name);
+        return Task.CompletedTask;
+    },
+    OnChallenge = context =>
+    {
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("[JWT] Challenge issued: {Error}", context.Error);
+        return Task.CompletedTask;
+    }
+};
+
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = "UserBearer";
+    options.DefaultChallengeScheme = "UserBearer";
 })
-.AddJwtBearer(options =>
+.AddJwtBearer("UserBearer", options =>
 {
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidIssuer = jwtIssuer,
-        ValidateAudience = true,
-        ValidAudience = jwtAudience,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.FromMinutes(1)
-    };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(authHeader))
-            {
-                var token = authHeader.Trim();
-                while (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    token = token.Substring("Bearer ".Length).Trim();
-                }
-                context.Token = token;
-            }
-            return Task.CompletedTask;
-        },
-        OnAuthenticationFailed = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var env = context.HttpContext.RequestServices.GetRequiredService<IHostEnvironment>();
-            if (env.IsDevelopment())
-            {
-                logger.LogWarning(context.Exception, "[JWT] Authentication failed: {ExceptionType}", context.Exception.GetType().Name);
-            }
-            else
-            {
-                logger.LogWarning("[JWT] Authentication failed: {ExceptionType}", context.Exception.GetType().Name);
-            }
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("[JWT] Challenge issued: {Error}", context.Error);
-            return Task.CompletedTask;
-        }
-    };
+    options.TokenValidationParameters = tokenValidationParams;
+    options.Events = jwtBearerEvents;
 })
 .AddJwtBearer(ServiceAuthConstants.SchemeName, options =>
 {
-    // Tokens issued to other services (e.g. API B) via /api/service-auth/token,
+    // Tokens issued to other services (e.g. API B) via /api/auth/client-token,
     // authenticated with a client_id + client_secret pair instead of a user login.
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidIssuer = jwtIssuer,
-        ValidateAudience = true,
-        ValidAudience = ServiceAuthConstants.Audience,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.FromMinutes(1)
-    };
+    options.TokenValidationParameters = tokenValidationParams;
+    options.Events = jwtBearerEvents;
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.TokenValidationParameters = tokenValidationParams;
+    options.Events = jwtBearerEvents;
 });
 
 var app = builder.Build();

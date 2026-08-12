@@ -78,7 +78,7 @@ public class ApiAServiceClient : IApiAServiceClient
             var clientSecret = _configuration["ApiA:ClientSecret"]
                 ?? throw new InvalidOperationException("ApiA:ClientSecret nu este configurat.");
 
-            var tokenRequest = new HttpRequestMessage(HttpMethod.Post, "/api/service-auth/token")
+            var tokenRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/client-token")
             {
                 Content = JsonContent.Create(new { clientId, clientSecret })
             };

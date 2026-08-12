@@ -35,6 +35,7 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
     public async Task<ActionResult<ReservationDto>> GetById(Guid id)
     {
         var reservation = await _reservationService.GetReservationByIdAsync(id);
@@ -47,13 +48,21 @@ public class ReservationsController : ControllerBase
 
     /// <summary>
     /// Service-to-service endpoint: returns a page of future, non-cancelled reservations
-    /// for an accommodation. Called by API B to notify affected users after an accommodation update.
+    /// for an accommodation. Called by API B (WebhookAPI) to notify affected users after an accommodation update.
     /// </summary>
     [HttpGet("by-accommodation/{accommodationId:guid}/future")]
     [Authorize(AuthenticationSchemes = ServiceAuthConstants.SchemeName)]
     public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetFutureByAccommodationId(Guid accommodationId, [FromQuery] PaginationParamsDto paginationParams)
     {
         var result = await _reservationService.GetPagedFutureReservationsByAccommodationIdAsync(accommodationId, paginationParams);
+        return Ok(result);
+    }
+
+    [HttpGet("accommodation/{accommodationId:guid}")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
+    public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetByAccommodationId(Guid accommodationId, [FromQuery] PaginationParamsDto paginationParams)
+    {
+        var result = await _reservationService.GetPagedReservationsByAccommodationIdAsync(accommodationId, paginationParams);
         return Ok(result);
     }
 

@@ -73,6 +73,13 @@ public class ReservationService : IReservationService
         return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
     }
 
+    public async Task<PagedResultDto<ReservationDto>> GetPagedReservationsByAccommodationIdAsync(Guid accommodationId, PaginationParamsDto paginationParams)
+    {
+        var (items, totalCount) = await _reservationRepository.GetPagedByAccommodationIdAsync(accommodationId, paginationParams.PageNumber, paginationParams.PageSize);
+        var dtos = items.Select(MapToDto);
+        return new PagedResultDto<ReservationDto>(dtos, totalCount, paginationParams.PageNumber, paginationParams.PageSize);
+    }
+
     public async Task<ReservationDto> CreateReservationAsync(CreateReservationDto createReservationDto)
     {
         if (createReservationDto.CheckOutDate <= createReservationDto.CheckInDate)

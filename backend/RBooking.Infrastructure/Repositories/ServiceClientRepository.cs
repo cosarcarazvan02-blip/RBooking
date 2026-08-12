@@ -14,15 +14,23 @@ public class ServiceClientRepository : IServiceClientRepository
         _context = context;
     }
 
-    public async Task<ServiceClient> AddAsync(ServiceClient serviceClient)
-    {
-        _context.ServiceClients.Add(serviceClient);
-        await _context.SaveChangesAsync();
-        return serviceClient;
-    }
-
     public async Task<ServiceClient?> GetByClientIdAsync(string clientId)
     {
-        return await _context.ServiceClients.FirstOrDefaultAsync(sc => sc.ClientId == clientId);
+        return await _context.ServiceClients
+            .FirstOrDefaultAsync(c => c.ClientId == clientId);
+    }
+
+    public async Task<IEnumerable<ServiceClient>> GetAllAsync()
+    {
+        return await _context.ServiceClients
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<ServiceClient> AddAsync(ServiceClient client)
+    {
+        await _context.ServiceClients.AddAsync(client);
+        await _context.SaveChangesAsync();
+        return client;
     }
 }
