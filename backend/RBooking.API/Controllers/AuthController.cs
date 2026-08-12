@@ -187,7 +187,7 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("clients/generate")]
     [HttpPost("generate-client")]
-    [AllowAnonymous]
+    [Authorize(AuthenticationSchemes = "UserBearer", Roles = "Admin")]
     public async Task<ActionResult<ServiceClientDto>> GenerateClient([FromBody] RegisterServiceClientDto? request)
     {
         var clientName = request?.ClientName ?? "API B Review Analytics Service";
@@ -199,7 +199,7 @@ public class AuthController : ControllerBase
     /// Returns all registered service clients.
     /// </summary>
     [HttpGet("clients")]
-    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
+    [Authorize(AuthenticationSchemes = "UserBearer", Roles = "Admin")]
     public async Task<ActionResult<IEnumerable<ServiceClientDto>>> GetClients()
     {
         var clients = await _serviceClientService.GetAllClientsAsync();

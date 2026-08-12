@@ -30,7 +30,7 @@ public class ServiceClientService : IServiceClientService
         {
             Id = Guid.NewGuid(),
             ClientId = clientId,
-            ClientSecret = clientSecret,
+            ClientSecretHash = HashSecret(clientSecret),
             ClientName = string.IsNullOrWhiteSpace(clientName) ? "External Service" : clientName.Trim(),
             Role = "Service",
             IsActive = true,
@@ -43,7 +43,8 @@ public class ServiceClientService : IServiceClientService
         {
             Id = created.Id,
             ClientId = created.ClientId,
-            ClientSecret = created.ClientSecret,
+            // Secretul în clar există doar aici, la generare - nu se persistă niciodată, doar hash-ul lui.
+            ClientSecret = clientSecret,
             ClientName = created.ClientName,
             Role = created.Role,
             IsActive = created.IsActive,
@@ -64,11 +65,11 @@ public class ServiceClientService : IServiceClientService
             return null;
         }
 
-        var expectedSecretBytes = Encoding.UTF8.GetBytes(client.ClientSecret);
-        var suppliedSecretBytes = Encoding.UTF8.GetBytes(clientSecret.Trim());
+        var expectedHashBytes = Convert.FromHexString(client.ClientSecretHash);
+        var suppliedHashBytes = Convert.FromHexString(HashSecret(clientSecret.Trim()));
 
-        if (expectedSecretBytes.Length != suppliedSecretBytes.Length ||
-            !CryptographicOperations.FixedTimeEquals(expectedSecretBytes, suppliedSecretBytes))
+        if (expectedHashBytes.Length != suppliedHashBytes.Length ||
+            !CryptographicOperations.FixedTimeEquals(expectedHashBytes, suppliedHashBytes))
         {
             return null;
         }
@@ -97,5 +98,11 @@ public class ServiceClientService : IServiceClientService
             IsActive = c.IsActive,
             CreatedAt = c.CreatedAt
         });
+    }
+
+    private static string HashSecret(string secret)
+    {
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }
