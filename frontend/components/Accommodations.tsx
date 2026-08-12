@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble } from "lucide-react";
+import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
@@ -33,6 +33,7 @@ export default function Accommodations() {
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFromDatabase, setIsFromDatabase] = useState<boolean>(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,6 +72,7 @@ export default function Accommodations() {
             item.imageUrl && item.imageUrl.trim()
               ? item.imageUrl
               : NO_PHOTO_PLACEHOLDER,
+          pricePerNight: item.pricePerNight || 350,
         }));
 
         setAccommodations(mapped);
@@ -152,6 +154,75 @@ export default function Accommodations() {
     };
   }, []);
 
+  // Sync favorites with localStorage
+  useEffect(() => {
+    const updateFavs = () => {
+      if (typeof window === "undefined") return;
+      const saved = localStorage.getItem("rbooking_favorites");
+      if (saved) {
+        try {
+          const favs = JSON.parse(saved);
+          if (Array.isArray(favs)) {
+            setFavoriteIds(new Set(favs.map((item: any) => item.id || item)));
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setFavoriteIds(new Set());
+    };
+
+    updateFavs();
+    window.addEventListener("rbooking_favorites_change", updateFavs);
+    window.addEventListener("storage", updateFavs);
+
+    const handleSelectCat = (e: any) => {
+      if (e?.detail) {
+        setSelectedType(e.detail);
+      }
+    };
+    window.addEventListener("rbooking_select_category", handleSelectCat);
+
+    return () => {
+      window.removeEventListener("rbooking_favorites_change", updateFavs);
+      window.removeEventListener("storage", updateFavs);
+      window.removeEventListener("rbooking_select_category", handleSelectCat);
+    };
+  }, []);
+
+  const handleToggleFavorite = (hotel: Accommodation, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window === "undefined") return;
+
+    const isFav = favoriteIds.has(hotel.id);
+    const existing = JSON.parse(localStorage.getItem("rbooking_favorites") || "[]");
+    let updated: any[];
+
+    if (!isFav) {
+      const favItem = {
+        id: hotel.id,
+        name: hotel.name,
+        location: hotel.location,
+        city: hotel.city,
+        country: hotel.country,
+        pricePerNight: hotel.pricePerNight,
+        imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
+        accommodationType: hotel.accommodationType,
+        averageRating: hotel.averageRating,
+        savedAt: new Date().toISOString(),
+      };
+      updated = [favItem, ...existing.filter((item: any) => (item.id || item) !== hotel.id)];
+    } else {
+      updated = existing.filter((item: any) => (item.id || item) !== hotel.id);
+    }
+
+    localStorage.setItem("rbooking_favorites", JSON.stringify(updated));
+    setFavoriteIds(new Set(updated.map((item: any) => item.id || item)));
+    window.dispatchEvent(new Event("rbooking_favorites_change"));
+  };
+
   // Filter options
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -160,8 +231,6 @@ export default function Accommodations() {
     });
     return ["All", ...Array.from(set)];
   }, [accommodations]);
-
-  const accommodationTypes = ["All", "Hotel", "Apartment", "Hostel"];
 
   // Filtered accommodations
   const filteredAccommodations = useMemo(() => {
@@ -174,7 +243,9 @@ export default function Accommodations() {
 
       const matchType =
         selectedType === "All" ||
-        item.accommodationType?.toLowerCase() === selectedType.toLowerCase();
+        (selectedType === "Favorites"
+          ? favoriteIds.has(item.id)
+          : item.accommodationType?.toLowerCase() === selectedType.toLowerCase());
 
       const matchCity =
         selectedCity === "All" ||
@@ -182,7 +253,7 @@ export default function Accommodations() {
 
       return matchText && matchType && matchCity;
     });
-  }, [accommodations, searchQuery, selectedType, selectedCity]);
+  }, [accommodations, searchQuery, selectedType, selectedCity, favoriteIds]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -259,12 +330,17 @@ export default function Accommodations() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
             {[
               {
                 id: "All",
                 label: lang === "RO" ? "Toate" : "All",
                 icon: LayoutGrid,
+              },
+              {
+                id: "Favorites",
+                label: lang === "RO" ? `Favorite (${favoriteIds.size})` : `Favorites (${favoriteIds.size})`,
+                icon: Heart,
               },
               {
                 id: "Hotel",
@@ -284,17 +360,32 @@ export default function Accommodations() {
             ].map((cat) => {
               const Icon = cat.icon;
               const isSelected = selectedType === cat.id;
+              const isFavCat = cat.id === "Favorites";
               return (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedType(cat.id)}
-                  className={`px-4 py-3 text-xs font-mono uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 border ${
+                  className={`px-3 py-3 text-xs font-mono uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 border ${
                     isSelected
-                      ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white font-bold shadow-xs scale-[1.01]"
+                      ? isFavCat
+                        ? "bg-rose-600 text-white border-rose-600 font-bold shadow-xs scale-[1.01]"
+                        : "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white font-bold shadow-xs scale-[1.01]"
+                      : isFavCat
+                      ? "bg-rose-50/60 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/40 hover:bg-rose-100 dark:hover:bg-rose-900/30"
                       : "bg-neutral-50 dark:bg-[#181a20] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${isSelected ? "text-amber-400 dark:text-amber-600" : "text-neutral-400"}`} />
+                  <Icon
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isSelected
+                        ? isFavCat
+                          ? "fill-white text-white"
+                          : "text-amber-400 dark:text-amber-600"
+                        : isFavCat
+                        ? "text-rose-500 fill-rose-500"
+                        : "text-neutral-400"
+                    }`}
+                  />
                   <span className="truncate">{cat.label}</span>
                 </button>
               );
@@ -393,21 +484,35 @@ export default function Accommodations() {
       ) : filteredAccommodations.length === 0 ? (
         /* Empty State */
         <div className="text-center py-20 bg-white dark:bg-[#121418] border border-neutral-300 dark:border-neutral-800 p-8 rounded-2xl shadow-xs">
-          <Compass className="w-12 h-12 mx-auto text-neutral-400 mb-4" />
+          {selectedType === "Favorites" ? (
+            <Heart className="w-12 h-12 mx-auto text-rose-500 mb-4 stroke-[1.5] fill-rose-500/20" />
+          ) : (
+            <Compass className="w-12 h-12 mx-auto text-neutral-400 mb-4" />
+          )}
           <h3 className="text-xl font-serif text-neutral-900 dark:text-white mb-2">
-            {lang === 'RO' ? 'Nicio cazare în baza de date' : 'No accommodations in database'}
+            {selectedType === "Favorites"
+              ? lang === "RO"
+                ? "Nu ai nicio cazare salvată la favorite"
+                : "No saved favorite stays yet"
+              : lang === "RO"
+              ? "Nicio cazare în baza de date"
+              : "No accommodations found"}
           </h3>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md mx-auto mb-6">
-            {lang === 'RO'
-              ? 'Baza de date este în prezent goală. Cazările adăugate prin panoul de management sau Swagger vor apărea aici în timp real.'
-              : 'The database is currently empty. Accommodations added via the management panel or Swagger will appear here in real-time.'}
+            {selectedType === "Favorites"
+              ? lang === "RO"
+                ? "Apasă pe butonul cu inimioară de pe cardul oricărei cazări din colecție pentru a o adăuga la lista ta de favorite."
+                : "Click the heart button on any stay card from the collection to add it to your favorites list."
+              : lang === "RO"
+              ? "Nu am găsit nicio proprietate conform filtrelor selectate. Încearcă să resetezi căutarea."
+              : "No properties match your current filters. Try resetting search."}
           </p>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
               className="px-6 py-3 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest border border-neutral-950 dark:border-white rounded-xl cursor-pointer"
             >
-              {lang === 'RO' ? 'Resetează Filtrele' : 'Reset Filters'}
+              {lang === "RO" ? "Vezi Toate Cazările" : "View All Stays"}
             </button>
           )}
         </div>
@@ -435,6 +540,34 @@ export default function Accommodations() {
                     </span>
                   </div>
                 )}
+
+                {/* Buton Salvare Favorite Interactiv */}
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleFavorite(hotel, e)}
+                  className={`absolute top-4 right-4 z-10 p-2 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-xs active:scale-90 ${
+                    favoriteIds.has(hotel.id)
+                      ? "bg-rose-600 text-white border-rose-600 dark:border-rose-400 shadow-md"
+                      : "bg-white/80 dark:bg-black/60 text-neutral-700 dark:text-neutral-200 border-white/40 dark:border-white/20 hover:bg-white dark:hover:bg-black/90"
+                  }`}
+                  title={
+                    favoriteIds.has(hotel.id)
+                      ? lang === "RO"
+                        ? "Elimină din favorite"
+                        : "Remove from favorites"
+                      : lang === "RO"
+                      ? "Salvează la favorite"
+                      : "Save to favorites"
+                  }
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      favoriteIds.has(hotel.id)
+                        ? "fill-white text-white"
+                        : "text-neutral-700 dark:text-neutral-200 hover:text-rose-500"
+                    }`}
+                  />
+                </button>
               </div>
 
               {/* 2. Informații */}

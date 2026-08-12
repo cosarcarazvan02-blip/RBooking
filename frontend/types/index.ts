@@ -6,6 +6,10 @@ export interface Accommodation {
   country?: string;
   imageUrl?: string;
   accommodationType?: string;
+  pricePerNight?: number;
+  averageRating?: number;
+  stars?: number;
+  description?: string;
 }
 
 export interface User {

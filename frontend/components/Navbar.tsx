@@ -20,6 +20,7 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  Heart,
 } from 'lucide-react';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
 
@@ -28,6 +29,7 @@ export default function Navbar() {
   const { lang, toggleLang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('User');
+  const [favoritesCount, setFavoritesCount] = useState(0);
 
   // Stare Cheie API
   const [currentApiKey, setCurrentApiKey] = useState<string>(DEFAULT_API_KEY);
@@ -36,6 +38,23 @@ export default function Navbar() {
   const [showKeyText, setShowKeyText] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'valid' | 'invalid'>('idle');
   const [testMessage, setTestMessage] = useState('');
+
+  const checkFavorites = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('rbooking_favorites');
+    if (saved) {
+      try {
+        const favs = JSON.parse(saved);
+        if (Array.isArray(favs)) {
+          setFavoritesCount(favs.length);
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setFavoritesCount(0);
+  }, []);
 
   const checkAuth = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -79,6 +98,7 @@ export default function Navbar() {
 
   useEffect(() => {
     checkAuth();
+    checkFavorites();
     setCurrentApiKey(getActiveApiKey());
 
     const handleApiKeyUpdate = () => {
@@ -86,22 +106,27 @@ export default function Navbar() {
     };
 
     window.addEventListener('storage', checkAuth);
+    window.addEventListener('storage', checkFavorites);
     window.addEventListener('rbooking_auth_change', checkAuth);
+    window.addEventListener('rbooking_favorites_change', checkFavorites);
     window.addEventListener('auth-state-change', checkAuth);
     window.addEventListener('api-key-change', handleApiKeyUpdate);
 
     return () => {
       window.removeEventListener('storage', checkAuth);
+      window.removeEventListener('storage', checkFavorites);
       window.removeEventListener('rbooking_auth_change', checkAuth);
+      window.removeEventListener('rbooking_favorites_change', checkFavorites);
       window.removeEventListener('auth-state-change', checkAuth);
       window.removeEventListener('api-key-change', handleApiKeyUpdate);
     };
-  }, [checkAuth]);
+  }, [checkAuth, checkFavorites]);
 
   // Re-verificare automată la schimbarea rutei
   useEffect(() => {
     checkAuth();
-  }, [pathname, checkAuth]);
+    checkFavorites();
+  }, [pathname, checkAuth, checkFavorites]);
 
   const handleLogout = () => {
     localStorage.removeItem('rbooking_token');
@@ -210,6 +235,18 @@ export default function Navbar() {
     }
   };
 
+  const handleFavoritesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      const element = document.getElementById('accommodations');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        window.history.pushState(null, '', '#accommodations');
+      }
+      window.dispatchEvent(new CustomEvent('rbooking_select_category', { detail: 'Favorites' }));
+    }
+  };
+
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/') {
       e.preventDefault();
@@ -279,7 +316,7 @@ export default function Navbar() {
             <ThemeToggle />
 
             {!isLoggedIn ? (
-              // 1. Vizitator neautentificat: Accommodations | Register | Login
+              // 1. Vizitator neautentificat: Accommodations | Favorites | Register | Login
               <div className="flex items-center gap-2">
                 <Link
                   href="/#accommodations"
@@ -288,6 +325,19 @@ export default function Navbar() {
                 >
                   <Hotel className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
+                </Link>
+                <Link
+                  href="/#accommodations"
+                  onClick={handleFavoritesClick}
+                  className={getNavLinkClass('/#favorites')}
+                >
+                  <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
+                  <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
+                  {favoritesCount > 0 && (
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                      {favoritesCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   href="/register"
@@ -306,7 +356,7 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center gap-2">
                 {isManager ? (
-                  // 2. Manager hotel: Accommodations | Manage my accommodations | My account | Logout
+                  // 2. Manager hotel: Accommodations | Favorites | Manage my accommodations | My account | Logout
                   <>
                     <Link
                       href="/#accommodations"
@@ -315,6 +365,19 @@ export default function Navbar() {
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
+                    </Link>
+                    <Link
+                      href="/#accommodations"
+                      onClick={handleFavoritesClick}
+                      className={getNavLinkClass('/#favorites')}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
+                      <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
+                      {favoritesCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                          {favoritesCount}
+                        </span>
+                      )}
                     </Link>
                     <Link
                       href="/manager/accommodation"
@@ -325,7 +388,7 @@ export default function Navbar() {
                     </Link>
                   </>
                 ) : isAdmin ? (
-                  // 3. Admin: Accommodations | Admin | My account | Logout
+                  // 3. Admin: Accommodations | Favorites | Admin | My account | Logout
                   <>
                     <Link
                       href="/#accommodations"
@@ -334,6 +397,19 @@ export default function Navbar() {
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
+                    </Link>
+                    <Link
+                      href="/#accommodations"
+                      onClick={handleFavoritesClick}
+                      className={getNavLinkClass('/#favorites')}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
+                      <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
+                      {favoritesCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                          {favoritesCount}
+                        </span>
+                      )}
                     </Link>
                     <Link
                       href="/admin"
@@ -344,7 +420,7 @@ export default function Navbar() {
                     </Link>
                   </>
                 ) : (
-                  // 4. User simplu: Hotels (Accommodations) | Reservations | My account | Logout
+                  // 4. User simplu: Hotels (Accommodations) | Favorites | Reservations | My account | Logout
                   <>
                     <Link
                       href="/#accommodations"
@@ -353,6 +429,19 @@ export default function Navbar() {
                     >
                       <Hotel className="w-3.5 h-3.5" />
                       <span>{lang === 'RO' ? 'Cazări' : 'Accommodations'}</span>
+                    </Link>
+                    <Link
+                      href="/#accommodations"
+                      onClick={handleFavoritesClick}
+                      className={getNavLinkClass('/#favorites')}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
+                      <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
+                      {favoritesCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                          {favoritesCount}
+                        </span>
+                      )}
                     </Link>
                     <Link
                       href="/reservations"
