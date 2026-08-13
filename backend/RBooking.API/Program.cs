@@ -127,6 +127,8 @@ builder.Services.AddScoped<IAccommodationReportService, AccommodationReportServi
 builder.Services.AddScoped<IAccommodationCsvImportService, AccommodationCsvImportService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
+builder.Services.AddScoped<IWishlistService, WishlistService>();
 
 builder.Services.AddSwaggerGen(options =>
 {

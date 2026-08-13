@@ -258,7 +258,7 @@ public class AccommodationReportService : IAccommodationReportService
             "city" => a.City ?? "",
             "country" => a.Country ?? "",
             "pricepernight" => a.PricePerNight.ToString("F2"),
-            "operatorid" => a.OperatorId ?? "",
+            "operatorid" => a.OperatorId?.ToString() ?? "",
             "accommodationtype" => a.AccommodationType ?? "",
             "averagerating" => a.AverageRating.ToString("F1"),
             "totalreviewscount" => a.TotalReviewsCount.ToString(),

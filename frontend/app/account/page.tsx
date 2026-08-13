@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import SafeImage from '@/components/SafeImage';
 import {
   ArrowLeft,
   Heart,
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
-import { getUserFavorites, removeUserFavorite, FavoriteItem } from '@/lib/userStorage';
+import { getUserFavorites, removeUserFavorite, syncUserWishlistFromDb, FavoriteItem } from '@/lib/userStorage';
 
 interface UserProfile {
   name: string;
@@ -58,6 +59,7 @@ function buildAuthHeaders(): HeadersInit {
 }
 
 export default function AccountPage() {
+  const router = useRouter();
   const { lang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
@@ -144,6 +146,9 @@ export default function AccountPage() {
     let ignore = false;
     queueMicrotask(() => {
       loadFavorites();
+      syncUserWishlistFromDb().then((synced) => {
+        if (!ignore && synced) setFavorites(synced);
+      });
       const currentKey = getActiveApiKey();
       setInputKey(currentKey);
 
@@ -516,7 +521,7 @@ export default function AccountPage() {
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-900 shrink-0 relative">
-                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                    <SafeImage src={item.imageUrl} alt={item.name} fill className="object-cover" />
                   </div>
                   <div className="min-w-0 space-y-0.5">
                     <h3 className="text-sm font-serif font-medium truncate text-neutral-900 dark:text-neutral-100">

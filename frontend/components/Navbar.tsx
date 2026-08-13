@@ -161,12 +161,12 @@ export default function Navbar() {
   const getNavLinkClass = (href: string, isPrimaryAction = false) => {
     const active = isPathActive(href);
     if (active) {
-      return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-2 border-amber-600 dark:border-amber-400 rounded shadow-md ring-2 ring-amber-500/30 transition-all scale-[1.02]';
+      return 'inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-mono font-bold uppercase tracking-wider bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-2 border-amber-600 dark:border-amber-400 rounded shadow-md ring-2 ring-amber-500/30 transition-all scale-[1.01] whitespace-nowrap';
     }
     if (isPrimaryAction) {
-      return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-amber-300 transition-all border border-neutral-800 dark:border-neutral-200 rounded shadow-sm';
+      return 'inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-mono font-semibold uppercase tracking-wider bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-amber-300 transition-all border border-neutral-800 dark:border-neutral-200 rounded shadow-sm whitespace-nowrap';
     }
-    return 'inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 dark:bg-neutral-900/80 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm';
+    return 'inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-mono font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 dark:bg-neutral-900/80 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all border border-neutral-300 dark:border-neutral-700 rounded shadow-sm whitespace-nowrap';
   };
 
   const normalizedRole = userRole.toLowerCase();
@@ -175,38 +175,42 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-neutral-200/40 dark:border-white/10 bg-transparent backdrop-blur-md text-neutral-900 dark:text-white transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3.5 group">
+      <header className="sticky top-0 z-50 w-full border-b border-neutral-200/40 dark:border-white/10 bg-white/80 dark:bg-[#0D0E11]/80 backdrop-blur-md text-neutral-900 dark:text-white transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+          {/* Logo - shrink-0 to prevent squeezing */}
+          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3 group shrink-0 select-none">
             <div className="w-9 h-9 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 flex items-center justify-center font-serif font-bold text-lg shadow-sm group-hover:bg-amber-600 dark:group-hover:bg-amber-300 transition-colors">
               R
             </div>
             <div className="flex flex-col">
-              <span className="font-serif text-xl tracking-tight font-medium text-neutral-950 dark:text-white">
+              <span className="font-serif text-xl tracking-tight font-medium text-neutral-950 dark:text-white whitespace-nowrap">
                 RBooking
               </span>
-              <span className="text-[9px] tracking-[0.25em] uppercase text-neutral-500 dark:text-neutral-400 font-mono -mt-0.5">
+              <span className="text-[9px] tracking-[0.25em] uppercase text-neutral-500 dark:text-neutral-400 font-mono -mt-0.5 whitespace-nowrap">
                 Hospitality
               </span>
             </div>
           </Link>
 
-          <nav className="flex items-center gap-2 sm:gap-3">
+          {/* Navigation items - flex-nowrap with concise gaps */}
+          <nav className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto py-1">
             {/* Buton Limbă */}
             <button
               onClick={toggleLang}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-mono font-semibold uppercase tracking-wider border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0 whitespace-nowrap"
             >
               <Globe className="w-3.5 h-3.5" />
               <span>{lang}</span>
             </button>
 
             {/* Comutator Temă */}
-            <ThemeToggle />
+            <div className="shrink-0">
+              <ThemeToggle />
+            </div>
 
             {!isLoggedIn ? (
-              // 1. Vizitator neautentificat: Accommodations | Favorites | Register | Login
-              <div className="flex items-center gap-2">
+              // 1. Vizitator neautentificat: Cazări | Favorite | Contul meu | Înregistrare | Autentificare
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <Link
                   href="/#accommodations"
                   onClick={handleAccommodationsClick}
@@ -223,7 +227,7 @@ export default function Navbar() {
                   <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
                   <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
                   {favoritesCount > 0 && (
-                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
                       {favoritesCount}
                     </span>
                   )}
@@ -250,9 +254,9 @@ export default function Navbar() {
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {isManager ? (
-                  // 2. Manager hotel: Accommodations | Favorites | Manage my accommodations | My account | Logout
+                  // 2. Manager hotel: Cazări | Favorite | Cazările Mele | Contul meu | Ieșire
                   <>
                     <Link
                       href="/#accommodations"
@@ -270,7 +274,7 @@ export default function Navbar() {
                       <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
                       <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
                       {favoritesCount > 0 && (
-                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
                           {favoritesCount}
                         </span>
                       )}
@@ -280,11 +284,11 @@ export default function Navbar() {
                       className={getNavLinkClass('/manager/accommodation')}
                     >
                       <Building2 className="w-3.5 h-3.5" />
-                      <span>{lang === 'RO' ? 'Gestionează cazările mele' : 'Manage my accommodations'}</span>
+                      <span>{lang === 'RO' ? 'Cazările Mele' : 'My Properties'}</span>
                     </Link>
                   </>
                 ) : isAdmin ? (
-                  // 3. Admin: Accommodations | Favorites | Admin | My account | Logout
+                  // 3. Admin: Cazări | Favorite | Admin | Contul meu | Ieșire
                   <>
                     <Link
                       href="/#accommodations"
@@ -302,7 +306,7 @@ export default function Navbar() {
                       <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
                       <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
                       {favoritesCount > 0 && (
-                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
                           {favoritesCount}
                         </span>
                       )}
@@ -316,7 +320,7 @@ export default function Navbar() {
                     </Link>
                   </>
                 ) : (
-                  // 4. User simplu: Hotels (Accommodations) | Favorites | Reservations | My account | Logout
+                  // 4. User simplu: Cazări | Favorite | Rezervări | Contul meu | Ieșire
                   <>
                     <Link
                       href="/#accommodations"
@@ -334,7 +338,7 @@ export default function Navbar() {
                       <Heart className={`w-3.5 h-3.5 ${favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : 'text-rose-500'}`} />
                       <span>{lang === 'RO' ? 'Favorite' : 'Favorites'}</span>
                       {favoritesCount > 0 && (
-                        <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] rounded-full font-bold leading-none">
                           {favoritesCount}
                         </span>
                       )}
@@ -360,7 +364,7 @@ export default function Navbar() {
 
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all border border-neutral-950 dark:border-white rounded shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-mono font-semibold uppercase tracking-wider bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all border border-neutral-950 dark:border-white rounded shadow-sm cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>{lang === 'RO' ? 'Ieșire' : 'Logout'}</span>

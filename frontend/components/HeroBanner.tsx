@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import SafeImage from "@/components/SafeImage";
 import { ArrowDown, Compass, Sparkles, Star, ShieldCheck, MapPin } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -82,7 +82,7 @@ export default function HeroBanner() {
             transform: `translate3d(0, ${imageTranslate}px, 0) scale(${imageScale})`,
           }}
         >
-          <Image
+          <SafeImage
             src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=2000&q=90"
             alt="Luxury architectural stay"
             fill

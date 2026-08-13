@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RBooking.Domain.Entities;
 
-
 namespace RBooking.Infrastructure.Data;
 
 public class AppDbContext : DbContext
@@ -16,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<HostApplication> HostApplications => Set<HostApplication>();
+    public DbSet<WishlistItem> Wishlist => Set<WishlistItem>();
     public DbSet<LoyaltyDiscount> LoyaltyDiscounts => Set<LoyaltyDiscount>();
     public DbSet<AbsoluteValueDiscount> AbsoluteValueDiscounts => Set<AbsoluteValueDiscount>();
     public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
@@ -56,6 +56,24 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Review>()
             .HasIndex(r => r.ReservationId)
             .IsUnique();
+
+        // Wishlist configuration
+        modelBuilder.Entity<WishlistItem>()
+            .ToTable("Wishlist")
+            .HasIndex(w => new { w.UserId, w.AccommodationId })
+            .IsUnique();
+
+        modelBuilder.Entity<WishlistItem>()
+            .HasOne(w => w.User)
+            .WithMany()
+            .HasForeignKey(w => w.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WishlistItem>()
+            .HasOne(w => w.Accommodation)
+            .WithMany()
+            .HasForeignKey(w => w.AccommodationId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Comisionul platformei - precizie explicită pentru câmpuri monetare noi
         modelBuilder.Entity<Reservation>(entity =>

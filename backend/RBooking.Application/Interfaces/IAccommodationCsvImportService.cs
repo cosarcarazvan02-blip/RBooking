@@ -4,5 +4,5 @@ namespace RBooking.Application.Interfaces;
 
 public interface IAccommodationCsvImportService
 {
-    Task<AccommodationCsvImportResultDto> ImportCsvAsync(Stream csvStream, string? defaultOperatorId = null);
+    Task<AccommodationCsvImportResultDto> ImportCsvAsync(Stream csvStream, Guid? defaultOperatorId = null);
 }

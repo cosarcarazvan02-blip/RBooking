@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SafeImage from '@/components/SafeImage';
 import { Calendar, MapPin, Trash2, CheckCircle2, ArrowUpRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
@@ -266,7 +266,7 @@ export default function ReservationsPage() {
                       className="flex items-center gap-4 group min-w-0 flex-1 cursor-pointer"
                     >
                       <div className="relative w-20 h-20 bg-neutral-100 dark:bg-neutral-900 shrink-0 overflow-hidden rounded-xl">
-                        <Image
+                        <SafeImage
                           src={item.imageUrl || NO_PHOTO_PLACEHOLDER}
                           alt={item.hotelName}
                           fill
@@ -341,7 +341,7 @@ export default function ReservationsPage() {
                       className="flex items-center gap-4 group min-w-0 flex-1 cursor-pointer"
                     >
                       <div className="relative w-20 h-20 bg-neutral-100 dark:bg-neutral-900 shrink-0 overflow-hidden rounded-xl">
-                        <Image
+                        <SafeImage
                           src={item.imageUrl || NO_PHOTO_PLACEHOLDER}
                           alt={item.hotelName}
                           fill

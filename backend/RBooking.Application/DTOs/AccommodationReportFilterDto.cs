@@ -14,7 +14,7 @@ public class AccommodationReportFilterDto
     public decimal? PricePerNight { get; set; }
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
-    public string? OperatorId { get; set; }
+    public Guid? OperatorId { get; set; }
     public string? AccommodationType { get; set; }
     public double? MinRating { get; set; }
     public double? MaxRating { get; set; }

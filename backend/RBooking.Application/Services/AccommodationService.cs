@@ -73,7 +73,7 @@ public class AccommodationService : IAccommodationService
         accommodation.Country = dto.Country;
         accommodation.PricePerNight = dto.PricePerNight;
         accommodation.Description = dto.Description;
-        accommodation.OperatorId = currentUserId.ToString();
+        accommodation.OperatorId = currentUserId;
 
         if (!string.IsNullOrWhiteSpace(dto.ImageUrl))
         {
@@ -115,7 +115,7 @@ public class AccommodationService : IAccommodationService
             Country = a.Country,
             PricePerNight = a.PricePerNight,
             Description = a.Description,
-            OperatorId = a.OperatorId ?? string.Empty,
+            OperatorId = a.OperatorId,
             AverageRating = Math.Round(avgRating, 1),
             TotalReviewsCount = reviewCount,
             AccommodationType = a.GetType().Name,
@@ -152,16 +152,18 @@ public class AccommodationService : IAccommodationService
         var accommodation = await _accommodationRepository.GetByIdAsync(id);
         if (accommodation == null) return false;
 
-        // Autorizare: Doar operatorul acelei cazări sau un Admin (dacă cazarea a fost inițializată fără operator sau este administrată)
-        if (currentUserRole != UserRole.Admin && 
-            !string.IsNullOrEmpty(accommodation.OperatorId) && 
-            accommodation.OperatorId != currentUserId.ToString())
+        // Autorizare: Un manager / operator poate modifica DOAR propriile cazări. Adminul poate modifica orice cazare.
+        if (currentUserRole != UserRole.Admin)
         {
-            accommodation.OperatorId = currentUserId.ToString();
+            if (accommodation.OperatorId.HasValue && accommodation.OperatorId.Value != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Nu poți modifica o cazare care aparține altui manager / operator.");
+            }
         }
-        else if (string.IsNullOrEmpty(accommodation.OperatorId))
+
+        if (!accommodation.OperatorId.HasValue)
         {
-            accommodation.OperatorId = currentUserId.ToString();
+            accommodation.OperatorId = currentUserId;
         }
 
         var oldSnapshot = BuildFieldSnapshot(accommodation);
@@ -281,9 +283,12 @@ public class AccommodationService : IAccommodationService
         if (accommodation == null) return false;
 
         // Autorizare: Doar operatorul acelei cazări sau un Admin
-        if (currentUserRole != UserRole.Admin && accommodation.OperatorId != currentUserId.ToString())
+        if (currentUserRole != UserRole.Admin)
         {
-            throw new UnauthorizedAccessException("Nu poți șterge o cazare care nu îți aparține.");
+            if (accommodation.OperatorId.HasValue && accommodation.OperatorId.Value != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Nu poți șterge o cazare care nu îți aparține.");
+            }
         }
 
         return await _accommodationRepository.DeleteAsync(id);
