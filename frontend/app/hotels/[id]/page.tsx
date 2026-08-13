@@ -197,11 +197,11 @@ export default function HotelDetailsPage() {
             ? 'O proprietate selectă cu arhitectură contemporană, spații luminoase și finisaje de înaltă calitate, perfect concepută pentru o experiență de relaxare autentică.' 
             : 'A curated stay offering contemporary architecture, bright spaces and high-quality finishes, crafted for an authentic relaxing experience.'),
           accommodationType: data.accommodationType || 'Hotel',
-          averageRating: data.averageRating || 4.92,
-          totalReviewsCount: data.totalReviewsCount || 18,
+          averageRating: typeof data.averageRating === 'number' ? data.averageRating : 0,
+          totalReviewsCount: typeof data.totalReviewsCount === 'number' ? data.totalReviewsCount : 0,
           imageUrl: baseImg,
           imageUrls: gallery,
-          stars: data.stars || 4,
+          stars: data.stars,
           hasPool: data.hasPool ?? true,
           hasRoomService: data.hasRoomService ?? true,
           totalRooms: data.totalRooms || 28,
@@ -228,8 +228,8 @@ export default function HotelDetailsPage() {
             ? 'Amplasat într-o clădire istorică complet restaurată, acest hotel boutique îmbină eleganța clasică cu facilitățile moderne de lux. Bucură-te de camere spațioase, terasă panoramică și servicii impecabile.'
             : 'Set in a fully restored historic building, this boutique hotel combines classic elegance with modern luxury amenities. Enjoy spacious rooms, a panoramic terrace and impeccable hospitality.',
           accommodationType: 'Hotel',
-          averageRating: 4.96,
-          totalReviewsCount: 24,
+          averageRating: 0,
+          totalReviewsCount: 0,
           imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
           imageUrls: [
             'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
@@ -260,25 +260,7 @@ export default function HotelDetailsPage() {
         }
       }
     } catch {
-      // Mock fallback
-      setReviews([
-        {
-          id: 1,
-          rating: 5,
-          comment: lang === 'RO' ? 'Servicii excepționale și o atmosferă extrem de liniștită. Recomand cu încredere!' : 'Exceptional hospitality and very tranquil atmosphere. Highly recommended!',
-          reservationId: '00000000-0000-0000-0000-000000000001',
-          createdAt: new Date().toISOString(),
-          userEmail: 'andrei.radu@example.com'
-        },
-        {
-          id: 2,
-          rating: 5,
-          comment: lang === 'RO' ? 'Design arhitectural superb, mic dejun gourmet și curățenie impecabilă.' : 'Superb architectural design, gourmet breakfast and spotless cleanliness.',
-          reservationId: '00000000-0000-0000-0000-000000000002',
-          createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-          userEmail: 'maria.ionescu@example.com'
-        }
-      ]);
+      setReviews([]);
     } finally {
       setIsLoading(false);
     }
@@ -552,8 +534,10 @@ export default function HotelDetailsPage() {
               [ {hotel?.accommodationType?.toUpperCase() || 'HOTEL'} ]
             </span>
             <StarRating
-              rating={hotel?.averageRating || hotel?.stars || 5}
+              rating={hotel?.averageRating}
+              totalReviews={hotel?.totalReviewsCount}
               size="sm"
+              unratedLabel={lang === 'RO' ? 'Fără recenzii' : 'No reviews'}
             />
             <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-700 dark:text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -571,7 +555,9 @@ export default function HotelDetailsPage() {
                 <span>{hotel?.location}</span>
                 <span>•</span>
                 <span className="font-mono text-xs text-neutral-500">
-                  ★ {hotel?.averageRating.toFixed(2)} ({hotel?.totalReviewsCount} {lang === 'RO' ? 'recenzii' : 'reviews'})
+                  {hotel && (hotel.totalReviewsCount ?? 0) > 0
+                    ? `★ ${hotel.averageRating?.toFixed(1)} (${hotel.totalReviewsCount} ${lang === 'RO' ? 'recenzii' : 'reviews'})`
+                    : (lang === 'RO' ? 'Fără recenzii' : 'No reviews')}
                 </span>
               </div>
             </div>
@@ -707,10 +693,18 @@ export default function HotelDetailsPage() {
                     [ 04 / {lang === 'RO' ? 'RECENZII & EVALUĂRI' : 'REVIEWS & RATINGS'} ]
                   </h2>
                   <div className="text-xl font-serif mt-1 flex items-center gap-2">
-                    <span>★ {hotel?.averageRating.toFixed(2)} / 5.0</span>
-                    <span className="text-xs font-mono text-neutral-500">
-                      ({reviews.length} {lang === 'RO' ? 'recenzii verificate' : 'verified reviews'})
-                    </span>
+                    {hotel && (hotel.totalReviewsCount ?? 0) > 0 ? (
+                      <>
+                        <span>★ {hotel.averageRating?.toFixed(1)} / 5.0</span>
+                        <span className="text-xs font-mono text-neutral-500">
+                          ({hotel.totalReviewsCount} {lang === 'RO' ? 'recenzii verificate' : 'verified reviews'})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-mono text-neutral-500">
+                        {lang === 'RO' ? 'Nicio recenzie încă' : 'No reviews yet'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -782,7 +776,13 @@ export default function HotelDetailsPage() {
                   </span>
                   <span className="text-xs font-mono text-neutral-500"> / {lang === 'RO' ? 'noapte' : 'night'}</span>
                 </div>
-                <StarRating rating={hotel?.averageRating || 4.9} size="xs" showNumber />
+                <StarRating
+                  rating={hotel?.averageRating}
+                  totalReviews={hotel?.totalReviewsCount}
+                  size="xs"
+                  showNumber
+                  unratedLabel={lang === 'RO' ? 'Nou' : 'New'}
+                />
               </div>
 
               <form onSubmit={handleBookingSubmit} className="space-y-4">

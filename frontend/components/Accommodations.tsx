@@ -25,6 +25,7 @@ interface RawAccommodationDto {
   pricePerNight?: number;
   stars?: number;
   averageRating?: number;
+  totalReviewsCount?: number;
 }
 
 const emptySubscribe = () => () => {};
@@ -80,8 +81,9 @@ export default function Accommodations() {
               ? item.imageUrl
               : NO_PHOTO_PLACEHOLDER,
           pricePerNight: item.pricePerNight || 350,
-          stars: item.stars || (index % 2 === 0 ? 5 : 4),
-          averageRating: item.averageRating || 4.9,
+          stars: item.stars,
+          averageRating: typeof item.averageRating === "number" ? item.averageRating : 0,
+          totalReviewsCount: typeof item.totalReviewsCount === "number" ? item.totalReviewsCount : 0,
         }));
 
         setAccommodations(mapped);
@@ -132,8 +134,9 @@ export default function Accommodations() {
                   ? item.imageUrl
                   : NO_PHOTO_PLACEHOLDER,
               pricePerNight: item.pricePerNight || 350,
-              stars: item.stars || (index % 2 === 0 ? 5 : 4),
-              averageRating: item.averageRating || 4.9,
+              stars: item.stars,
+              averageRating: typeof item.averageRating === "number" ? item.averageRating : 0,
+              totalReviewsCount: typeof item.totalReviewsCount === "number" ? item.totalReviewsCount : 0,
             }));
             setAccommodations(mapped);
             setIsFromDatabase(true);
@@ -265,7 +268,7 @@ export default function Accommodations() {
         (item.city && item.city.toLowerCase() === selectedCity.toLowerCase());
 
       const matchStars =
-        selectedStars === "All" || (item.stars ?? 4) === selectedStars;
+        selectedStars === "All" || item.stars === selectedStars;
 
       return matchText && matchType && matchCity && matchStars;
     });
@@ -616,8 +619,10 @@ export default function Accommodations() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <StarRating
-                      rating={hotel.averageRating || hotel.stars || 4.7}
+                      rating={hotel.averageRating}
+                      totalReviews={hotel.totalReviewsCount}
                       size="sm"
+                      unratedLabel={lang === "RO" ? "Fără recenzii" : "No reviews"}
                     />
                     {hotel.pricePerNight && (
                       <span className="font-mono text-xs text-neutral-900 dark:text-neutral-100 font-bold">
