@@ -8,6 +8,7 @@ export interface Accommodation {
   accommodationType?: string;
   pricePerNight?: number;
   averageRating?: number;
+  totalReviewsCount?: number;
   stars?: number;
   description?: string;
 }

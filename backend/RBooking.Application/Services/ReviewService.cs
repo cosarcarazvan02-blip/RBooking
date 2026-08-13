@@ -29,35 +29,47 @@ public class ReviewService : IReviewService
 
     public async Task<ReviewDto> CreateReviewAsync(Guid currentUserId, CreateReviewDto dto)
     {
-        var reservation = await _reservationRepository.GetByIdAsync(dto.ReservationId);
+        Reservation? reservation = null;
 
-        // Fallback 1: dacă nu s-a găsit după ID-ul trimis, verificăm dacă utilizatorul are deja o rezervare în baza de date
-        if (reservation == null)
+        if (dto.ReservationId != Guid.Empty)
         {
-            var userReservations = await _reservationRepository.GetByUserIdAsync(currentUserId);
-            reservation = userReservations.FirstOrDefault();
+            reservation = await _reservationRepository.GetByIdAsync(dto.ReservationId);
+            if (reservation != null && reservation.UserId != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Nu poți adăuga o recenzie pentru rezervarea altui utilizator.");
+            }
         }
 
-        // Fallback 2: dacă utilizatorul nu are nicio rezervare în BD (e.g. testează direct din UI),
-        // creăm o rezervare automată pentru a asigura integritatea relațională și funcționarea webhook-ului
+        // Dacă nu s-a găsit după ID sau nu a fost specificat un ID valid, căutăm o rezervare fără recenzie a utilizatorului
         if (reservation == null)
         {
-            var allReservations = await _reservationRepository.GetAllAsync();
-            var sampleAccId = allReservations.FirstOrDefault()?.AccommodationId ?? Guid.NewGuid();
-
-            reservation = new Reservation
+            var userReservations = (await _reservationRepository.GetByUserIdAsync(currentUserId)).ToList();
+            if (userReservations.Count == 0)
             {
-                Id = dto.ReservationId != Guid.Empty ? dto.ReservationId : Guid.NewGuid(),
-                UserId = currentUserId,
-                AccommodationId = sampleAccId,
-                CheckInDate = DateTime.UtcNow.AddDays(-3),
-                CheckOutDate = DateTime.UtcNow.AddDays(-1),
-                NumberOfGuests = 2,
-                TotalPrice = 400m,
-                Status = ReservationStatus.Confirmed,
-                CreatedAt = DateTime.UtcNow.AddDays(-3)
-            };
-            await _reservationRepository.AddAsync(reservation);
+                throw new InvalidOperationException("Trebuie să ai cel puțin o rezervare pentru a putea lăsa o recenzie.");
+            }
+
+            foreach (var res in userReservations)
+            {
+                var isReviewed = await _reviewRepository.HasReviewForReservationAsync(res.Id);
+                if (!isReviewed)
+                {
+                    reservation = res;
+                    break;
+                }
+            }
+
+            if (reservation == null)
+            {
+                throw new InvalidOperationException("Ai adăugat deja o recenzie pentru toate rezervările tale. Fiecare rezervare permite o singură recenzie.");
+            }
+        }
+
+        // Verificăm dacă rezervarea selectată are deja recenzie (regula de 1 review per rezervare)
+        var alreadyHasReview = await _reviewRepository.HasReviewForReservationAsync(reservation.Id);
+        if (alreadyHasReview)
+        {
+            throw new InvalidOperationException("Există deja o recenzie asociată acestei rezervări. Fiecare rezervare permite o singură recenzie.");
         }
 
         var review = new Review
@@ -112,8 +124,12 @@ public class ReviewService : IReviewService
             Rating = review.Rating,
             Comment = review.Comment,
             ReservationId = review.ReservationId,
+            UserId = review.Reservation?.UserId,
+            UserEmail = review.Reservation?.User?.Email,
+            UserName = review.Reservation?.User != null 
+                ? $"{review.Reservation.User.FirstName} {review.Reservation.User.LastName}".Trim() 
+                : null,
             CreatedAt = review.CreatedAt
         };
     }
 }
-

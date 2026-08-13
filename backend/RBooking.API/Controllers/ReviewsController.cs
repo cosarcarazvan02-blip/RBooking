@@ -41,6 +41,10 @@ public class ReviewsController : ControllerBase
             var createdReview = await _reviewService.CreateReviewAsync(currentUserId, createReviewDto);
             return Ok(createdReview);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });

@@ -4,11 +4,12 @@ import React from 'react';
 import { Star } from 'lucide-react';
 
 interface StarRatingProps {
-  rating: number;
+  rating?: number | null;
   maxStars?: number;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   showNumber?: boolean;
   totalReviews?: number;
+  unratedLabel?: string;
   className?: string;
   starClassName?: string;
   numberClassName?: string;
@@ -20,11 +21,22 @@ export default function StarRating({
   size = 'sm',
   showNumber = true,
   totalReviews,
+  unratedLabel,
   className = '',
   starClassName = '',
   numberClassName = '',
 }: StarRatingProps) {
-  const normalizedRating = Math.max(0, Math.min(maxStars, Number(rating) || 0));
+  const numericRating = typeof rating === 'number' ? rating : Number(rating);
+  const isUnrated =
+    rating === null ||
+    rating === undefined ||
+    isNaN(numericRating) ||
+    numericRating <= 0 ||
+    totalReviews === 0;
+
+  const normalizedRating = isUnrated
+    ? 0
+    : Math.max(0, Math.min(maxStars, numericRating));
 
   const sizeMap = {
     xs: 'w-3 h-3',
@@ -37,15 +49,28 @@ export default function StarRating({
 
   return (
     <div className={`inline-flex items-center gap-1.5 ${className}`}>
-      <div className="inline-flex items-center gap-0.5" aria-label={`Rating: ${normalizedRating.toFixed(1)} din ${maxStars}`}>
+      <div
+        className="inline-flex items-center gap-0.5"
+        aria-label={
+          isUnrated
+            ? (unratedLabel || 'Fără recenzii')
+            : `Rating: ${normalizedRating.toFixed(1)} din ${maxStars}`
+        }
+      >
         {Array.from({ length: maxStars }).map((_, index) => {
-          const fillPercentage = Math.max(0, Math.min(100, (normalizedRating - index) * 100));
+          const fillPercentage = isUnrated
+            ? 0
+            : Math.max(0, Math.min(100, (normalizedRating - index) * 100));
 
           return (
             <div key={index} className={`relative inline-flex items-center justify-center shrink-0 ${currentSize}`}>
               {/* Background empty star */}
               <Star
-                className={`${currentSize} text-neutral-300 dark:text-neutral-700 stroke-[1.5] ${starClassName}`}
+                className={`${currentSize} ${
+                  isUnrated
+                    ? 'text-neutral-300 dark:text-neutral-700 stroke-[1.2] opacity-70'
+                    : 'text-neutral-300 dark:text-neutral-700 stroke-[1.5]'
+                } ${starClassName}`}
               />
 
               {/* Foreground filled partial star with precise clip */}
@@ -65,13 +90,19 @@ export default function StarRating({
       </div>
 
       {showNumber && (
-        <span className={`text-xs font-mono font-bold text-amber-500 dark:text-amber-400 tabular-nums ml-0.5 ${numberClassName}`}>
-          {normalizedRating.toFixed(1)}
-        </span>
+        isUnrated ? (
+          <span className={`text-xs font-mono text-neutral-400 dark:text-neutral-500 tabular-nums ml-0.5 ${numberClassName}`}>
+            {unratedLabel ?? '—'}
+          </span>
+        ) : (
+          <span className={`text-xs font-mono font-bold text-amber-500 dark:text-amber-400 tabular-nums ml-0.5 ${numberClassName}`}>
+            {normalizedRating.toFixed(1)}
+          </span>
+        )
       )}
 
       {totalReviews !== undefined && (
-        <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+        <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-500">
           ({totalReviews})
         </span>
       )}

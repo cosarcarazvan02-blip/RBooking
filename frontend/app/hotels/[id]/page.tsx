@@ -60,8 +60,10 @@ interface ReviewItem {
   rating: number;
   comment?: string;
   reservationId: string;
-  createdAt: string;
+  userId?: string;
   userEmail?: string;
+  userName?: string;
+  createdAt: string;
 }
 
 interface UserReservation {
@@ -114,6 +116,7 @@ export default function HotelDetailsPage() {
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [userReservations, setUserReservations] = useState<UserReservation[]>([]);
 
   // Check auth
@@ -130,6 +133,9 @@ export default function HotelDetailsPage() {
           const parsed = JSON.parse(profile);
           if (parsed.id || parsed.Id) {
             setCurrentUserId(parsed.id || parsed.Id);
+          }
+          if (parsed.email || parsed.Email) {
+            setCurrentUserEmail(parsed.email || parsed.Email);
           }
         } catch (e) {
           console.error(e);
@@ -162,6 +168,24 @@ export default function HotelDetailsPage() {
       }
     });
   }, [hotelId]);
+
+  const reviewedReservationIds = useMemo(() => {
+    return new Set(reviews.map((r) => r.reservationId));
+  }, [reviews]);
+
+  const unreviewedReservations = useMemo(() => {
+    return userReservations.filter((res) => !reviewedReservationIds.has(res.id));
+  }, [userReservations, reviewedReservationIds]);
+
+  const hasReviewedStay = useMemo(() => {
+    if (!isLoggedIn) return false;
+    return reviews.some(
+      (rev) =>
+        (currentUserId && rev.userId === currentUserId) ||
+        (currentUserEmail && rev.userEmail === currentUserEmail) ||
+        userReservations.some((ur) => ur.id === rev.reservationId)
+    );
+  }, [isLoggedIn, reviews, currentUserId, currentUserEmail, userReservations]);
 
   // Fetch hotel details and reviews
   const loadData = useCallback(async () => {
@@ -197,11 +221,11 @@ export default function HotelDetailsPage() {
             ? 'O proprietate selectă cu arhitectură contemporană, spații luminoase și finisaje de înaltă calitate, perfect concepută pentru o experiență de relaxare autentică.' 
             : 'A curated stay offering contemporary architecture, bright spaces and high-quality finishes, crafted for an authentic relaxing experience.'),
           accommodationType: data.accommodationType || 'Hotel',
-          averageRating: data.averageRating || 4.92,
-          totalReviewsCount: data.totalReviewsCount || 18,
+          averageRating: typeof data.averageRating === 'number' ? data.averageRating : 0,
+          totalReviewsCount: typeof data.totalReviewsCount === 'number' ? data.totalReviewsCount : 0,
           imageUrl: baseImg,
           imageUrls: gallery,
-          stars: data.stars || 4,
+          stars: data.stars,
           hasPool: data.hasPool ?? true,
           hasRoomService: data.hasRoomService ?? true,
           totalRooms: data.totalRooms || 28,
@@ -228,8 +252,8 @@ export default function HotelDetailsPage() {
             ? 'Amplasat într-o clădire istorică complet restaurată, acest hotel boutique îmbină eleganța clasică cu facilitățile moderne de lux. Bucură-te de camere spațioase, terasă panoramică și servicii impecabile.'
             : 'Set in a fully restored historic building, this boutique hotel combines classic elegance with modern luxury amenities. Enjoy spacious rooms, a panoramic terrace and impeccable hospitality.',
           accommodationType: 'Hotel',
-          averageRating: 4.96,
-          totalReviewsCount: 24,
+          averageRating: 0,
+          totalReviewsCount: 0,
           imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
           imageUrls: [
             'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
@@ -260,25 +284,7 @@ export default function HotelDetailsPage() {
         }
       }
     } catch {
-      // Mock fallback
-      setReviews([
-        {
-          id: 1,
-          rating: 5,
-          comment: lang === 'RO' ? 'Servicii excepționale și o atmosferă extrem de liniștită. Recomand cu încredere!' : 'Exceptional hospitality and very tranquil atmosphere. Highly recommended!',
-          reservationId: '00000000-0000-0000-0000-000000000001',
-          createdAt: new Date().toISOString(),
-          userEmail: 'andrei.radu@example.com'
-        },
-        {
-          id: 2,
-          rating: 5,
-          comment: lang === 'RO' ? 'Design arhitectural superb, mic dejun gourmet și curățenie impecabilă.' : 'Superb architectural design, gourmet breakfast and spotless cleanliness.',
-          reservationId: '00000000-0000-0000-0000-000000000002',
-          createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-          userEmail: 'maria.ionescu@example.com'
-        }
-      ]);
+      setReviews([]);
     } finally {
       setIsLoading(false);
     }
@@ -387,12 +393,18 @@ export default function HotelDetailsPage() {
     const token = rawToken ? rawToken.replace(/^Bearer\s+/i, '').trim() : '';
 
     // Determinăm un reservationId valid conform formatului GUID
-    let effectiveReservationId = '00000000-0000-0000-0000-000000000000';
-    if (reviewReservationId && reviewReservationId.includes('-') && reviewReservationId.length >= 32) {
-      effectiveReservationId = reviewReservationId.trim();
-    } else if (userReservations && userReservations.length > 0) {
-      const matchingRes = userReservations.find(r => r.id && r.id.includes('-') && r.id.length >= 32);
-      if (matchingRes) effectiveReservationId = matchingRes.id;
+    let effectiveReservationId = reviewReservationId ? reviewReservationId.trim() : '';
+    if (!effectiveReservationId || effectiveReservationId === '') {
+      const matchingRes = unreviewedReservations.find(r => r.id && r.id.includes('-') && r.id.length >= 32);
+      if (matchingRes) {
+        effectiveReservationId = matchingRes.id;
+      } else if (unreviewedReservations[0]) {
+        effectiveReservationId = unreviewedReservations[0].id;
+      } else if (userReservations[0]) {
+        effectiveReservationId = userReservations[0].id;
+      } else {
+        effectiveReservationId = '00000000-0000-0000-0000-000000000000';
+      }
     }
 
     try {
@@ -552,8 +564,10 @@ export default function HotelDetailsPage() {
               [ {hotel?.accommodationType?.toUpperCase() || 'HOTEL'} ]
             </span>
             <StarRating
-              rating={hotel?.averageRating || hotel?.stars || 5}
+              rating={hotel?.averageRating}
+              totalReviews={hotel?.totalReviewsCount}
               size="sm"
+              unratedLabel={lang === 'RO' ? 'Fără recenzii' : 'No reviews'}
             />
             <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-700 dark:text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -571,7 +585,9 @@ export default function HotelDetailsPage() {
                 <span>{hotel?.location}</span>
                 <span>•</span>
                 <span className="font-mono text-xs text-neutral-500">
-                  ★ {hotel?.averageRating.toFixed(2)} ({hotel?.totalReviewsCount} {lang === 'RO' ? 'recenzii' : 'reviews'})
+                  {hotel && (hotel.totalReviewsCount ?? 0) > 0
+                    ? `★ ${hotel.averageRating?.toFixed(1)} (${hotel.totalReviewsCount} ${lang === 'RO' ? 'recenzii' : 'reviews'})`
+                    : (lang === 'RO' ? 'Fără recenzii' : 'No reviews')}
                 </span>
               </div>
             </div>
@@ -707,27 +723,56 @@ export default function HotelDetailsPage() {
                     [ 04 / {lang === 'RO' ? 'RECENZII & EVALUĂRI' : 'REVIEWS & RATINGS'} ]
                   </h2>
                   <div className="text-xl font-serif mt-1 flex items-center gap-2">
-                    <span>★ {hotel?.averageRating.toFixed(2)} / 5.0</span>
-                    <span className="text-xs font-mono text-neutral-500">
-                      ({reviews.length} {lang === 'RO' ? 'recenzii verificate' : 'verified reviews'})
-                    </span>
+                    {hotel && (hotel.totalReviewsCount ?? 0) > 0 ? (
+                      <>
+                        <span>★ {hotel.averageRating?.toFixed(1)} / 5.0</span>
+                        <span className="text-xs font-mono text-neutral-500">
+                          ({hotel.totalReviewsCount} {lang === 'RO' ? 'recenzii verificate' : 'verified reviews'})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-mono text-neutral-500">
+                        {lang === 'RO' ? 'Nicio recenzie încă' : 'No reviews yet'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isLoggedIn) {
-                      router.push('/login');
-                      return;
-                    }
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs uppercase tracking-wider font-semibold border border-neutral-950 dark:border-white hover:bg-neutral-800 dark:hover:bg-amber-300 cursor-pointer shadow-xs transition"
-                >
-                  <MessageSquarePlus className="w-4 h-4" />
-                  <span>{lang === 'RO' ? 'Adaugă Recenzie' : 'Add Review'}</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  {hasReviewedStay && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs font-mono rounded-lg">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{lang === 'RO' ? 'Ai evaluat acest sejur' : 'You reviewed this stay'}</span>
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={hasReviewedStay && unreviewedReservations.length === 0}
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        router.push('/login');
+                        return;
+                      }
+                      if (hasReviewedStay && unreviewedReservations.length === 0) {
+                        return;
+                      }
+                      setIsReviewModalOpen(true);
+                    }}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wider font-semibold border transition shadow-xs ${
+                      hasReviewedStay && unreviewedReservations.length === 0
+                        ? 'bg-neutral-100 text-neutral-400 border-neutral-200 dark:bg-neutral-900 dark:text-neutral-600 dark:border-neutral-800 cursor-not-allowed'
+                        : 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white hover:bg-neutral-800 dark:hover:bg-amber-300 cursor-pointer'
+                    }`}
+                  >
+                    <MessageSquarePlus className="w-4 h-4" />
+                    <span>
+                      {hasReviewedStay && unreviewedReservations.length === 0
+                        ? (lang === 'RO' ? 'Recenzie Adăugată' : 'Review Added')
+                        : (lang === 'RO' ? 'Adaugă Recenzie' : 'Add Review')}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {reviews.length === 0 ? (
@@ -782,7 +827,13 @@ export default function HotelDetailsPage() {
                   </span>
                   <span className="text-xs font-mono text-neutral-500"> / {lang === 'RO' ? 'noapte' : 'night'}</span>
                 </div>
-                <StarRating rating={hotel?.averageRating || 4.9} size="xs" showNumber />
+                <StarRating
+                  rating={hotel?.averageRating}
+                  totalReviews={hotel?.totalReviewsCount}
+                  size="xs"
+                  showNumber
+                  unratedLabel={lang === 'RO' ? 'Nou' : 'New'}
+                />
               </div>
 
               <form onSubmit={handleBookingSubmit} className="space-y-4">
@@ -936,18 +987,18 @@ export default function HotelDetailsPage() {
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === 'RO' ? 'Sejur verificat pentru:' : 'Verified stay for:'} <strong>{hotel?.name}</strong></span>
                 </div>
-                {userReservations.length > 0 && (
+                {unreviewedReservations.length > 0 && (
                   <div>
                     <label className="block text-[11px] font-mono text-neutral-600 dark:text-neutral-400 mb-1">
-                      {lang === 'RO' ? 'Asociază cu o rezervare din cont (opțional):' : 'Link with a reservation from account (optional):'}
+                      {lang === 'RO' ? 'Asociază cu o rezervare neevaluată din cont:' : 'Link with an unreviewed reservation from account:'}
                     </label>
                     <select
                       value={reviewReservationId}
                       onChange={(e) => setReviewReservationId(e.target.value)}
                       className="w-full p-2 bg-white dark:bg-[#181a20] text-xs font-mono text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 rounded-lg"
                     >
-                      <option value="">{lang === 'RO' ? '-- Asociere automată cu proprietatea --' : '-- Auto-linked with property --'}</option>
-                      {userReservations.map((res) => (
+                      <option value="">{lang === 'RO' ? '-- Selectează automat prima rezervare disponibilă --' : '-- Auto-select first available reservation --'}</option>
+                      {unreviewedReservations.map((res) => (
                         <option key={res.id} value={res.id}>
                           {res.hotelName || 'Sejur'} ({res.dates})
                         </option>
