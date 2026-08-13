@@ -31,6 +31,32 @@ interface UserProfile {
   role: string;
 }
 
+const HOST_APPLICATION_STATUS_LABELS: Record<number, 'Pending' | 'Approved' | 'Rejected'> = {
+  0: 'Pending',
+  1: 'Approved',
+  2: 'Rejected',
+};
+
+interface HostApplicationStatus {
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string | null;
+}
+
+function buildAuthHeaders(): HeadersInit {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const rawToken = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+  if (rawToken) {
+    headers['Authorization'] = `Bearer ${rawToken.replace(/^"|"$/g, '').replace(/^Bearer\s+/i, '').trim()}`;
+  }
+  try {
+    const apiKey = getActiveApiKey();
+    if (apiKey) headers['X-Api-Key'] = apiKey;
+  } catch {
+    // fara cheie - cererea oricum va pica la ApiKeyMiddleware
+  }
+  return headers;
+}
+
 export default function AccountPage() {
   const { lang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -43,6 +69,12 @@ export default function AccountPage() {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Cerere de a deveni operator
+  const [hostApplication, setHostApplication] = useState<HostApplicationStatus | null>(null);
+  const [hostApplicationMessage, setHostApplicationMessage] = useState('');
+  const [isSubmittingHostApplication, setIsSubmittingHostApplication] = useState(false);
+  const [hostApplicationError, setHostApplicationError] = useState('');
 
   // API Key State
   const [inputKey, setInputKey] = useState<string>(DEFAULT_API_KEY);
@@ -61,6 +93,53 @@ export default function AccountPage() {
     loadFavorites();
   };
 
+  const loadHostApplication = useCallback(async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const res = await fetch(`${apiUrl}/host-applications/mine`, { headers: buildAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data) {
+        setHostApplication(null);
+        return;
+      }
+      setHostApplication({
+        status: HOST_APPLICATION_STATUS_LABELS[data.status] ?? 'Pending',
+        rejectionReason: data.rejectionReason,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleSubmitHostApplication = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setHostApplicationError('');
+    setIsSubmittingHostApplication(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const res = await fetch(`${apiUrl}/host-applications`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+        body: JSON.stringify({ message: hostApplicationMessage.trim() || null }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setHostApplicationError(
+          data?.message ||
+            (lang === 'RO' ? 'Nu am putut trimite cererea.' : 'Could not submit the request.')
+        );
+        return;
+      }
+      await loadHostApplication();
+      setHostApplicationMessage('');
+    } catch {
+      setHostApplicationError(lang === 'RO' ? 'Eroare de conexiune la server.' : 'Connection error.');
+    } finally {
+      setIsSubmittingHostApplication(false);
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
     queueMicrotask(() => {
@@ -77,6 +156,9 @@ export default function AccountPage() {
       loadFavorites();
     };
     window.addEventListener('rbooking_favorites_change', handleFavoritesChange);
+    queueMicrotask(() => {
+      void loadHostApplication();
+    });
 
     const timer = setTimeout(() => {
       const saved = localStorage.getItem('rbooking_user_profile');
@@ -102,7 +184,7 @@ export default function AccountPage() {
       clearTimeout(timer);
       window.removeEventListener('rbooking_favorites_change', handleFavoritesChange);
     };
-  }, [loadFavorites]);
+  }, [loadFavorites, loadHostApplication]);
 
   const handleSaveProfile = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -334,6 +416,65 @@ export default function AccountPage() {
           </div>
         )}
       </div>
+
+      {/* Devino Operator */}
+      {isLoggedIn && profile.role === 'Client' && (
+        <div>
+          <h2 className="text-lg font-serif mb-2">
+            {lang === 'RO' ? 'Devino Operator' : 'Become an Operator'}
+          </h2>
+          <p className="text-xs text-neutral-500 mb-4">
+            {lang === 'RO'
+              ? 'Trimite o cerere către administratori ca să-ți poți lista propriile cazări.'
+              : 'Send a request to the admins so you can list your own accommodations.'}
+          </p>
+
+          {hostApplication?.status === 'Pending' && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-xl text-xs font-mono">
+              {lang === 'RO' ? 'Cererea ta este în așteptare.' : 'Your request is pending.'}
+            </div>
+          )}
+
+          {hostApplication?.status === 'Approved' && (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-mono">
+              {lang === 'RO' ? 'Cererea ta a fost aprobată!' : 'Your request was approved!'}
+            </div>
+          )}
+
+          {hostApplication?.status === 'Rejected' && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 rounded-xl text-xs font-mono space-y-1">
+              <p>{lang === 'RO' ? 'Cererea ta a fost respinsă.' : 'Your request was rejected.'}</p>
+              {hostApplication.rejectionReason && <p className="text-neutral-500">{hostApplication.rejectionReason}</p>}
+            </div>
+          )}
+
+          {(!hostApplication || hostApplication.status === 'Rejected') && (
+            <form onSubmit={handleSubmitHostApplication} className="mt-3 space-y-3">
+              {hostApplicationError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs rounded-xl font-mono">
+                  {hostApplicationError}
+                </div>
+              )}
+              <textarea
+                value={hostApplicationMessage}
+                onChange={(e) => setHostApplicationMessage(e.target.value)}
+                placeholder={lang === 'RO' ? 'Mesaj opțional pentru administratori...' : 'Optional message for the admins...'}
+                rows={3}
+                className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-sm focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingHostApplication}
+                className="px-5 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider transition cursor-pointer disabled:opacity-60"
+              >
+                {isSubmittingHostApplication
+                  ? (lang === 'RO' ? 'Se trimite...' : 'Submitting...')
+                  : (lang === 'RO' ? 'Trimite Cererea' : 'Submit Request')}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* 2. Secțiune Cazări Favorite (Salvate) */}
       <div>

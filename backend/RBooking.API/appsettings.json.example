@@ -19,10 +19,15 @@
     "ApiKey": "CHANGE_ME_cheia_ceruta_de_ApiKeyMiddleware_pe_orice_request"
   },
   "Webhooks": {
-    "_comment": "Trebuie sa coincida EXACT cu Webhooks:Secret din RBooking.WebhookAPI/appsettings.json - e cheia HMAC folosita ca sa semnezi/verifici webhook-ul de accommodation-updated.",
+    "_comment": "Trebuie sa coincida EXACT cu Webhooks:Secret din RBooking.WebhookAPI/appsettings.json - e cheia HMAC folosita ca sa semnezi/verifici webhook-urile trimise catre WebhookAPI.",
     "AccommodationUpdatedUrl": "http://localhost:5310/api/webhooks/accommodation-updated",
+    "ReservationCreatedUrl": "http://localhost:5310/api/webhooks/reservation-created",
     "ApiBReviewWebhookUrl": "http://localhost:5294/api/webhooks/reviews",
     "Secret": "CHANGE_ME_acelasi_secret_ca_in_WebhookAPI"
+  },
+  "Platform": {
+    "_comment": "Comisionul retinut din fiecare rezervare, ca fractie (0.10 = 10%). Se salveaza pe fiecare rezervare la creare, deci schimbarea ei nu afecteaza rezervarile deja facute.",
+    "CommissionRate": "0.10"
   },
   "Smtp": {
     "_comment": "Optional - daca Host ramane gol, email-urile (ex: confirmare rezervare) nu se trimit efectiv, doar se loghează în consolă.",

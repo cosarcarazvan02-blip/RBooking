@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<HostApplication> HostApplications => Set<HostApplication>();
     public DbSet<LoyaltyDiscount> LoyaltyDiscounts => Set<LoyaltyDiscount>();
     public DbSet<AbsoluteValueDiscount> AbsoluteValueDiscounts => Set<AbsoluteValueDiscount>();
     public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
@@ -55,5 +56,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Review>()
             .HasIndex(r => r.ReservationId)
             .IsUnique();
+
+        // Comisionul platformei - precizie explicită pentru câmpuri monetare noi
+        modelBuilder.Entity<Reservation>(entity =>
+        {
+            entity.Property(r => r.PlatformFeeRate).HasPrecision(5, 4);
+            entity.Property(r => r.PlatformFeeAmount).HasPrecision(18, 2);
+            entity.Property(r => r.OperatorPayoutAmount).HasPrecision(18, 2);
+        });
+
+        // Un user poate avea o singură cerere HostApplication în starea Pending la un moment dat
+        // (impus și la nivel de aplicație în HostApplicationService, nu doar aici)
+        modelBuilder.Entity<HostApplication>()
+            .HasIndex(a => a.UserId);
     }
 }

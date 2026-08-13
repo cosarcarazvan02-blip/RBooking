@@ -19,4 +19,11 @@ public interface IReservationService
     Task<(byte[] FileContent, string ContentType, string FileName)> GenerateReportAsync(ReservationReportRequestDto request);
     Task<ReservationImportResultDto> ImportReservationsFromCsvAsync(Stream fileStream);
     Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, RBooking.Domain.Enums.UserRole currentUserRole);
+    Task<ReservationNotificationDetailsDto?> GetReservationNotificationDetailsAsync(Guid reservationId);
+    Task<OperatorEarningsDto> GetOperatorEarningsAsync(
+        Guid currentUserId,
+        RBooking.Domain.Enums.UserRole currentUserRole,
+        DateTime? from,
+        DateTime? to,
+        Guid? accommodationId);
 }

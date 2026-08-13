@@ -58,6 +58,22 @@ public class ReservationsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Service-to-service endpoint: returnează tot ce are nevoie WebhookAPI ca să trimită
+    /// emailul de notificare a operatorului la o rezervare nouă (rezervare + cazare + operator + comision).
+    /// </summary>
+    [HttpGet("{id:guid}/notification-details")]
+    [Authorize(AuthenticationSchemes = ServiceAuthConstants.SchemeName)]
+    public async Task<ActionResult<ReservationNotificationDetailsDto>> GetNotificationDetails(Guid id)
+    {
+        var details = await _reservationService.GetReservationNotificationDetailsAsync(id);
+        if (details == null)
+        {
+            return NotFound(new { message = $"Reservation with ID {id} was not found." });
+        }
+        return Ok(details);
+    }
+
     [HttpGet("accommodation/{accommodationId:guid}")]
     [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
     public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetByAccommodationId(Guid accommodationId, [FromQuery] PaginationParamsDto paginationParams)
@@ -99,6 +115,37 @@ public class ReservationsController : ControllerBase
         catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Câștigurile operatorului curent (total încasat, comision, net), filtrabile pe interval
+    /// de date și pe cazare. Un operator își vede doar propriile cazări; Admin le vede pe toate.
+    /// </summary>
+    [HttpGet("earnings")]
+    [Authorize(Roles = "Operator,Admin")]
+    public async Task<ActionResult<OperatorEarningsDto>> GetEarnings(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] Guid? accommodationId)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var roleString = User.FindFirstValue(ClaimTypes.Role);
+
+        if (!Guid.TryParse(userIdString, out var currentUserId) ||
+            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
+        {
+            return Unauthorized(new { message = "Invalid user token credentials." });
+        }
+
+        try
+        {
+            var earnings = await _reservationService.GetOperatorEarningsAsync(currentUserId, currentUserRole, from, to, accommodationId);
+            return Ok(earnings);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
     }
 

@@ -13,6 +13,7 @@ public class ReviewServiceTests
     private readonly Mock<IReviewRepository> _reviewRepoMock;
     private readonly Mock<IReservationRepository> _reservationRepoMock;
     private readonly Mock<IWebhookSenderService> _webhookSenderMock;
+    private readonly Mock<IEmailSender> _emailSenderMock;
     private readonly ReviewService _sut;
 
     public ReviewServiceTests()
@@ -20,11 +21,13 @@ public class ReviewServiceTests
         _reviewRepoMock = new Mock<IReviewRepository>();
         _reservationRepoMock = new Mock<IReservationRepository>();
         _webhookSenderMock = new Mock<IWebhookSenderService>();
+        _emailSenderMock = new Mock<IEmailSender>();
 
         _sut = new ReviewService(
             _reviewRepoMock.Object,
             _reservationRepoMock.Object,
-            _webhookSenderMock.Object);
+            _webhookSenderMock.Object,
+            _emailSenderMock.Object);
     }
 
     [Fact]

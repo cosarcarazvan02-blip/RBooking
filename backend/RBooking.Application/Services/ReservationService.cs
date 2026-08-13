@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Microsoft.Extensions.Configuration;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -17,6 +18,8 @@ public class ReservationService : IReservationService
     private readonly IUserRepository _userRepository;
     private readonly IAccommodationRepository _accommodationRepository;
     private readonly IEmailSender _emailSender;
+    private readonly IConfiguration _configuration;
+    private readonly IWebhookSender _webhookSender;
 
     private static readonly HashSet<string> AllowedColumns = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -28,12 +31,16 @@ public class ReservationService : IReservationService
         IReservationRepository reservationRepository,
         IUserRepository userRepository,
         IAccommodationRepository accommodationRepository,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        IConfiguration configuration,
+        IWebhookSender webhookSender)
     {
         _reservationRepository = reservationRepository;
         _userRepository = userRepository;
         _accommodationRepository = accommodationRepository;
         _emailSender = emailSender;
+        _configuration = configuration;
+        _webhookSender = webhookSender;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -128,6 +135,12 @@ public class ReservationService : IReservationService
         decimal basePricePerNight = accommodation.PricePerNight > 0 ? accommodation.PricePerNight : 100m;
         decimal totalPrice = nights * basePricePerNight;
 
+        var commissionRateString = _configuration["Platform:CommissionRate"];
+        decimal commissionRate = decimal.TryParse(commissionRateString, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedRate)
+            ? parsedRate
+            : PlatformFeeCalculator.DefaultCommissionRate;
+        var (platformFeeAmount, operatorPayoutAmount) = PlatformFeeCalculator.Calculate(totalPrice, commissionRate);
+
         var reservation = new Reservation
         {
             Id = Guid.NewGuid(),
@@ -139,6 +152,9 @@ public class ReservationService : IReservationService
             CheckOutDate = checkOutUtc,
             NumberOfGuests = createReservationDto.NumberOfGuests,
             TotalPrice = totalPrice,
+            PlatformFeeRate = commissionRate,
+            PlatformFeeAmount = platformFeeAmount,
+            OperatorPayoutAmount = operatorPayoutAmount,
             Status = ReservationStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
@@ -153,6 +169,23 @@ public class ReservationService : IReservationService
             $"pentru perioada {checkInUtc:dd.MM.yyyy} - {checkOutUtc:dd.MM.yyyy}, {createReservationDto.NumberOfGuests} persoane, preț total {totalPrice} RON.\n\n" +
             "Echipa RBooking.");
 
+        // Rezervarea e deja salvată - webhook-ul către operator e secundar, nu blocăm
+        // și nu anulăm rezervarea dacă trimiterea lui eșuează.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _webhookSender.SendReservationCreatedAsync(new ReservationCreatedWebhookDto
+                {
+                    ReservationId = created.Id
+                });
+            }
+            catch
+            {
+                // Ignorăm erorile de fundal pentru a nu afecta salvarea rezervării
+            }
+        });
+
         return MapToDto(created);
     }
 
@@ -164,6 +197,112 @@ public class ReservationService : IReservationService
         reservation.Status = status;
         var updated = await _reservationRepository.UpdateAsync(reservation);
         return updated == null ? null : MapToDto(updated);
+    }
+
+    public async Task<ReservationNotificationDetailsDto?> GetReservationNotificationDetailsAsync(Guid reservationId)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(reservationId);
+        if (reservation == null || reservation.User == null || reservation.Accommodation == null)
+        {
+            return null;
+        }
+
+        User? operatorUser = null;
+        if (Guid.TryParse(reservation.Accommodation.OperatorId, out var operatorId))
+        {
+            operatorUser = await _userRepository.GetByIdAsync(operatorId);
+        }
+
+        return new ReservationNotificationDetailsDto
+        {
+            ReservationId = reservation.Id,
+            ReservationCreatedAt = reservation.CreatedAt,
+            CheckInDate = reservation.CheckInDate,
+            CheckOutDate = reservation.CheckOutDate,
+            NumberOfGuests = reservation.NumberOfGuests,
+            TotalPrice = reservation.TotalPrice,
+            PlatformFeeRate = reservation.PlatformFeeRate,
+            PlatformFeeAmount = reservation.PlatformFeeAmount,
+            OperatorPayoutAmount = reservation.OperatorPayoutAmount,
+            AccommodationName = reservation.Accommodation.Name,
+            GuestName = $"{reservation.User.FirstName} {reservation.User.LastName}".Trim(),
+            GuestEmail = reservation.User.Email,
+            OperatorFirstName = operatorUser?.FirstName ?? string.Empty,
+            OperatorEmail = operatorUser?.Email ?? string.Empty
+        };
+    }
+
+    public async Task<OperatorEarningsDto> GetOperatorEarningsAsync(
+        Guid currentUserId,
+        UserRole currentUserRole,
+        DateTime? from,
+        DateTime? to,
+        Guid? accommodationId)
+    {
+        if (currentUserRole == UserRole.Client)
+        {
+            throw new UnauthorizedAccessException("Doar operatorii și administratorii pot vedea câștigurile.");
+        }
+
+        var allAccommodations = await _accommodationRepository.GetAllAsync();
+        var currentUserIdString = currentUserId.ToString();
+
+        IEnumerable<Accommodation> targetAccommodations = currentUserRole == UserRole.Admin
+            ? allAccommodations
+            : allAccommodations.Where(a => a.OperatorId == currentUserIdString);
+
+        if (accommodationId.HasValue)
+        {
+            targetAccommodations = targetAccommodations.Where(a => a.Id == accommodationId.Value);
+
+            if (currentUserRole != UserRole.Admin)
+            {
+                var owned = targetAccommodations.Any();
+                if (!owned)
+                {
+                    throw new UnauthorizedAccessException("Poți vedea câștigurile doar pentru propriile cazări.");
+                }
+            }
+        }
+
+        var accommodationIds = targetAccommodations.Select(a => a.Id).ToHashSet();
+        var accommodationNames = targetAccommodations.ToDictionary(a => a.Id, a => a.Name);
+
+        var allReservations = await _reservationRepository.GetAllAsync();
+        var relevantReservations = allReservations.Where(r =>
+            accommodationIds.Contains(r.AccommodationId) &&
+            r.Status != ReservationStatus.Cancelled &&
+            (!from.HasValue || r.CheckInDate >= from.Value) &&
+            (!to.HasValue || r.CheckInDate <= to.Value));
+
+        var result = new OperatorEarningsDto();
+        var byAccommodation = new Dictionary<Guid, AccommodationEarningsDto>();
+
+        foreach (var reservation in relevantReservations)
+        {
+            result.TotalCollected += reservation.TotalPrice;
+            result.TotalCommission += reservation.PlatformFeeAmount;
+            result.TotalNet += reservation.OperatorPayoutAmount;
+            result.ReservationsCount++;
+
+            if (!byAccommodation.TryGetValue(reservation.AccommodationId, out var bucket))
+            {
+                bucket = new AccommodationEarningsDto
+                {
+                    AccommodationId = reservation.AccommodationId,
+                    AccommodationName = accommodationNames.GetValueOrDefault(reservation.AccommodationId, string.Empty)
+                };
+                byAccommodation[reservation.AccommodationId] = bucket;
+            }
+
+            bucket.TotalCollected += reservation.TotalPrice;
+            bucket.TotalCommission += reservation.PlatformFeeAmount;
+            bucket.TotalNet += reservation.OperatorPayoutAmount;
+            bucket.ReservationsCount++;
+        }
+
+        result.ByAccommodation = byAccommodation.Values.OrderByDescending(a => a.TotalCollected).ToList();
+        return result;
     }
 
     public async Task<bool> DeleteReservationAsync(Guid id, Guid currentUserId, UserRole currentUserRole)
