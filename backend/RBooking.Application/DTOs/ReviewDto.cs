@@ -16,7 +16,8 @@ public class CreateReviewDto
 {
     public int Rating { get; set; }
     public string? Comment { get; set; }
-    public Guid ReservationId { get; set; }
+    public Guid? ReservationId { get; set; }
+    public Guid? AccommodationId { get; set; }
 }
 
 public class UpdateReviewDto

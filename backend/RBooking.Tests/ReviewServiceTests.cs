@@ -156,4 +156,29 @@ public class ReviewServiceTests
         Assert.Contains("Ai adăugat deja o recenzie pentru toate rezervările tale", ex.Message);
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
+
+    [Fact]
+    public async Task CreateReviewAsync_WhenUserHasNoReservationForSpecifiedAccommodation_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var accId = Guid.NewGuid();
+        var differentAccId = Guid.NewGuid();
+        var resOther = new Reservation { Id = Guid.NewGuid(), UserId = userId, AccommodationId = differentAccId };
+
+        var dto = new CreateReviewDto
+        {
+            AccommodationId = accId,
+            Rating = 5,
+            Comment = "Cazare gresita"
+        };
+
+        _reservationRepoMock.Setup(r => r.GetByUserIdAsync(userId))
+            .ReturnsAsync(new List<Reservation> { resOther });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.CreateReviewAsync(userId, dto));
+        Assert.Contains("Trebuie să ai cel puțin o rezervare la această cazare", ex.Message);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
+    }
 }
