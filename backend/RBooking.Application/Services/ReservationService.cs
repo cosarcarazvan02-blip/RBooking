@@ -107,6 +107,18 @@ public class ReservationService : IReservationService
             throw new ArgumentException($"Accommodation with ID {createReservationDto.AccommodationId} was not found.");
         }
 
+        // Verificăm dacă utilizatorul are deja o rezervare activă la această cazare
+        var existingUserReservations = await _reservationRepository.GetByUserIdAsync(createReservationDto.UserId);
+        var hasActiveReservation = existingUserReservations.Any(r =>
+            r.AccommodationId == createReservationDto.AccommodationId &&
+            r.Status != ReservationStatus.Cancelled &&
+            r.CheckOutDate >= DateTime.UtcNow.Date);
+
+        if (hasActiveReservation)
+        {
+            throw new InvalidOperationException("Ai deja o rezervare activă la această cazare. Nu poți face o nouă rezervare până când cea anterioară nu este finalizată sau anulată.");
+        }
+
         var checkInUtc = DateTime.SpecifyKind(createReservationDto.CheckInDate, DateTimeKind.Utc);
         var checkOutUtc = DateTime.SpecifyKind(createReservationDto.CheckOutDate, DateTimeKind.Utc);
 

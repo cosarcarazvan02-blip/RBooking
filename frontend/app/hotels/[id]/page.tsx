@@ -21,10 +21,19 @@ import {
   Heart,
   MessageSquarePlus,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ArrowUpRight
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
+import {
+  toggleUserFavorite,
+  isAccommodationFavorited,
+  getUserReservations,
+  addUserReservation,
+  ReservationItem,
+  FavoriteItem
+} from '@/lib/userStorage';
 import BookingCalendar from '@/components/BookingCalendar';
 import StarRating from '@/components/StarRating';
 
@@ -73,6 +82,8 @@ interface UserReservation {
   hotelId?: string;
   hotelName?: string;
   dates?: string;
+  status?: string;
+  type?: string;
 }
 
 export default function HotelDetailsPage() {
@@ -147,49 +158,8 @@ export default function HotelDetailsPage() {
         }
       }
 
-      // Reservările utilizatorului curent, luate din backend (scopate pe userId-ul logat
-      // acum) - NU din localStorage, care e o cheie globală, comună tuturor conturilor
-      // care s-au logat vreodată pe acest browser.
-      if (userId) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
-        const apiKey = getActiveApiKey();
-        fetch(`${apiUrl}/Reservations/user/${userId}?PageNumber=1&PageSize=100`, {
-          headers: {
-            'X-Api-Key': apiKey,
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            const items = data?.items || data?.Items || [];
-            setUserReservations(
-              items.map((r: { id: string; accommodationId: string; accommodationName: string }) => ({
-                id: r.id,
-                accommodationId: r.accommodationId,
-                hotelName: r.accommodationName,
-              }))
-            );
-          })
-          .catch((e) => console.error(e));
-      } else {
-        setUserReservations([]);
-      }
-
-      const savedFavs = localStorage.getItem('rbooking_favorites');
-      if (savedFavs) {
-        try {
-          const favs = JSON.parse(savedFavs);
-          if (Array.isArray(favs)) {
-            setIsSaved(favs.some((item: unknown) => {
-              if (typeof item === 'string') return item === hotelId;
-              if (item && typeof item === 'object' && 'id' in item) return (item as { id: unknown }).id === hotelId;
-              return false;
-            }));
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      setUserReservations(getUserReservations());
+      setIsSaved(isAccommodationFavorited(hotelId));
     });
   }, [hotelId]);
 
@@ -214,6 +184,12 @@ export default function HotelDetailsPage() {
 
   const hasUserBookedThisHotel = useMemo(() => {
     return userReservationsForThisHotel.length > 0;
+  }, [userReservationsForThisHotel]);
+
+  const activeReservationForThisHotel = useMemo(() => {
+    return userReservationsForThisHotel.find(
+      (r) => r.status !== 'Cancelled' && (r.status === 'Confirmed' || r.status === 'Pending' || r.type === 'current')
+    );
   }, [userReservationsForThisHotel]);
 
   const reviewedReservationIds = useMemo(() => {
@@ -384,6 +360,15 @@ export default function HotelDetailsPage() {
       return;
     }
 
+    if (activeReservationForThisHotel) {
+      setBookingError({
+        ro: 'Ai deja o rezervare activă la această cazare. Nu poți face o nouă rezervare până când cea anterioară nu este finalizată sau anulată.',
+        en: 'You already have an active reservation at this accommodation. You cannot create a new booking until your previous stay is completed or cancelled.'
+      });
+      setIsBookingLoading(false);
+      return;
+    }
+
     setIsBookingLoading(true);
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
     const apiKey = getActiveApiKey();
@@ -413,6 +398,31 @@ export default function HotelDetailsPage() {
       if (!res.ok) {
         throw new Error('Reservation request failed');
       }
+
+      let createdReservationId = `res-${Date.now()}`;
+      const resData = await res.json().catch(() => null);
+      if (resData && resData.id) createdReservationId = resData.id;
+
+      // Save locally per-user
+      const targetAccId = hotel?.id || hotelId;
+      const newReservation: ReservationItem = {
+        id: createdReservationId,
+        accommodationId: targetAccId,
+        hotelId: targetAccId,
+        hotelName: hotel?.name || 'Boutique Stay',
+        location: hotel?.location || 'România',
+        dates: `${checkIn} - ${checkOut} (${numberOfNights} ${lang === 'RO' ? 'nopți' : 'nights'})`,
+        status: 'Confirmed',
+        imageUrl: hotel?.imageUrl || NO_PHOTO_PLACEHOLDER,
+        type: 'current',
+        totalPrice: totalPrice,
+        guests: guests,
+        userId: currentUserId || undefined,
+        userEmail: currentUserEmail || undefined,
+        createdAt: new Date().toISOString()
+      };
+
+      addUserReservation(newReservation);
 
       setBookingSuccess(true);
       setTimeout(() => {
@@ -466,11 +476,11 @@ export default function HotelDetailsPage() {
       return;
     }
 
-    if (hasReviewedStay && unreviewedReservations.length === 0) {
+    if (hasReviewedStay) {
       setReviewStatusMessage({
         type: 'error',
-        ro: 'Ai adăugat deja o recenzie pentru acest sejur. Nu poți adăuga mai multe recenzii pentru aceeași rezervare.',
-        en: 'You have already submitted a review for this stay. You cannot add multiple reviews for the same reservation.'
+        ro: 'Ai adăugat deja o recenzie pentru această cazare. Fiecare utilizator poate publica o singură recenzie per cazare.',
+        en: 'You have already submitted a review for this accommodation. Each user is allowed only one review per accommodation.'
       });
       setIsSubmittingReview(false);
       return;
@@ -604,36 +614,21 @@ export default function HotelDetailsPage() {
 
   const handleToggleFavorite = () => {
     if (typeof window === 'undefined' || !hotel) return;
-    const nextSaved = !isSaved;
-    setIsSaved(nextSaved);
+    const favItem: FavoriteItem = {
+      id: hotel.id,
+      name: hotel.name,
+      location: hotel.location,
+      city: hotel.city,
+      country: hotel.country,
+      pricePerNight: hotel.pricePerNight,
+      imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
+      accommodationType: hotel.accommodationType,
+      averageRating: hotel.averageRating,
+      savedAt: new Date().toISOString()
+    };
 
-    try {
-      const existing: unknown[] = JSON.parse(localStorage.getItem('rbooking_favorites') || '[]');
-      const favoriteIdOf = (item: unknown): unknown =>
-        item && typeof item === 'object' && 'id' in item ? (item as { id: unknown }).id : item;
-      let updated: unknown[];
-      if (nextSaved) {
-        const favItem = {
-          id: hotel.id,
-          name: hotel.name,
-          location: hotel.location,
-          city: hotel.city,
-          country: hotel.country,
-          pricePerNight: hotel.pricePerNight,
-          imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
-          accommodationType: hotel.accommodationType,
-          averageRating: hotel.averageRating,
-          savedAt: new Date().toISOString()
-        };
-        updated = [favItem, ...existing.filter((item) => favoriteIdOf(item) !== hotel.id)];
-      } else {
-        updated = existing.filter((item) => favoriteIdOf(item) !== hotel.id);
-      }
-      localStorage.setItem('rbooking_favorites', JSON.stringify(updated));
-      window.dispatchEvent(new Event('rbooking_favorites_change'));
-    } catch (e) {
-      console.error(e);
-    }
+    const result = toggleUserFavorite(favItem);
+    setIsSaved(result.isSaved);
   };
 
   if (isLoading) {
@@ -878,26 +873,26 @@ export default function HotelDetailsPage() {
 
                   <button
                     type="button"
-                    disabled={hasReviewedStay && unreviewedReservations.length === 0}
+                    disabled={hasReviewedStay}
                     onClick={() => {
                       if (!isLoggedIn) {
                         router.push('/login');
                         return;
                       }
-                      if (hasReviewedStay && unreviewedReservations.length === 0) {
+                      if (hasReviewedStay) {
                         return;
                       }
                       setIsReviewModalOpen(true);
                     }}
                     className={`inline-flex items-center gap-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wider font-semibold border transition shadow-xs ${
-                      hasReviewedStay && unreviewedReservations.length === 0
+                      hasReviewedStay
                         ? 'bg-neutral-100 text-neutral-400 border-neutral-200 dark:bg-neutral-900 dark:text-neutral-600 dark:border-neutral-800 cursor-not-allowed'
                         : 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white hover:bg-neutral-800 dark:hover:bg-amber-300 cursor-pointer'
                     }`}
                   >
                     <MessageSquarePlus className="w-4 h-4" />
                     <span>
-                      {hasReviewedStay && unreviewedReservations.length === 0
+                      {hasReviewedStay
                         ? (lang === 'RO' ? 'Recenzie Adăugată' : 'Review Added')
                         : (lang === 'RO' ? 'Adaugă Recenzie' : 'Add Review')}
                     </span>
@@ -1037,13 +1032,42 @@ export default function HotelDetailsPage() {
                   </div>
                 )}
 
+                {activeReservationForThisHotel && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs font-mono">
+                    <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{lang === 'RO' ? 'Ai o rezervare activă la această cazare' : 'Active Reservation Exists'}</span>
+                    </div>
+                    <p className="text-neutral-600 dark:text-neutral-400 font-sans text-xs leading-relaxed">
+                      {lang === 'RO'
+                        ? `Sejurul tău (${activeReservationForThisHotel.dates}) este înregistrat. Fiecare utilizator poate avea o singură rezervare activă la aceeași proprietate.`
+                        : `Your stay (${activeReservationForThisHotel.dates}) is active. Each user can have only one active reservation per property.`}
+                    </p>
+                    <div className="pt-1">
+                      <Link
+                        href="/reservations"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-[11px] font-mono uppercase tracking-wider rounded-lg hover:bg-neutral-800 dark:hover:bg-amber-300 transition"
+                      >
+                        <span>{lang === 'RO' ? 'Vezi Rezervările Mele' : 'View My Reservations'}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isBookingLoading || bookingSuccess}
-                  className="w-full py-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs font-bold uppercase tracking-[0.2em] hover:bg-neutral-800 dark:hover:bg-amber-300 transition-all duration-200 border border-neutral-950 dark:border-white cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50"
+                  disabled={isBookingLoading || bookingSuccess || Boolean(activeReservationForThisHotel)}
+                  className={`w-full py-4 font-mono text-xs font-bold uppercase tracking-[0.2em] transition-all duration-200 border text-center ${
+                    activeReservationForThisHotel
+                      ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500 border-neutral-300 dark:border-neutral-700 cursor-not-allowed'
+                      : 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 border-neutral-950 dark:border-white cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50'
+                  }`}
                 >
                   {isBookingLoading
                     ? (lang === 'RO' ? 'Se procesează...' : 'Processing...')
+                    : activeReservationForThisHotel
+                    ? (lang === 'RO' ? 'Rezervare Activă Existentă' : 'Active Reservation Exists')
                     : !isLoggedIn
                     ? (lang === 'RO' ? 'Autentifică-te pentru Rezervare' : 'Login to Book')
                     : (lang === 'RO' ? 'Rezervă Acum' : 'Reserve Now')}
@@ -1118,17 +1142,17 @@ export default function HotelDetailsPage() {
                   </button>
                 </div>
               </div>
-            ) : hasReviewedStay && unreviewedReservations.length === 0 ? (
+            ) : hasReviewedStay ? (
               <div className="space-y-4 pt-2">
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 rounded-xl text-xs font-mono space-y-1.5">
                   <div className="font-bold flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>{lang === 'RO' ? 'Ai adăugat deja o recenzie pentru acest sejur!' : 'You already submitted a review for this stay!'}</span>
+                    <span>{lang === 'RO' ? 'Ai adăugat deja o recenzie pentru această cazare!' : 'You already submitted a review for this accommodation!'}</span>
                   </div>
                   <p className="text-neutral-600 dark:text-neutral-400 font-sans text-xs pt-1">
                     {lang === 'RO'
-                      ? 'Fiecare rezervare permite o singură recenzie pentru a asigura transparența și corectitudinea evaluărilor.'
-                      : 'Each reservation allows only one review to ensure transparency and integrity of ratings.'}
+                      ? 'Fiecare utilizator poate publica o singură recenzie per cazare pentru a asigura transparența și corectitudinea evaluărilor.'
+                      : 'Each user is allowed only one review per accommodation to ensure transparency and integrity of ratings.'}
                   </p>
                 </div>
                 <div className="pt-2">
