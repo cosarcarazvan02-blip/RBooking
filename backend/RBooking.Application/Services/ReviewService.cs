@@ -31,9 +31,9 @@ public class ReviewService : IReviewService
     {
         Reservation? reservation = null;
 
-        if (dto.ReservationId != Guid.Empty)
+        if (dto.ReservationId.HasValue && dto.ReservationId.Value != Guid.Empty)
         {
-            reservation = await _reservationRepository.GetByIdAsync(dto.ReservationId);
+            reservation = await _reservationRepository.GetByIdAsync(dto.ReservationId.Value);
             if (reservation != null && reservation.UserId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Nu poți adăuga o recenzie pentru rezervarea altui utilizator.");
@@ -44,6 +44,16 @@ public class ReviewService : IReviewService
         if (reservation == null)
         {
             var userReservations = (await _reservationRepository.GetByUserIdAsync(currentUserId)).ToList();
+            
+            if (dto.AccommodationId.HasValue && dto.AccommodationId.Value != Guid.Empty)
+            {
+                var matchingAccReservations = userReservations.Where(r => r.AccommodationId == dto.AccommodationId.Value).ToList();
+                if (matchingAccReservations.Count > 0)
+                {
+                    userReservations = matchingAccReservations;
+                }
+            }
+
             if (userReservations.Count == 0)
             {
                 throw new InvalidOperationException("Trebuie să ai cel puțin o rezervare pentru a putea lăsa o recenzie.");
