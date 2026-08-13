@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useLanguage } from '@/context/LanguageContext';
+import { getUserFavorites } from '@/lib/userStorage';
 import {
   LogIn,
   Calendar,
@@ -27,19 +28,8 @@ export default function Navbar() {
 
   const checkFavorites = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const saved = localStorage.getItem('rbooking_favorites');
-    if (saved) {
-      try {
-        const favs = JSON.parse(saved);
-        if (Array.isArray(favs)) {
-          setFavoritesCount(favs.length);
-          return;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    setFavoritesCount(0);
+    const favs = getUserFavorites();
+    setFavoritesCount(favs.length);
   }, []);
 
   const checkAuth = useCallback(() => {

@@ -8,6 +8,7 @@ import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
 import StarRating from "@/components/StarRating";
+import { getUserFavorites, toggleUserFavorite, FavoriteItem } from "@/lib/userStorage";
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -169,27 +170,18 @@ export default function Accommodations() {
     };
   }, []);
 
-  // Sync favorites with localStorage
+  // Sync favorites with per-user storage
   useEffect(() => {
     const updateFavs = () => {
       if (typeof window === "undefined") return;
-      const saved = localStorage.getItem("rbooking_favorites");
-      if (saved) {
-        try {
-          const favs = JSON.parse(saved);
-          if (Array.isArray(favs)) {
-            setFavoriteIds(new Set(favs.map((item: unknown) => favoriteIdOf(item))));
-            return;
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      setFavoriteIds(new Set());
+      const favs = getUserFavorites();
+      setFavoriteIds(new Set(favs.map((item) => item.id)));
     };
 
     updateFavs();
     window.addEventListener("rbooking_favorites_change", updateFavs);
+    window.addEventListener("rbooking_auth_change", updateFavs);
+    window.addEventListener("auth-state-change", updateFavs);
     window.addEventListener("storage", updateFavs);
 
     const handleSelectCat = (e: Event) => {
@@ -202,6 +194,8 @@ export default function Accommodations() {
 
     return () => {
       window.removeEventListener("rbooking_favorites_change", updateFavs);
+      window.removeEventListener("rbooking_auth_change", updateFavs);
+      window.removeEventListener("auth-state-change", updateFavs);
       window.removeEventListener("storage", updateFavs);
       window.removeEventListener("rbooking_select_category", handleSelectCat);
     };
@@ -212,31 +206,20 @@ export default function Accommodations() {
     e.stopPropagation();
     if (typeof window === "undefined") return;
 
-    const isFav = favoriteIds.has(hotel.id);
-    const existing: unknown[] = JSON.parse(localStorage.getItem("rbooking_favorites") || "[]");
-    let updated: unknown[];
+    const favItem: FavoriteItem = {
+      id: hotel.id,
+      name: hotel.name,
+      location: hotel.location,
+      city: hotel.city,
+      country: hotel.country,
+      pricePerNight: hotel.pricePerNight ?? 350,
+      imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
+      accommodationType: hotel.accommodationType,
+      averageRating: hotel.averageRating,
+      savedAt: new Date().toISOString(),
+    };
 
-    if (!isFav) {
-      const favItem = {
-        id: hotel.id,
-        name: hotel.name,
-        location: hotel.location,
-        city: hotel.city,
-        country: hotel.country,
-        pricePerNight: hotel.pricePerNight,
-        imageUrl: hotel.imageUrl || NO_PHOTO_PLACEHOLDER,
-        accommodationType: hotel.accommodationType,
-        averageRating: hotel.averageRating,
-        savedAt: new Date().toISOString(),
-      };
-      updated = [favItem, ...existing.filter((item) => favoriteIdOf(item) !== hotel.id)];
-    } else {
-      updated = existing.filter((item) => favoriteIdOf(item) !== hotel.id);
-    }
-
-    localStorage.setItem("rbooking_favorites", JSON.stringify(updated));
-    setFavoriteIds(new Set(updated.map((item) => favoriteIdOf(item))));
-    window.dispatchEvent(new Event("rbooking_favorites_change"));
+    toggleUserFavorite(favItem);
   };
 
   // Filter options

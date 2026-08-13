@@ -33,11 +33,12 @@ public class ReviewServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
+        var accommodationId = Guid.NewGuid();
         var reservation = new Reservation
         {
             Id = reservationId,
             UserId = userId,
-            AccommodationId = Guid.NewGuid(),
+            AccommodationId = accommodationId,
             Status = ReservationStatus.Confirmed
         };
 
@@ -52,6 +53,8 @@ public class ReviewServiceTests
             .ReturnsAsync(reservation);
         _reviewRepoMock.Setup(r => r.HasReviewForReservationAsync(reservationId))
             .ReturnsAsync(false);
+        _reviewRepoMock.Setup(r => r.GetByAccommodationIdAsync(accommodationId))
+            .ReturnsAsync(new List<Review>());
         _reviewRepoMock.Setup(r => r.AddAsync(It.IsAny<Review>()))
             .ReturnsAsync((Review rev) =>
             {
@@ -77,11 +80,12 @@ public class ReviewServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
+        var accommodationId = Guid.NewGuid();
         var reservation = new Reservation
         {
             Id = reservationId,
             UserId = userId,
-            AccommodationId = Guid.NewGuid()
+            AccommodationId = accommodationId
         };
 
         var dto = new CreateReviewDto
@@ -93,6 +97,8 @@ public class ReviewServiceTests
 
         _reservationRepoMock.Setup(r => r.GetByIdAsync(reservationId))
             .ReturnsAsync(reservation);
+        _reviewRepoMock.Setup(r => r.GetByAccommodationIdAsync(accommodationId))
+            .ReturnsAsync(new List<Review>());
         _reviewRepoMock.Setup(r => r.HasReviewForReservationAsync(reservationId))
             .ReturnsAsync(true);
 
@@ -136,12 +142,13 @@ public class ReviewServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var res1 = new Reservation { Id = Guid.NewGuid(), UserId = userId };
-        var res2 = new Reservation { Id = Guid.NewGuid(), UserId = userId };
+        var accId = Guid.NewGuid();
+        var res1 = new Reservation { Id = Guid.NewGuid(), UserId = userId, AccommodationId = accId };
+        var res2 = new Reservation { Id = Guid.NewGuid(), UserId = userId, AccommodationId = accId };
 
         var dto = new CreateReviewDto
         {
-            ReservationId = Guid.Empty,
+            AccommodationId = accId,
             Rating = 5,
             Comment = "Fara id explicit"
         };
@@ -153,7 +160,7 @@ public class ReviewServiceTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.CreateReviewAsync(userId, dto));
-        Assert.Contains("Ai adăugat deja o recenzie pentru toate rezervările tale", ex.Message);
+        Assert.Contains("Ai adăugat deja o recenzie", ex.Message);
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
@@ -179,6 +186,44 @@ public class ReviewServiceTests
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.CreateReviewAsync(userId, dto));
         Assert.Contains("Trebuie să ai cel puțin o rezervare la această cazare", ex.Message);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateReviewAsync_WhenUserHasMultipleReservationsAtSameAccommodation_AndAlreadyReviewedOne_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var accId = Guid.NewGuid();
+        var resOld = new Reservation { Id = Guid.NewGuid(), UserId = userId, AccommodationId = accId };
+        var resNewFuture = new Reservation { Id = Guid.NewGuid(), UserId = userId, AccommodationId = accId };
+
+        var existingReview = new Review
+        {
+            Id = 1,
+            ReservationId = resOld.Id,
+            Reservation = resOld,
+            Rating = 5
+        };
+
+        var dto = new CreateReviewDto
+        {
+            ReservationId = resNewFuture.Id,
+            AccommodationId = accId,
+            Rating = 4,
+            Comment = "Al doilea review la aceeasi cazare dupa o noua rezervare"
+        };
+
+        _reservationRepoMock.Setup(r => r.GetByIdAsync(resNewFuture.Id))
+            .ReturnsAsync(resNewFuture);
+        _reviewRepoMock.Setup(r => r.GetByAccommodationIdAsync(accId))
+            .ReturnsAsync(new List<Review> { existingReview });
+        _reviewRepoMock.Setup(r => r.HasReviewForReservationAsync(resNewFuture.Id))
+            .ReturnsAsync(false);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.CreateReviewAsync(userId, dto));
+        Assert.Contains("Fiecare utilizator poate adăuga o singură recenzie per cazare", ex.Message);
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 }

@@ -22,25 +22,13 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
+import { getUserFavorites, removeUserFavorite, FavoriteItem } from '@/lib/userStorage';
 
 interface UserProfile {
   name: string;
   email: string;
   phone: string;
   role: string;
-}
-
-interface FavoriteItem {
-  id: string;
-  name: string;
-  location: string;
-  city?: string;
-  country?: string;
-  pricePerNight: number;
-  imageUrl: string;
-  accommodationType?: string;
-  averageRating?: number;
-  savedAt?: string;
 }
 
 export default function AccountPage() {
@@ -64,26 +52,13 @@ export default function AccountPage() {
 
   const loadFavorites = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const saved = localStorage.getItem('rbooking_favorites');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setFavorites(parsed);
-          return;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    setFavorites([]);
+    const favs = getUserFavorites();
+    setFavorites(favs);
   }, []);
 
   const handleRemoveFavorite = (id: string) => {
-    const updated = favorites.filter((item) => item.id !== id);
-    setFavorites(updated);
-    localStorage.setItem('rbooking_favorites', JSON.stringify(updated));
-    window.dispatchEvent(new Event('rbooking_favorites_change'));
+    removeUserFavorite(id);
+    loadFavorites();
   };
 
   useEffect(() => {

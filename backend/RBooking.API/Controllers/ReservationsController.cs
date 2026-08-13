@@ -81,7 +81,7 @@ public class ReservationsController : ControllerBase
             var createdReservation = await _reservationService.CreateReservationAsync(createReservationDto);
             return CreatedAtAction(nameof(GetById), new { id = createdReservation.Id }, createdReservation);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
         {
             return BadRequest(new { message = ex.Message });
         }
@@ -187,17 +187,25 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Client,Operator,Admin")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var roleString = User.FindFirstValue(ClaimTypes.Role);
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub") ?? User.FindFirstValue("nameid");
+        var roleString = User.FindFirstValue(ClaimTypes.Role) ?? "Client";
 
-        if (!Guid.TryParse(userIdString, out var currentUserId) || 
-            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
+        // Dacă cererea vine de la un service client (ex: API B cu ServiceBearer)
+        if (User.HasClaim(c => c.Type == "client_id"))
+        {
+            var success = await _reservationService.CancelReservationAsync(id);
+            return success ? NoContent() : NotFound(new { message = $"Reservation with ID {id} was not found." });
+        }
+
+        if (!Guid.TryParse(userIdString, out var currentUserId))
         {
             return Unauthorized(new { message = "Invalid user token credentials." });
         }
+
+        var currentUserRole = Enum.TryParse<UserRole>(roleString, true, out var parsedRole) ? parsedRole : UserRole.Client;
 
         try
         {
@@ -208,9 +216,9 @@ public class ReservationsController : ControllerBase
             }
             return NoContent();
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
     }
 }

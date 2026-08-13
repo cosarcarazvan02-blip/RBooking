@@ -40,15 +40,20 @@ public class ReviewService : IReviewService
             }
         }
 
+        // Determinăm cazarea vizată
+        Guid? targetAccommodationId = (dto.AccommodationId.HasValue && dto.AccommodationId.Value != Guid.Empty)
+            ? dto.AccommodationId.Value
+            : reservation?.AccommodationId;
+
         // Dacă nu s-a găsit după ID sau nu a fost specificat un ID valid, căutăm o rezervare fără recenzie a utilizatorului pentru cazarea respectivă
         if (reservation == null)
         {
             var userReservations = (await _reservationRepository.GetByUserIdAsync(currentUserId)).ToList();
             
             // Dacă s-a specificat cazarea, filtrăm strict rezervările pentru acea cazare
-            if (dto.AccommodationId.HasValue && dto.AccommodationId.Value != Guid.Empty)
+            if (targetAccommodationId.HasValue)
             {
-                userReservations = userReservations.Where(r => r.AccommodationId == dto.AccommodationId.Value).ToList();
+                userReservations = userReservations.Where(r => r.AccommodationId == targetAccommodationId.Value).ToList();
                 if (userReservations.Count == 0)
                 {
                     throw new InvalidOperationException("Trebuie să ai cel puțin o rezervare la această cazare pentru a putea lăsa o recenzie.");
@@ -71,15 +76,31 @@ public class ReviewService : IReviewService
 
             if (reservation == null)
             {
-                throw new InvalidOperationException("Ai adăugat deja o recenzie pentru toate rezervările tale. Fiecare rezervare permite o singură recenzie.");
+                throw new InvalidOperationException("Ai adăugat deja o recenzie pentru această cazare. Fiecare utilizator poate adăuga o singură recenzie per cazare.");
             }
         }
 
-        // Verificăm dacă rezervarea selectată are deja recenzie (regula de 1 review per rezervare)
+        if (!targetAccommodationId.HasValue)
+        {
+            targetAccommodationId = reservation.AccommodationId;
+        }
+
+        // REGULA DE BAZĂ: 1 singură recenzie per utilizator per cazare
+        if (targetAccommodationId.HasValue)
+        {
+            var existingReviewsForAcc = await _reviewRepository.GetByAccommodationIdAsync(targetAccommodationId.Value);
+            var alreadyReviewedByThisUser = existingReviewsForAcc.Any(r => r.Reservation != null && r.Reservation.UserId == currentUserId);
+            if (alreadyReviewedByThisUser)
+            {
+                throw new InvalidOperationException("Ai adăugat deja o recenzie pentru această cazare. Fiecare utilizator poate adăuga o singură recenzie per cazare.");
+            }
+        }
+
+        // Verificăm dacă rezervarea selectată are deja recenzie
         var alreadyHasReview = await _reviewRepository.HasReviewForReservationAsync(reservation.Id);
         if (alreadyHasReview)
         {
-            throw new InvalidOperationException("Există deja o recenzie asociată acestei rezervări. Fiecare rezervare permite o singură recenzie.");
+            throw new InvalidOperationException("Există deja o recenzie asociată acestei rezervări. Fiecare utilizator poate adăuga o singură recenzie per cazare.");
         }
 
         var review = new Review

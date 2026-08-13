@@ -275,4 +275,43 @@ public class ReservationServiceTests
         Assert.True(result);
         _reservationRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Reservation>(res => res.Status == ReservationStatus.Cancelled)), Times.Once);
     }
+
+    [Fact]
+    public async Task CreateReservationAsync_WhenActiveReservationExists_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var accommodationId = Guid.NewGuid();
+
+        var user = new User { Id = userId, Email = "user@booking.com", FirstName = "John", LastName = "Doe" };
+        var accommodation = new Hotel { Id = accommodationId, Name = "Beach Resort", PricePerNight = 120m };
+
+        var existingActive = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AccommodationId = accommodationId,
+            CheckInDate = DateTime.UtcNow.AddDays(-1),
+            CheckOutDate = DateTime.UtcNow.AddDays(3),
+            Status = ReservationStatus.Confirmed
+        };
+
+        var createDto = new CreateReservationDto
+        {
+            UserId = userId,
+            AccommodationId = accommodationId,
+            CheckInDate = DateTime.UtcNow.AddDays(5),
+            CheckOutDate = DateTime.UtcNow.AddDays(8),
+            NumberOfGuests = 2
+        };
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        _accommodationRepositoryMock.Setup(r => r.GetByIdAsync(accommodationId)).ReturnsAsync(accommodation);
+        _reservationRepositoryMock.Setup(r => r.GetByUserIdAsync(userId)).ReturnsAsync(new List<Reservation> { existingActive });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _reservationService.CreateReservationAsync(createDto));
+        Assert.Contains("Ai deja o rezervare activă", ex.Message);
+        _reservationRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Reservation>()), Times.Never);
+    }
 }
