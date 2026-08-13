@@ -20,7 +20,8 @@ import {
   Share2,
   Heart,
   MessageSquarePlus,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
@@ -68,6 +69,8 @@ interface ReviewItem {
 
 interface UserReservation {
   id: string;
+  accommodationId?: string;
+  hotelId?: string;
   hotelName?: string;
   dates?: string;
 }
@@ -169,38 +172,63 @@ export default function HotelDetailsPage() {
     });
   }, [hotelId]);
 
+  const userReservationsForThisHotel = useMemo(() => {
+    return userReservations.filter((res) => {
+      if (res.accommodationId && (res.accommodationId === hotelId || (hotel?.id && res.accommodationId === hotel.id))) {
+        return true;
+      }
+      if (res.hotelId && (res.hotelId === hotelId || (hotel?.id && res.hotelId === hotel.id))) {
+        return true;
+      }
+      if (hotel?.name && res.hotelName) {
+        const hName = hotel.name.toLowerCase().trim();
+        const rName = res.hotelName.toLowerCase().trim();
+        if (hName === rName || hName.includes(rName) || rName.includes(hName)) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }, [userReservations, hotelId, hotel]);
+
+  const hasUserBookedThisHotel = useMemo(() => {
+    return userReservationsForThisHotel.length > 0;
+  }, [userReservationsForThisHotel]);
+
   const reviewedReservationIds = useMemo(() => {
     return new Set(reviews.map((r) => r.reservationId));
   }, [reviews]);
 
   const unreviewedReservations = useMemo(() => {
-    return userReservations.filter((res) => !reviewedReservationIds.has(res.id));
-  }, [userReservations, reviewedReservationIds]);
+    return userReservationsForThisHotel.filter((res) => !reviewedReservationIds.has(res.id));
+  }, [userReservationsForThisHotel, reviewedReservationIds]);
 
   const hasReviewedStay = useMemo(() => {
     if (!isLoggedIn) return false;
 
-    // Verificăm în recenziile existente
+    // Verificăm în recenziile existente pentru această cazare
     const inReviews = reviews.some(
       (rev) =>
         (currentUserId && rev.userId === currentUserId) ||
         (currentUserEmail && rev.userEmail === currentUserEmail) ||
-        userReservations.some((ur) => ur.id === rev.reservationId)
+        userReservationsForThisHotel.some((ur) => ur.id === rev.reservationId)
     );
     if (inReviews) return true;
 
-    // Verificăm și în istoricul local de recenzii
+    // Verificăm și în istoricul local de recenzii pentru această cazare
     if (typeof window !== 'undefined') {
       try {
         const savedReviewed: string[] = JSON.parse(localStorage.getItem('rbooking_reviewed_hotels') || '[]');
-        if (savedReviewed.includes(hotelId)) return true;
+        if (savedReviewed.includes(hotelId) || (hotel?.id && savedReviewed.includes(hotel.id))) {
+          return true;
+        }
       } catch {
         // ignore
       }
     }
 
     return false;
-  }, [isLoggedIn, reviews, currentUserId, currentUserEmail, userReservations, hotelId]);
+  }, [isLoggedIn, reviews, currentUserId, currentUserEmail, userReservationsForThisHotel, hotelId, hotel]);
 
   // Fetch hotel details and reviews
   const loadData = useCallback(async () => {
@@ -428,6 +456,16 @@ export default function HotelDetailsPage() {
         const anyUserRes = userReservations.find(r => isGuid(r.id));
         if (anyUserRes) chosenResId = anyUserRes.id;
       }
+    }
+
+    if (!hasUserBookedThisHotel) {
+      setReviewStatusMessage({
+        type: 'error',
+        ro: 'Trebuie să ai o rezervare la această cazare pentru a putea lăsa o recenzie.',
+        en: 'You must have a reservation for this accommodation to leave a review.'
+      });
+      setIsSubmittingReview(false);
+      return;
     }
 
     if (hasReviewedStay && unreviewedReservations.length === 0) {
@@ -1048,7 +1086,41 @@ export default function HotelDetailsPage() {
               </div>
             </div>
 
-            {hasReviewedStay && unreviewedReservations.length === 0 ? (
+            {!hasUserBookedThisHotel ? (
+              <div className="space-y-4 pt-2">
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 rounded-xl text-xs font-mono space-y-1.5">
+                  <div className="font-bold flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+                    <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>{lang === 'RO' ? 'Nu ai o rezervare la această cazare' : 'No reservation found for this stay'}</span>
+                  </div>
+                  <p className="text-neutral-600 dark:text-neutral-400 font-sans text-xs pt-1">
+                    {lang === 'RO'
+                      ? 'Pentru a asigura autenticitatea recenziilor, doar oaspeții care au rezervat un sejur la această cazare pot adăuga o recenzie.'
+                      : 'To ensure authenticity, only guests who have booked a stay at this accommodation can submit a review.'}
+                  </p>
+                </div>
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReviewModalOpen(false);
+                      const bookingWidget = document.getElementById('booking-widget');
+                      if (bookingWidget) bookingWidget.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="flex-1 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs uppercase tracking-wider rounded-xl hover:bg-neutral-800 dark:hover:bg-amber-300 transition cursor-pointer text-center"
+                  >
+                    {lang === 'RO' ? 'Rezervă un Sejur' : 'Book a Stay'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="px-4 py-2.5 border border-neutral-300 dark:border-neutral-700 font-mono text-xs uppercase tracking-wider rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                  >
+                    {lang === 'RO' ? 'Închide' : 'Close'}
+                  </button>
+                </div>
+              </div>
+            ) : hasReviewedStay && unreviewedReservations.length === 0 ? (
               <div className="space-y-4 pt-2">
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 rounded-xl text-xs font-mono space-y-1.5">
                   <div className="font-bold flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">

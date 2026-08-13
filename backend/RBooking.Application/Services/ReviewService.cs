@@ -40,21 +40,21 @@ public class ReviewService : IReviewService
             }
         }
 
-        // Dacă nu s-a găsit după ID sau nu a fost specificat un ID valid, căutăm o rezervare fără recenzie a utilizatorului
+        // Dacă nu s-a găsit după ID sau nu a fost specificat un ID valid, căutăm o rezervare fără recenzie a utilizatorului pentru cazarea respectivă
         if (reservation == null)
         {
             var userReservations = (await _reservationRepository.GetByUserIdAsync(currentUserId)).ToList();
             
+            // Dacă s-a specificat cazarea, filtrăm strict rezervările pentru acea cazare
             if (dto.AccommodationId.HasValue && dto.AccommodationId.Value != Guid.Empty)
             {
-                var matchingAccReservations = userReservations.Where(r => r.AccommodationId == dto.AccommodationId.Value).ToList();
-                if (matchingAccReservations.Count > 0)
+                userReservations = userReservations.Where(r => r.AccommodationId == dto.AccommodationId.Value).ToList();
+                if (userReservations.Count == 0)
                 {
-                    userReservations = matchingAccReservations;
+                    throw new InvalidOperationException("Trebuie să ai cel puțin o rezervare la această cazare pentru a putea lăsa o recenzie.");
                 }
             }
-
-            if (userReservations.Count == 0)
+            else if (userReservations.Count == 0)
             {
                 throw new InvalidOperationException("Trebuie să ai cel puțin o rezervare pentru a putea lăsa o recenzie.");
             }
