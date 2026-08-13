@@ -1,25 +1,32 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Trash2, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
 import Image from 'next/image';
+import { Calendar, MapPin, Trash2, CheckCircle2, ArrowUpRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { getActiveApiKey } from '@/lib/apiKey';
 
 interface Reservation {
   id: string;
+  accommodationId?: string;
+  hotelId?: string;
   hotelName: string;
   location: string;
   dates: string;
   status: 'Confirmed' | 'Pending' | 'Completed';
   imageUrl: string;
   type: 'current' | 'past';
+  totalPrice?: number;
+  guests?: number;
 }
 
 const INITIAL_RESERVATIONS: Reservation[] = [
   {
     id: 'res-1',
-    hotelName: 'Grand Hotel Continental',
-    location: 'Calea Victoriei 56, București',
+    accommodationId: '',
+    hotelName: 'Grand Plaza Hotel & Spa',
+    location: 'Calea Victoriei 120, București',
     dates: '12 Sep 2026 - 15 Sep 2026',
     status: 'Confirmed',
     imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
@@ -27,8 +34,9 @@ const INITIAL_RESERVATIONS: Reservation[] = [
   },
   {
     id: 'res-2',
-    hotelName: 'Kronwell Alpine Retreat',
-    location: 'Bulevardul Gării 7A, Brașov',
+    accommodationId: '',
+    hotelName: 'Hotel Transylvania Castle',
+    location: 'Strada Republicii 45, Brașov',
     dates: '20 Oct 2026 - 23 Oct 2026',
     status: 'Pending',
     imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
@@ -36,26 +44,62 @@ const INITIAL_RESERVATIONS: Reservation[] = [
   },
   {
     id: 'res-3',
-    hotelName: 'Grand Hotel Bucharest',
-    location: 'Bucharest, Romania',
+    accommodationId: '',
+    hotelName: 'Boutique Riviera Hotel',
+    location: 'Bulevardul Mamaia 88, Constanța',
     dates: '10 May 2026 - 15 May 2026',
     status: 'Completed',
-    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80',
     type: 'past',
   }
 ];
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
+  const [availableAccommodations, setAvailableAccommodations] = useState<Array<{ id: string; name: string }>>([]);
   const { lang } = useLanguage();
 
+  // 1. Fetch live accommodations from backend to resolve IDs dynamically
+  useEffect(() => {
+    let ignore = false;
+    const fetchAccommodations = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+        const apiKey = getActiveApiKey();
+        const res = await fetch(`${apiUrl}/Accommodations?PageNumber=1&PageSize=50`, {
+          headers: { 'X-Api-Key': apiKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : data.items || data.Items || [];
+          if (!ignore && items.length > 0) {
+            setAvailableAccommodations(items.map((acc: { id: string; name: string }) => ({ id: acc.id, name: acc.name })));
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchAccommodations();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // 2. Load saved reservations from localStorage
   useEffect(() => {
     let ignore = false;
     const timer = setTimeout(() => {
       const savedReservations = localStorage.getItem('rbooking_user_reservations');
       if (savedReservations) {
         try {
-          if (!ignore) setReservations(JSON.parse(savedReservations));
+          if (!ignore) {
+            const parsed = JSON.parse(savedReservations);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setReservations(parsed);
+            }
+          }
         } catch (e) {
           console.error(e);
         }
@@ -74,124 +118,202 @@ export default function ReservationsPage() {
     localStorage.setItem('rbooking_user_reservations', JSON.stringify(updated));
   };
 
+  const getAccommodationUrl = (item: Reservation): string => {
+    // 1. Verificare ID direct de cazare dacă este specificat
+    const directId = item.accommodationId || item.hotelId;
+    if (directId && directId.trim() && directId.length > 5) {
+      return `/hotels/${directId.trim()}`;
+    }
+
+    // 2. Căutare după nume în lista de cazări din backend
+    if (item.hotelName && availableAccommodations.length > 0) {
+      const match = availableAccommodations.find((acc) => {
+        const accName = acc.name.toLowerCase();
+        const resName = item.hotelName.toLowerCase();
+        return accName.includes(resName) || resName.includes(accName);
+      });
+      if (match && match.id) {
+        return `/hotels/${match.id}`;
+      }
+    }
+
+    // 3. Dacă ID-ul rezervării este GUID, îl putem folosi direct ca ID de pagină
+    if (item.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id)) {
+      return `/hotels/${item.id}`;
+    }
+
+    // 4. Fallback la prima cazare disponibilă sau direct la ID-ul itemului
+    if (availableAccommodations.length > 0 && availableAccommodations[0]?.id) {
+      return `/hotels/${availableAccommodations[0].id}`;
+    }
+
+    return `/hotels/${item.id || 'grand-plaza'}`;
+  };
+
   const currentBookings = reservations.filter((r) => r.type === 'current');
   const pastBookings = reservations.filter((r) => r.type === 'past');
 
   return (
     <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#0D0E11] text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans flex flex-col">
-      <main className="w-full max-w-4xl mx-auto px-6 py-12 flex-1">
-
-        <div className="mb-10 pb-6 border-b border-neutral-300 dark:border-neutral-800">
+      <main className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 space-y-10">
+        <div className="pb-6 border-b border-neutral-300 dark:border-neutral-800">
           <p className="text-[10px] tracking-[0.25em] text-neutral-500 uppercase mb-2 font-mono">
-            [ {lang === 'RO' ? 'ISTORIC CONT' : 'ACCOUNT HISTORY'} ]
+            [ {lang === 'RO' ? 'ISTORIC CONT & REZERVĂRI' : 'ACCOUNT HISTORY & BOOKINGS'} ]
           </p>
           <h1 className="text-3xl font-serif text-neutral-900 dark:text-neutral-50 tracking-wide">
             {lang === 'RO' ? 'Rezervările Mele' : 'My Reservations'}
           </h1>
           <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-            {lang === 'RO' 
-              ? 'Vizualizează sejururile active din prezent și istoricul rezervărilor anterioare.' 
-              : 'View your active stays and past booking history.'}
+            {lang === 'RO'
+              ? 'Vizualizează sejururile active și apasă pe orice rezervare pentru a deschide direct pagina de detalii a cazării.'
+              : 'View your active stays and click on any reservation to directly open its accommodation details page.'}
           </p>
         </div>
 
         {/* Sejururi Active */}
-        <div className="mb-10">
-          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase mb-4">
+        <div className="space-y-4">
+          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
             {lang === 'RO' ? 'Sejururi Active (Prezent)' : 'Active Stays (Current)'}
           </h2>
           {currentBookings.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#111]">
-              <Calendar className="w-10 h-10 mx-auto text-neutral-400 mb-3 stroke-[1.5]" />
+            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-2xl bg-white dark:bg-[#111] space-y-3">
+              <Calendar className="w-10 h-10 mx-auto text-neutral-400 stroke-[1.5]" />
               <p className="text-neutral-600 dark:text-neutral-400 font-mono text-xs uppercase">
                 {lang === 'RO' ? 'Nu ai niciun sejur activ în prezent.' : 'You have no active stays at the moment.'}
               </p>
+              <Link
+                href="/#accommodations"
+                className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-600 dark:text-amber-400 underline underline-offset-4 hover:opacity-80"
+              >
+                <span>{lang === 'RO' ? 'Descoperă cazări disponibile' : 'Discover available stays'}</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6">
-              {currentBookings.map((item) => (
-                <div 
-                  key={item.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
-                      <Image src={item.imageUrl} alt={item.hotelName} fill className="object-cover" />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-600 dark:text-amber-400">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>{item.status}</span>
+            <div className="grid grid-cols-1 gap-4">
+              {currentBookings.map((item) => {
+                const targetUrl = getAccommodationUrl(item);
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm hover:border-neutral-400 dark:hover:border-neutral-700 transition"
+                  >
+                    <Link
+                      href={targetUrl}
+                      className="flex items-center gap-4 group min-w-0 flex-1 cursor-pointer"
+                    >
+                      <div className="relative w-20 h-20 bg-neutral-100 dark:bg-neutral-900 shrink-0 overflow-hidden rounded-xl">
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.hotelName}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
-                      <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50">
-                        {item.hotelName}
-                      </h3>
-                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{item.location}</span>
+                      <div className="space-y-1 min-w-0">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-600 dark:text-amber-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{item.status}</span>
+                        </div>
+                        <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">
+                          {item.hotelName}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono truncate">
+                          <MapPin className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span className="truncate">{item.location}</span>
+                        </div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-0.5">
+                          📅 {item.dates}
+                        </p>
                       </div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-1">
-                        📅 {item.dates}
-                      </p>
+                    </Link>
+
+                    <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100 dark:border-neutral-800">
+                      <Link
+                        href={targetUrl}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-wider rounded-xl hover:bg-neutral-800 dark:hover:bg-amber-300 transition shadow-xs"
+                        title={lang === 'RO' ? 'Deschide cazarea' : 'Open accommodation'}
+                      >
+                        <span>{lang === 'RO' ? 'Vezi Cazarea' : 'View Stay'}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveReservation(item.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
+                        title={lang === 'RO' ? 'Anulează rezervarea' : 'Cancel reservation'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => handleRemoveReservation(item.id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-mono uppercase tracking-wider transition-all cursor-pointer w-full sm:w-auto justify-center rounded-lg"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{lang === 'RO' ? 'Anulează' : 'Cancel'}</span>
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Rezervări Anterioare */}
-        <div>
-          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase mb-4">
+        <div className="space-y-4 pt-4">
+          <h2 className="text-xs font-mono font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
             {lang === 'RO' ? 'Rezervări Anterioare (Istoric)' : 'Past Bookings (History)'}
           </h2>
           {pastBookings.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#111]">
+            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-2xl bg-white dark:bg-[#111]">
               <p className="text-neutral-600 dark:text-neutral-400 font-mono text-xs uppercase">
                 {lang === 'RO' ? 'Nu ai rezervări anterioare în istoric.' : 'No past bookings found.'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 opacity-90">
-              {pastBookings.map((item) => (
-                <div 
-                  key={item.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-20 h-20 bg-neutral-100 shrink-0 overflow-hidden rounded-xl">
-                      <Image src={item.imageUrl} alt={item.hotelName} fill className="object-cover" />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50">
-                        {item.hotelName}
-                      </h3>
-                      <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{item.location}</span>
+            <div className="grid grid-cols-1 gap-4 opacity-95">
+              {pastBookings.map((item) => {
+                const targetUrl = getAccommodationUrl(item);
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl gap-4 shadow-sm hover:border-neutral-400 dark:hover:border-neutral-700 transition"
+                  >
+                    <Link
+                      href={targetUrl}
+                      className="flex items-center gap-4 group min-w-0 flex-1 cursor-pointer"
+                    >
+                      <div className="relative w-20 h-20 bg-neutral-100 dark:bg-neutral-900 shrink-0 overflow-hidden rounded-xl">
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.hotelName}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-1">
-                        📅 {item.dates}
-                      </p>
+                      <div className="space-y-1 min-w-0">
+                        <h3 className="text-lg font-serif font-medium text-neutral-900 dark:text-neutral-50 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">
+                          {item.hotelName}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-mono truncate">
+                          <MapPin className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span className="truncate">{item.location}</span>
+                        </div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-mono pt-0.5">
+                          📅 {item.dates}
+                        </p>
+                      </div>
+                    </Link>
+
+                    <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end shrink-0">
+                      <span className="px-3 py-1 rounded-lg text-xs font-mono font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                        {lang === 'RO' ? 'Finalizat' : 'Completed'}
+                      </span>
+                      <Link
+                        href={targetUrl}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-mono uppercase tracking-wider rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+                      >
+                        <span>{lang === 'RO' ? 'Rezervă din nou' : 'Book again'}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
                   </div>
-
-                  <div>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
-                      {lang === 'RO' ? 'Finalizat' : 'Completed'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -368,8 +368,11 @@ export default function HotelDetailsPage() {
       }
 
       // Save locally to reflect instantly on Reservations page
+      const targetAccId = hotel?.id || hotelId;
       const newReservation = {
         id: createdReservationId,
+        accommodationId: targetAccId,
+        hotelId: targetAccId,
         hotelName: hotel?.name || 'Boutique Stay',
         location: hotel?.location || 'România',
         dates: `${checkIn} - ${checkOut} (${numberOfNights} ${lang === 'RO' ? 'nopți' : 'nights'})`,
