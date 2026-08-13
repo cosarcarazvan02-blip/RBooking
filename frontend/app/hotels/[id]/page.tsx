@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import SafeImage from '@/components/SafeImage';
 import {
   Star,
   MapPin,
@@ -728,7 +728,7 @@ export default function HotelDetailsPage() {
         {/* 2. Image Gallery Showcase */}
         <div className="space-y-4">
           <div className="relative w-full h-[400px] sm:h-[540px] bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 overflow-hidden shadow-xl">
-            <Image
+            <SafeImage
               src={selectedImage || NO_PHOTO_PLACEHOLDER}
               alt={hotel?.name || 'Stay image'}
               fill
@@ -756,7 +756,7 @@ export default function HotelDetailsPage() {
                       : 'border-neutral-300 dark:border-neutral-800 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <Image src={img} alt={`Thumbnail ${idx}`} fill className="object-cover" />
+                  <SafeImage src={img} alt={`Thumbnail ${idx}`} fill className="object-cover" />
                 </button>
               ))}
             </div>

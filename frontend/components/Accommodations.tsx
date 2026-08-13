@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import SafeImage from "@/components/SafeImage";
 import { Search, MapPin, ArrowUpRight, Compass, X, Database, RefreshCw, LayoutGrid, Hotel, Building, BedDouble, Heart } from "lucide-react";
 import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
@@ -564,7 +564,7 @@ export default function Accommodations() {
             >
               {/* 1. Imagine Cazare */}
               <div className="relative w-full h-72 sm:h-80 overflow-hidden bg-neutral-200 dark:bg-neutral-800">
-                <Image
+                <SafeImage
                   src={hotel.imageUrl || NO_PHOTO_PLACEHOLDER}
                   alt={hotel.name}
                   fill

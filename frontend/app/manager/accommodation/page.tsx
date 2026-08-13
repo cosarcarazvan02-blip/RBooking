@@ -1,12 +1,10 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import SafeImage, { NO_PHOTO_PLACEHOLDER } from '@/components/SafeImage';
 import { useLanguage } from '@/context/LanguageContext';
 import { Building2, Plus, Trash2, Edit, MapPin, Euro, X, Shield, Lock } from 'lucide-react';
 import { getActiveApiKey } from '@/lib/apiKey';
-
-const NO_PHOTO_PLACEHOLDER = 'https://www.tez-tour.ro/static/images/nophoto-hotel.png';
 
 type AccommodationTypeOption = 'Hotel' | 'Apartment' | 'Hostel';
 
@@ -544,7 +542,7 @@ export default function ManageAccommodationsPage() {
                   className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden bg-white dark:bg-[#121418] flex flex-col shadow-xs transition-all hover:border-neutral-400 dark:hover:border-neutral-700"
                 >
                   <div className="h-48 overflow-hidden relative">
-                    <Image src={item.image} alt={item.title} fill className="object-cover" />
+                    <SafeImage src={item.image} alt={item.title} fill className="object-cover" />
                     <span className="absolute top-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-widest rounded-lg">
                       {item.type}
                     </span>
