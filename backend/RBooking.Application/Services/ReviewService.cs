@@ -10,15 +10,18 @@ public class ReviewService : IReviewService
     private readonly IReviewRepository _reviewRepository;
     private readonly IReservationRepository _reservationRepository;
     private readonly IWebhookSenderService _webhookSenderService;
+    private readonly IEmailSender _emailSender;
 
     public ReviewService(
         IReviewRepository reviewRepository,
         IReservationRepository reservationRepository,
-        IWebhookSenderService webhookSenderService)
+        IWebhookSenderService webhookSenderService,
+        IEmailSender emailSender)
     {
         _reviewRepository = reviewRepository;
         _reservationRepository = reservationRepository;
         _webhookSenderService = webhookSenderService;
+        _emailSender = emailSender;
     }
 
     public async Task<IEnumerable<ReviewDto>> GetReviewsByAccommodationIdAsync(Guid accommodationId)
@@ -91,6 +94,16 @@ public class ReviewService : IReviewService
         };
 
         var created = await _reviewRepository.AddAsync(review);
+
+        if (reservation.User != null && reservation.Accommodation != null)
+        {
+            await _emailSender.SendAsync(
+                reservation.User.Email,
+                $"Recenzia ta pentru {reservation.Accommodation.Name} a fost publicată",
+                $"Salut {reservation.User.FirstName},\n\n" +
+                $"În data de {created.CreatedAt:dd.MM.yyyy} ai scris o recenzie ({created.Rating}/5) pentru {reservation.Accommodation.Name}.\n\n" +
+                "Echipa RBooking.");
+        }
 
         // Declanșează webhook asincron către API B
         _ = Task.Run(async () =>

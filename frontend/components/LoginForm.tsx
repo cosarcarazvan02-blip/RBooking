@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Shield, User, Hotel, Check, AlertCircle } from "lucide-react";
 import { getActiveApiKey } from "@/lib/apiKey";
+import { translateApiError } from "@/lib/translateApiError";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function LoginForm() {
@@ -159,7 +160,7 @@ export default function LoginForm() {
       } else {
         const errorData = await response.json().catch(() => null);
         const serverError =
-          errorData?.message ||
+          translateApiError(errorData?.message, lang) ||
           (lang === "RO" ? "Email sau parolă incorectă." : "Invalid email or password.");
 
         // Demo fallback

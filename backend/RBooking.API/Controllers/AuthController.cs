@@ -15,15 +15,117 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IServiceClientService _serviceClientService;
+    private readonly IEmailSender _emailSender;
 
     public AuthController(
         IUserRepository userRepository,
         IJwtTokenGenerator jwtTokenGenerator,
-        IServiceClientService serviceClientService)
+        IServiceClientService serviceClientService,
+        IEmailSender emailSender)
     {
         _userRepository = userRepository;
         _jwtTokenGenerator = jwtTokenGenerator;
         _serviceClientService = serviceClientService;
+        _emailSender = emailSender;
+    }
+
+    private static bool IsPasswordStrong(string password)
+    {
+        return password.Length >= 8
+            && password.Any(char.IsUpper)
+            && password.Any(char.IsLower)
+            && password.Any(char.IsDigit);
+    }
+
+    private static UserRole RoleFromEmail(string emailTrimmed)
+    {
+        if (emailTrimmed.Contains("admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return UserRole.Admin;
+        }
+        if (emailTrimmed.Contains("operator", StringComparison.OrdinalIgnoreCase) || emailTrimmed.Contains("manager", StringComparison.OrdinalIgnoreCase))
+        {
+            return UserRole.Operator;
+        }
+        return UserRole.Client;
+    }
+
+    private static AuthResponseDto BuildAuthResponse(User user, string token)
+    {
+        return new AuthResponseDto
+        {
+            Token = token,
+            User = new UserDto
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                ProfileImagePath = user.ProfileImagePath,
+                Role = user.Role.ToString(),
+                CreatedAt = user.CreatedAt
+            }
+        };
+    }
+
+    /// <summary>
+    /// Creează un cont nou. Distinct de login - aici impunem o parolă puternică
+    /// și trimitem emailul de bun venit, pentru că e chiar momentul de înregistrare.
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponseDto>> Register([FromBody] LoginRequestDto request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { message = "Datele de înregistrare sunt obligatorii." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { message = "Adresa de email este obligatorie." });
+        }
+
+        var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        if (!emailValidator.IsValid(request.Email.Trim()))
+        {
+            return BadRequest(new { message = "Formatul adresei de email este invalid (ex: nume@exemplu.com)." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { message = "Parola este obligatorie." });
+        }
+
+        if (!IsPasswordStrong(request.Password))
+        {
+            return BadRequest(new { message = "Parola este prea slabă. Foloseste minim 8 caractere, cu cel puțin o literă mare, o literă mică și o cifră." });
+        }
+
+        var emailTrimmed = request.Email.Trim();
+        var existing = await _userRepository.GetByEmailAsync(emailTrimmed);
+        if (existing != null)
+        {
+            return Conflict(new { message = "Există deja un cont cu acest email. Te poți autentifica direct." });
+        }
+
+        var user = new User
+        {
+            Email = emailTrimmed,
+            FirstName = emailTrimmed.Split('@')[0],
+            LastName = "User",
+            Role = RoleFromEmail(emailTrimmed),
+            CreatedAt = DateTime.UtcNow
+        };
+        await _userRepository.AddAsync(user);
+
+        await _emailSender.SendAsync(
+            user.Email,
+            "Bine ai venit la RBooking!",
+            $"Salut {user.FirstName},\n\nContul tău RBooking a fost creat cu succes pe adresa {user.Email}.\n\nEchipa RBooking.");
+
+        var token = _jwtTokenGenerator.GenerateToken(user);
+        return Ok(BuildAuthResponse(user, token));
     }
 
     [HttpPost("login")]
@@ -59,54 +161,16 @@ public class AuthController : ControllerBase
         var emailTrimmed = request.Email.Trim();
         var user = await _userRepository.GetByEmailAsync(emailTrimmed);
 
-        // Determinăm rolul corect pe baza emailului de fiecare dată
-        var role = UserRole.Client;
-        if (emailTrimmed.Contains("admin", StringComparison.OrdinalIgnoreCase))
-        {
-            role = UserRole.Admin;
-        }
-        else if (emailTrimmed.Contains("operator", StringComparison.OrdinalIgnoreCase) || emailTrimmed.Contains("manager", StringComparison.OrdinalIgnoreCase))
-        {
-            role = UserRole.Operator;
-        }
-
         if (user == null)
         {
-            // Auto-create user for demo/testing if email is provided
-            user = new User
-            {
-                Email = emailTrimmed,
-                FirstName = emailTrimmed.Split('@')[0],
-                LastName = "User",
-                Role = role,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _userRepository.AddAsync(user);
+            return NotFound(new { message = "Nu există niciun cont cu acest email. Te rugăm să îți creezi unul din pagina de înregistrare." });
         }
-        else
-        {
-            // Actualizăm rolul utilizatorului existent dacă emailul dictează un rol superior
-            user.Role = role;
-        }
+
+        // Actualizăm rolul utilizatorului existent dacă emailul dictează un rol superior
+        user.Role = RoleFromEmail(emailTrimmed);
 
         var token = _jwtTokenGenerator.GenerateToken(user);
-
-        var response = new AuthResponseDto
-        {
-            Token = token,
-            User = new UserDto
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                ProfileImagePath = user.ProfileImagePath,
-                Role = user.Role.ToString(),
-                CreatedAt = user.CreatedAt
-            }
-        };
-
-        return Ok(response);
+        return Ok(BuildAuthResponse(user, token));
     }
 
     [HttpGet("me")]

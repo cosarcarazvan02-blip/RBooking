@@ -21,45 +21,36 @@ interface Reservation {
   guests?: number;
 }
 
-const INITIAL_RESERVATIONS: Reservation[] = [
-  {
-    id: 'res-1',
-    accommodationId: '',
-    hotelName: 'Grand Plaza Hotel & Spa',
-    location: 'Calea Victoriei 120, București',
-    dates: '12 Sep 2026 - 15 Sep 2026',
-    status: 'Confirmed',
-    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
-    type: 'current',
-  },
-  {
-    id: 'res-2',
-    accommodationId: '',
-    hotelName: 'Hotel Transylvania Castle',
-    location: 'Strada Republicii 45, Brașov',
-    dates: '20 Oct 2026 - 23 Oct 2026',
-    status: 'Pending',
-    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80',
-    type: 'current',
-  },
-  {
-    id: 'res-3',
-    accommodationId: '',
-    hotelName: 'Boutique Riviera Hotel',
-    location: 'Bulevardul Mamaia 88, Constanța',
-    dates: '10 May 2026 - 15 May 2026',
-    status: 'Completed',
-    imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80',
-    type: 'past',
-  }
-];
+const STATUS_LABELS: Record<number, Reservation['status']> = {
+  0: 'Pending',
+  1: 'Confirmed',
+  3: 'Completed',
+};
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80';
+
+interface BackendReservationDto {
+  id: string;
+  accommodationId: string;
+  accommodationName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  numberOfGuests: number;
+  totalPrice: number;
+  status: number;
+}
+
+interface AccommodationLookup {
+  location: string;
+  imageUrl: string;
+}
 
 export default function ReservationsPage() {
-  const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [availableAccommodations, setAvailableAccommodations] = useState<Array<{ id: string; name: string }>>([]);
   const { lang } = useLanguage();
 
-  // 1. Fetch live accommodations from backend to resolve IDs dynamically
+  // 1. Fetch live accommodations from backend (used to resolve links + display info)
   useEffect(() => {
     let ignore = false;
     const fetchAccommodations = async () => {
@@ -75,47 +66,116 @@ export default function ReservationsPage() {
           if (!ignore && items.length > 0) {
             setAvailableAccommodations(items.map((acc: { id: string; name: string }) => ({ id: acc.id, name: acc.name })));
           }
+          return items as Array<{ id: string; name: string; city?: string; location?: string; imageUrl?: string }>;
         }
       } catch (e) {
         console.error(e);
       }
+      return [];
     };
 
-    fetchAccommodations();
-    return () => {
-      ignore = true;
-    };
-  }, []);
+    fetchAccommodations().then((accommodations) => {
+      if (ignore) return;
 
-  // 2. Load saved reservations from localStorage
-  useEffect(() => {
-    let ignore = false;
-    const timer = setTimeout(() => {
-      const savedReservations = localStorage.getItem('rbooking_user_reservations');
-      if (savedReservations) {
+      // 2. Fetch the CURRENT logged-in user's own reservations from the backend - never from
+      // a shared localStorage key, which is how a previous account's bookings used to leak
+      // into whichever account is currently logged in.
+      const fetchMyReservations = async () => {
+        const profile = localStorage.getItem('rbooking_user_profile') || localStorage.getItem('currentUser');
+        const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+        if (!profile) {
+          setReservations([]);
+          return;
+        }
+
+        let userId = '';
         try {
-          if (!ignore) {
-            const parsed = JSON.parse(savedReservations);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setReservations(parsed);
-            }
-          }
+          const parsed = JSON.parse(profile);
+          userId = parsed.id || parsed.Id || '';
         } catch (e) {
           console.error(e);
         }
-      }
-    }, 0);
+        if (!userId) {
+          setReservations([]);
+          return;
+        }
+
+        const accommodationsById = new Map<string, AccommodationLookup>(
+          accommodations.map((acc) => [
+            acc.id,
+            { location: acc.location || acc.city || '', imageUrl: acc.imageUrl || FALLBACK_IMAGE },
+          ])
+        );
+
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+          const apiKey = getActiveApiKey();
+          const res = await fetch(`${apiUrl}/Reservations/user/${userId}?PageNumber=1&PageSize=100`, {
+            headers: {
+              'X-Api-Key': apiKey,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+          if (!res.ok) {
+            if (!ignore) setReservations([]);
+            return;
+          }
+          const data = await res.json();
+          const items: BackendReservationDto[] = data.items || data.Items || [];
+
+          const mapped: Reservation[] = items
+            .filter((r) => r.status !== 2) // excludem rezervările anulate
+            .map((r) => {
+              const lookup = accommodationsById.get(r.accommodationId);
+              const checkIn = new Date(r.checkInDate);
+              const checkOut = new Date(r.checkOutDate);
+              return {
+                id: r.id,
+                accommodationId: r.accommodationId,
+                hotelName: r.accommodationName,
+                location: lookup?.location || r.accommodationName,
+                dates: `${checkIn.toLocaleDateString(lang === 'RO' ? 'ro-RO' : 'en-US')} - ${checkOut.toLocaleDateString(lang === 'RO' ? 'ro-RO' : 'en-US')}`,
+                status: STATUS_LABELS[r.status] || 'Pending',
+                imageUrl: lookup?.imageUrl || FALLBACK_IMAGE,
+                type: r.status === 3 || checkOut < new Date() ? 'past' : 'current',
+                totalPrice: r.totalPrice,
+                guests: r.numberOfGuests,
+              };
+            });
+
+          if (!ignore) setReservations(mapped);
+        } catch (e) {
+          console.error(e);
+          if (!ignore) setReservations([]);
+        }
+      };
+
+      fetchMyReservations();
+    });
 
     return () => {
       ignore = true;
-      clearTimeout(timer);
     };
-  }, []);
+  }, [lang]);
 
-  const handleRemoveReservation = (id: string) => {
-    const updated = reservations.filter((item) => item.id !== id);
-    setReservations(updated);
-    localStorage.setItem('rbooking_user_reservations', JSON.stringify(updated));
+  const handleRemoveReservation = async (id: string) => {
+    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+    const apiKey = getActiveApiKey();
+    try {
+      const res = await fetch(`${apiUrl}/Reservations/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Api-Key': apiKey,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.ok || res.status === 404) {
+        setReservations((prev) => prev.filter((item) => item.id !== id));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const getAccommodationUrl = (item: Reservation): string => {

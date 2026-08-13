@@ -67,8 +67,23 @@ public class ReservationsController : ControllerBase
     }
 
     [HttpGet("user/{userId:guid}")]
+    [Authorize(Roles = "Client,Operator,Admin")]
     public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetByUserId(Guid userId, [FromQuery] PaginationParamsDto paginationParams)
     {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var roleString = User.FindFirstValue(ClaimTypes.Role);
+
+        if (!Guid.TryParse(userIdString, out var currentUserId) ||
+            !Enum.TryParse<UserRole>(roleString, out var currentUserRole))
+        {
+            return Unauthorized(new { message = "Invalid user token credentials." });
+        }
+
+        if (currentUserRole == UserRole.Client && currentUserId != userId)
+        {
+            return Forbid();
+        }
+
         var result = await _reservationService.GetPagedReservationsByUserIdAsync(userId, paginationParams);
         return Ok(result);
     }

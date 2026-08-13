@@ -117,6 +117,10 @@ export default function Navbar() {
     localStorage.removeItem('rbooking_user_profile');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('rbooking_logged_in');
+    // Datele astea erau cache-uite pe un cont dinainte - dacă rămân, apar și la
+    // următorul cont logat pe același browser.
+    localStorage.removeItem('rbooking_user_reservations');
+    localStorage.removeItem('rbooking_favorites');
     setIsLoggedIn(false);
     setUserRole('User');
     window.dispatchEvent(new Event('rbooking_auth_change'));

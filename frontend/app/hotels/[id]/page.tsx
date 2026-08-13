@@ -131,11 +131,13 @@ export default function HotelDetailsPage() {
       const logged = localStorage.getItem('rbooking_logged_in') === 'true' || Boolean(token);
       setIsLoggedIn(logged);
 
+      let userId = '';
       if (profile) {
         try {
           const parsed = JSON.parse(profile);
-          if (parsed.id || parsed.Id) {
-            setCurrentUserId(parsed.id || parsed.Id);
+          userId = parsed.id || parsed.Id || '';
+          if (userId) {
+            setCurrentUserId(userId);
           }
           if (parsed.email || parsed.Email) {
             setCurrentUserEmail(parsed.email || parsed.Email);
@@ -145,13 +147,32 @@ export default function HotelDetailsPage() {
         }
       }
 
-      const savedRes = localStorage.getItem('rbooking_user_reservations');
-      if (savedRes) {
-        try {
-          setUserReservations(JSON.parse(savedRes));
-        } catch (e) {
-          console.error(e);
-        }
+      // Reservările utilizatorului curent, luate din backend (scopate pe userId-ul logat
+      // acum) - NU din localStorage, care e o cheie globală, comună tuturor conturilor
+      // care s-au logat vreodată pe acest browser.
+      if (userId) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+        const apiKey = getActiveApiKey();
+        fetch(`${apiUrl}/Reservations/user/${userId}?PageNumber=1&PageSize=100`, {
+          headers: {
+            'X-Api-Key': apiKey,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            const items = data?.items || data?.Items || [];
+            setUserReservations(
+              items.map((r: { id: string; accommodationId: string; accommodationName: string }) => ({
+                id: r.id,
+                accommodationId: r.accommodationId,
+                hotelName: r.accommodationName,
+              }))
+            );
+          })
+          .catch((e) => console.error(e));
+      } else {
+        setUserReservations([]);
       }
 
       const savedFavs = localStorage.getItem('rbooking_favorites');
@@ -389,32 +410,9 @@ export default function HotelDetailsPage() {
         body: JSON.stringify(payload),
       });
 
-      let createdReservationId = `res-${Date.now()}`;
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.id) createdReservationId = data.id;
+      if (!res.ok) {
+        throw new Error('Reservation request failed');
       }
-
-      // Save locally to reflect instantly on Reservations page
-      const targetAccId = hotel?.id || hotelId;
-      const newReservation = {
-        id: createdReservationId,
-        accommodationId: targetAccId,
-        hotelId: targetAccId,
-        hotelName: hotel?.name || 'Boutique Stay',
-        location: hotel?.location || 'România',
-        dates: `${checkIn} - ${checkOut} (${numberOfNights} ${lang === 'RO' ? 'nopți' : 'nights'})`,
-        status: 'Confirmed',
-        imageUrl: hotel?.imageUrl || NO_PHOTO_PLACEHOLDER,
-        type: 'current',
-        totalPrice: totalPrice,
-        guests: guests,
-        createdAt: new Date().toISOString()
-      };
-
-      const existingReservations = JSON.parse(localStorage.getItem('rbooking_user_reservations') || '[]');
-      const updatedList = [newReservation, ...existingReservations];
-      localStorage.setItem('rbooking_user_reservations', JSON.stringify(updatedList));
 
       setBookingSuccess(true);
       setTimeout(() => {
