@@ -50,5 +50,10 @@ public class AppDbContext : DbContext
             .HasValue<PercentageDiscount>("Percentage")
             .HasValue<AbsoluteValueDiscount>("AbsoluteValue")
             .HasValue<LoyaltyDiscount>("Loyalty");
+
+        // O rezervare poate avea cel mult o recenzie (Unicitate 1:1)
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => r.ReservationId)
+            .IsUnique();
     }
 }

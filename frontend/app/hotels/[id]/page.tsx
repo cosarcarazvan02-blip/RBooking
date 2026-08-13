@@ -60,8 +60,10 @@ interface ReviewItem {
   rating: number;
   comment?: string;
   reservationId: string;
-  createdAt: string;
+  userId?: string;
   userEmail?: string;
+  userName?: string;
+  createdAt: string;
 }
 
 interface UserReservation {
@@ -114,6 +116,7 @@ export default function HotelDetailsPage() {
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [userReservations, setUserReservations] = useState<UserReservation[]>([]);
 
   // Check auth
@@ -130,6 +133,9 @@ export default function HotelDetailsPage() {
           const parsed = JSON.parse(profile);
           if (parsed.id || parsed.Id) {
             setCurrentUserId(parsed.id || parsed.Id);
+          }
+          if (parsed.email || parsed.Email) {
+            setCurrentUserEmail(parsed.email || parsed.Email);
           }
         } catch (e) {
           console.error(e);
@@ -162,6 +168,24 @@ export default function HotelDetailsPage() {
       }
     });
   }, [hotelId]);
+
+  const reviewedReservationIds = useMemo(() => {
+    return new Set(reviews.map((r) => r.reservationId));
+  }, [reviews]);
+
+  const unreviewedReservations = useMemo(() => {
+    return userReservations.filter((res) => !reviewedReservationIds.has(res.id));
+  }, [userReservations, reviewedReservationIds]);
+
+  const hasReviewedStay = useMemo(() => {
+    if (!isLoggedIn) return false;
+    return reviews.some(
+      (rev) =>
+        (currentUserId && rev.userId === currentUserId) ||
+        (currentUserEmail && rev.userEmail === currentUserEmail) ||
+        userReservations.some((ur) => ur.id === rev.reservationId)
+    );
+  }, [isLoggedIn, reviews, currentUserId, currentUserEmail, userReservations]);
 
   // Fetch hotel details and reviews
   const loadData = useCallback(async () => {
@@ -369,12 +393,18 @@ export default function HotelDetailsPage() {
     const token = rawToken ? rawToken.replace(/^Bearer\s+/i, '').trim() : '';
 
     // Determinăm un reservationId valid conform formatului GUID
-    let effectiveReservationId = '00000000-0000-0000-0000-000000000000';
-    if (reviewReservationId && reviewReservationId.includes('-') && reviewReservationId.length >= 32) {
-      effectiveReservationId = reviewReservationId.trim();
-    } else if (userReservations && userReservations.length > 0) {
-      const matchingRes = userReservations.find(r => r.id && r.id.includes('-') && r.id.length >= 32);
-      if (matchingRes) effectiveReservationId = matchingRes.id;
+    let effectiveReservationId = reviewReservationId ? reviewReservationId.trim() : '';
+    if (!effectiveReservationId || effectiveReservationId === '') {
+      const matchingRes = unreviewedReservations.find(r => r.id && r.id.includes('-') && r.id.length >= 32);
+      if (matchingRes) {
+        effectiveReservationId = matchingRes.id;
+      } else if (unreviewedReservations[0]) {
+        effectiveReservationId = unreviewedReservations[0].id;
+      } else if (userReservations[0]) {
+        effectiveReservationId = userReservations[0].id;
+      } else {
+        effectiveReservationId = '00000000-0000-0000-0000-000000000000';
+      }
     }
 
     try {
@@ -708,20 +738,41 @@ export default function HotelDetailsPage() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isLoggedIn) {
-                      router.push('/login');
-                      return;
-                    }
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-mono text-xs uppercase tracking-wider font-semibold border border-neutral-950 dark:border-white hover:bg-neutral-800 dark:hover:bg-amber-300 cursor-pointer shadow-xs transition"
-                >
-                  <MessageSquarePlus className="w-4 h-4" />
-                  <span>{lang === 'RO' ? 'Adaugă Recenzie' : 'Add Review'}</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  {hasReviewedStay && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs font-mono rounded-lg">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{lang === 'RO' ? 'Ai evaluat acest sejur' : 'You reviewed this stay'}</span>
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={hasReviewedStay && unreviewedReservations.length === 0}
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        router.push('/login');
+                        return;
+                      }
+                      if (hasReviewedStay && unreviewedReservations.length === 0) {
+                        return;
+                      }
+                      setIsReviewModalOpen(true);
+                    }}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wider font-semibold border transition shadow-xs ${
+                      hasReviewedStay && unreviewedReservations.length === 0
+                        ? 'bg-neutral-100 text-neutral-400 border-neutral-200 dark:bg-neutral-900 dark:text-neutral-600 dark:border-neutral-800 cursor-not-allowed'
+                        : 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 border-neutral-950 dark:border-white hover:bg-neutral-800 dark:hover:bg-amber-300 cursor-pointer'
+                    }`}
+                  >
+                    <MessageSquarePlus className="w-4 h-4" />
+                    <span>
+                      {hasReviewedStay && unreviewedReservations.length === 0
+                        ? (lang === 'RO' ? 'Recenzie Adăugată' : 'Review Added')
+                        : (lang === 'RO' ? 'Adaugă Recenzie' : 'Add Review')}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {reviews.length === 0 ? (
@@ -936,18 +987,18 @@ export default function HotelDetailsPage() {
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === 'RO' ? 'Sejur verificat pentru:' : 'Verified stay for:'} <strong>{hotel?.name}</strong></span>
                 </div>
-                {userReservations.length > 0 && (
+                {unreviewedReservations.length > 0 && (
                   <div>
                     <label className="block text-[11px] font-mono text-neutral-600 dark:text-neutral-400 mb-1">
-                      {lang === 'RO' ? 'Asociază cu o rezervare din cont (opțional):' : 'Link with a reservation from account (optional):'}
+                      {lang === 'RO' ? 'Asociază cu o rezervare neevaluată din cont:' : 'Link with an unreviewed reservation from account:'}
                     </label>
                     <select
                       value={reviewReservationId}
                       onChange={(e) => setReviewReservationId(e.target.value)}
                       className="w-full p-2 bg-white dark:bg-[#181a20] text-xs font-mono text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 rounded-lg"
                     >
-                      <option value="">{lang === 'RO' ? '-- Asociere automată cu proprietatea --' : '-- Auto-linked with property --'}</option>
-                      {userReservations.map((res) => (
+                      <option value="">{lang === 'RO' ? '-- Selectează automat prima rezervare disponibilă --' : '-- Auto-select first available reservation --'}</option>
+                      {unreviewedReservations.map((res) => (
                         <option key={res.id} value={res.id}>
                           {res.hotelName || 'Sejur'} ({res.dates})
                         </option>
