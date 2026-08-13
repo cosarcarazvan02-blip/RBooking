@@ -1,4 +1,5 @@
-// Helper library to manage Favorites and Reservations partitioned strictly PER USER
+// Helper library to manage Favorites (Wishlist) and Reservations strictly PER USER
+import { getActiveApiKey } from '@/lib/apiKey';
 
 export interface FavoriteItem {
   id: string;
@@ -28,6 +29,17 @@ export interface ReservationItem {
   userId?: string;
   userEmail?: string;
   createdAt?: string;
+}
+
+function isGuid(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const rawToken = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+  if (!rawToken) return null;
+  return rawToken.replace(/^"|"$/g, '').replace(/^Bearer\s+/i, '').trim();
 }
 
 /**
@@ -80,7 +92,7 @@ export function getCurrentUserProfile(): { id?: string; email?: string; name?: s
 }
 
 /* =========================================================================
-   FAVORITES PER USER
+   FAVORITES / WISHLIST PER USER (SYNCHRONIZED WITH POSTGRESQL DB)
    ========================================================================= */
 
 export function getUserFavorites(specificUserKey?: string): FavoriteItem[] {
@@ -126,6 +138,78 @@ export function setUserFavorites(favorites: FavoriteItem[], specificUserKey?: st
   window.dispatchEvent(new Event('rbooking_favorites_change'));
 }
 
+/**
+ * Sincronizează favoritele din tabela `Wishlist` din PostgreSQL în mod asincron
+ */
+export async function syncUserWishlistFromDb(): Promise<FavoriteItem[]> {
+  if (typeof window === 'undefined') return [];
+
+  const token = getAuthToken();
+  const profile = getCurrentUserProfile();
+  if (!token && !profile?.id) return getUserFavorites();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+  const apiKey = getActiveApiKey();
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (apiKey) headers['X-Api-Key'] = apiKey;
+
+    const url = token
+      ? `${apiUrl}/Wishlist`
+      : profile?.id && isGuid(profile.id)
+      ? `${apiUrl}/Wishlist/user/${profile.id}`
+      : null;
+
+    if (!url) return getUserFavorites();
+
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        interface RawWishlistDto {
+          accommodationId?: string;
+          id?: string;
+          accommodationName?: string;
+          name?: string;
+          location?: string;
+          city?: string;
+          country?: string;
+          pricePerNight?: number;
+          imageUrl?: string;
+          accommodationType?: string;
+          averageRating?: number;
+          createdAt?: string;
+        }
+        const items: FavoriteItem[] = data.map((item: RawWishlistDto) => ({
+          id: item.accommodationId || item.id || '',
+          name: item.accommodationName || item.name || 'Cazare',
+          location: item.location || `${item.city || ''}, ${item.country || ''}`,
+          city: item.city,
+          country: item.country,
+          pricePerNight: item.pricePerNight || 150,
+          imageUrl:
+            item.imageUrl ||
+            'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+          accommodationType: item.accommodationType || 'Hotel',
+          averageRating: item.averageRating,
+          savedAt: item.createdAt || new Date().toISOString(),
+        }));
+
+        setUserFavorites(items);
+        return items;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to sync wishlist from database:', err);
+  }
+
+  return getUserFavorites();
+}
+
 export function isAccommodationFavorited(accommodationId: string, specificUserKey?: string): boolean {
   if (!accommodationId) return false;
   const favs = getUserFavorites(specificUserKey);
@@ -144,6 +228,37 @@ export function toggleUserFavorite(item: FavoriteItem, specificUserKey?: string)
   }
 
   setUserFavorites(updated, specificUserKey);
+
+  // Sincronizare automată asincronă cu tabela Wishlist din baza de date
+  if (typeof window !== 'undefined') {
+    const token = getAuthToken();
+    const apiKey = getActiveApiKey();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+
+    if (token && isGuid(item.id)) {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+
+      if (!exists) {
+        // Adaugă în Wishlist în baza de date
+        fetch(`${apiUrl}/Wishlist`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ accommodationId: item.id }),
+        }).catch((err) => console.error('Error adding to wishlist in db:', err));
+      } else {
+        // Șterge din Wishlist în baza de date
+        fetch(`${apiUrl}/Wishlist/${item.id}`, {
+          method: 'DELETE',
+          headers,
+        }).catch((err) => console.error('Error removing from wishlist in db:', err));
+      }
+    }
+  }
+
   return { isSaved: !exists, count: updated.length };
 }
 
@@ -151,6 +266,25 @@ export function removeUserFavorite(accommodationId: string, specificUserKey?: st
   const current = getUserFavorites(specificUserKey);
   const updated = current.filter((f) => f.id !== accommodationId);
   setUserFavorites(updated, specificUserKey);
+
+  // Șterge din Wishlist în baza de date
+  if (typeof window !== 'undefined') {
+    const token = getAuthToken();
+    const apiKey = getActiveApiKey();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+
+    if (token && isGuid(accommodationId)) {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+      };
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+
+      fetch(`${apiUrl}/Wishlist/${accommodationId}`, {
+        method: 'DELETE',
+        headers,
+      }).catch((err) => console.error('Error removing favorite from db:', err));
+    }
+  }
 }
 
 /* =========================================================================

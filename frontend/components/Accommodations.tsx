@@ -8,7 +8,7 @@ import { Accommodation } from "@/types";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { useLanguage } from "@/context/LanguageContext";
 import StarRating from "@/components/StarRating";
-import { getUserFavorites, toggleUserFavorite, FavoriteItem } from "@/lib/userStorage";
+import { getUserFavorites, toggleUserFavorite, syncUserWishlistFromDb, FavoriteItem } from "@/lib/userStorage";
 
 const NO_PHOTO_PLACEHOLDER = "https://www.tez-tour.ro/static/images/nophoto-hotel.png";
 
@@ -24,9 +24,19 @@ interface RawAccommodationDto {
   accommodationType?: string;
   imageUrl?: string;
   pricePerNight?: number;
-  stars?: number;
+  description?: string;
   averageRating?: number;
   totalReviewsCount?: number;
+  stars?: number;
+  hasPool?: boolean;
+  hasRoomService?: boolean;
+  floorNumber?: number;
+  hasElevator?: boolean;
+  numberOfRooms?: number;
+  isFurnished?: boolean;
+  bedInSharedRoomPrice?: number;
+  hasSharedKitchen?: boolean;
+  totalBeds?: number;
 }
 
 const emptySubscribe = () => () => {};
@@ -179,6 +189,7 @@ export default function Accommodations() {
     };
 
     updateFavs();
+    syncUserWishlistFromDb().then(() => updateFavs());
     window.addEventListener("rbooking_favorites_change", updateFavs);
     window.addEventListener("rbooking_auth_change", updateFavs);
     window.addEventListener("auth-state-change", updateFavs);

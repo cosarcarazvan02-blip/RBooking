@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
-import { getUserFavorites, removeUserFavorite, FavoriteItem } from '@/lib/userStorage';
+import { getUserFavorites, removeUserFavorite, syncUserWishlistFromDb, FavoriteItem } from '@/lib/userStorage';
 
 interface UserProfile {
   name: string;
@@ -32,6 +33,7 @@ interface UserProfile {
 }
 
 export default function AccountPage() {
+  const router = useRouter();
   const { lang } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
@@ -65,6 +67,9 @@ export default function AccountPage() {
     let ignore = false;
     queueMicrotask(() => {
       loadFavorites();
+      syncUserWishlistFromDb().then((synced) => {
+        if (!ignore && synced) setFavorites(synced);
+      });
       const currentKey = getActiveApiKey();
       setInputKey(currentKey);
 
