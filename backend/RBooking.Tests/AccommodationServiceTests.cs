@@ -126,5 +126,98 @@ namespace RBooking.Tests
             Assert.True(result.HasSharedKitchen);
             Assert.Equal(20, result.TotalBeds);
         }
+
+        [Fact]
+        public async Task UpdateAccommodationAsync_WhenOperatorTriesToUpdateAnotherOperatorsAccommodation_ThrowsUnauthorizedAccessException()
+        {
+            // Arrange
+            var mockRepo = new Mock<IAccommodationRepository>();
+            var accId = Guid.NewGuid();
+            var ownerOperatorId = Guid.NewGuid();
+            var otherOperatorId = Guid.NewGuid();
+
+            var accommodation = new Hotel
+            {
+                Id = accId,
+                Name = "Original Hotel",
+                OperatorId = ownerOperatorId
+            };
+
+            mockRepo.Setup(r => r.GetByIdAsync(accId)).ReturnsAsync(accommodation);
+
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
+            var dto = new CreateAccommodationDto
+            {
+                Name = "Hacked Hotel",
+                AccommodationType = "Hotel"
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+                service.UpdateAccommodationAsync(accId, otherOperatorId, RBooking.Domain.Enums.UserRole.Operator, dto));
+            mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Accommodation>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateAccommodationAsync_WhenOperatorUpdatesOwnAccommodation_Succeeds()
+        {
+            // Arrange
+            var mockRepo = new Mock<IAccommodationRepository>();
+            var accId = Guid.NewGuid();
+            var ownerOperatorId = Guid.NewGuid();
+
+            var accommodation = new Hotel
+            {
+                Id = accId,
+                Name = "Original Hotel",
+                OperatorId = ownerOperatorId
+            };
+
+            mockRepo.Setup(r => r.GetByIdAsync(accId)).ReturnsAsync(accommodation);
+            mockRepo.Setup(r => r.UpdateAsync(It.IsAny<Accommodation>())).ReturnsAsync(accommodation);
+
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
+            var dto = new CreateAccommodationDto
+            {
+                Name = "Updated Hotel",
+                AccommodationType = "Hotel",
+                PricePerNight = 250
+            };
+
+            // Act
+            var success = await service.UpdateAccommodationAsync(accId, ownerOperatorId, RBooking.Domain.Enums.UserRole.Operator, dto);
+
+            // Assert
+            Assert.True(success);
+            Assert.Equal("Updated Hotel", accommodation.Name);
+            Assert.Equal(ownerOperatorId, accommodation.OperatorId);
+            mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Accommodation>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task DeleteAccommodationAsync_WhenOperatorTriesToDeleteAnotherOperatorsAccommodation_ThrowsUnauthorizedAccessException()
+        {
+            // Arrange
+            var mockRepo = new Mock<IAccommodationRepository>();
+            var accId = Guid.NewGuid();
+            var ownerOperatorId = Guid.NewGuid();
+            var otherOperatorId = Guid.NewGuid();
+
+            var accommodation = new Hotel
+            {
+                Id = accId,
+                Name = "Original Hotel",
+                OperatorId = ownerOperatorId
+            };
+
+            mockRepo.Setup(r => r.GetByIdAsync(accId)).ReturnsAsync(accommodation);
+
+            var service = new AccommodationService(mockRepo.Object, Mock.Of<IWebhookSender>());
+
+            // Act & Assert
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+                service.DeleteAccommodationAsync(accId, otherOperatorId, RBooking.Domain.Enums.UserRole.Operator));
+            mockRepo.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Never);
+        }
     }
 }

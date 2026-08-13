@@ -206,10 +206,9 @@ public class AccommodationRepository : IAccommodationRepository
                 query = query.Where(a => a.PricePerNight <= filter.MaxPrice.Value);
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.OperatorId))
+            if (filter.OperatorId.HasValue && filter.OperatorId.Value != Guid.Empty)
             {
-                var opId = filter.OperatorId.Trim().ToLower();
-                query = query.Where(a => a.OperatorId.ToLower().Contains(opId));
+                query = query.Where(a => a.OperatorId == filter.OperatorId.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(filter.AccommodationType))
@@ -325,7 +324,7 @@ public class AccommodationRepository : IAccommodationRepository
             Country = a.Country,
             PricePerNight = a.PricePerNight,
             Description = a.Description,
-            OperatorId = a.OperatorId ?? string.Empty,
+            OperatorId = a.OperatorId,
             AverageRating = Math.Round(avgRating, 1),
             TotalReviewsCount = reviewCount,
             AccommodationType = a.GetType().Name

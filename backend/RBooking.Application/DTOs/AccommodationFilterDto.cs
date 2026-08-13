@@ -9,4 +9,7 @@ public class AccommodationFilterDto : PaginationParamsDto
     public decimal? MaxPrice { get; set; }
     public double? MinRating { get; set; }
     public string? AccommodationType { get; set; }
+    public Guid? OperatorId { get; set; }
+    public int? Stars { get; set; }
+    public bool? HasPool { get; set; }
 }

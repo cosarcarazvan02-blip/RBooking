@@ -71,10 +71,10 @@ public class AccommodationsController : ControllerBase
             return BadRequest(new { message = "Fișierul CSV este obligatoriu." });
         }
 
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        TryGetCurrentUser(out var currentUserId, out _);
 
         using var stream = file.OpenReadStream();
-        var result = await importService.ImportCsvAsync(stream, userIdString);
+        var result = await importService.ImportCsvAsync(stream, currentUserId == Guid.Empty ? null : currentUserId);
 
         return Ok(result);
     }
@@ -141,7 +141,7 @@ public class AccommodationsController : ControllerBase
 
         if (!Guid.TryParse(userIdString, out userId))
         {
-            userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            userId = Guid.Empty;
         }
 
         if (string.Equals(roleString, "Manager", StringComparison.OrdinalIgnoreCase))
@@ -154,14 +154,14 @@ public class AccommodationsController : ControllerBase
             role = UserRole.Operator;
         }
 
-        return true;
+        return userId != Guid.Empty;
     }
 
     /// <summary>
     /// Creates a new accommodation associated with the logged-in operator.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Operator,Admin,Manager")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer", Roles = "Operator,Admin,Manager")]
     public async Task<ActionResult<AccommodationDto>> Create([FromBody] CreateAccommodationDto createDto)
     {
         TryGetCurrentUser(out var currentUserId, out _);
@@ -178,7 +178,7 @@ public class AccommodationsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Operator,Admin,Manager")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer", Roles = "Operator,Admin,Manager")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateAccommodationDto updateDto)
     {
         TryGetCurrentUser(out var currentUserId, out var currentUserRole);
@@ -192,9 +192,9 @@ public class AccommodationsController : ControllerBase
             }
             return NoContent();
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
@@ -203,7 +203,7 @@ public class AccommodationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Operator,Admin,Manager")]
+    [Authorize(AuthenticationSchemes = "UserBearer,ServiceBearer", Roles = "Operator,Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)
     {
         TryGetCurrentUser(out var currentUserId, out var currentUserRole);
@@ -217,9 +217,9 @@ public class AccommodationsController : ControllerBase
             }
             return NoContent();
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
     }
 }

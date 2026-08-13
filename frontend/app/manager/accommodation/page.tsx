@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
-import { Building2, Plus, Trash2, Edit, MapPin, Euro, X } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit, MapPin, Euro, X, Shield, Lock } from 'lucide-react';
 import { getActiveApiKey } from '@/lib/apiKey';
 
 const NO_PHOTO_PLACEHOLDER = 'https://www.tez-tour.ro/static/images/nophoto-hotel.png';
@@ -21,6 +21,7 @@ interface RawAccommodationDto {
   imageUrl?: string;
   pricePerNight?: number;
   description?: string;
+  operatorId?: string;
   stars?: number;
   hasPool?: boolean;
   hasRoomService?: boolean;
@@ -43,6 +44,7 @@ interface Accommodation {
   type: string;
   description: string;
   image: string;
+  operatorId?: string;
   stars?: number;
   hasPool?: boolean;
   hasRoomService?: boolean;
@@ -116,8 +118,6 @@ async function extractErrorMessage(res: Response, fallback: string): Promise<str
   }
 }
 
-// "Ex: Brașov, România" - despartim location in city/country dupa prima virgula,
-// pentru ca backend-ul stocheaza City si Country separat.
 function splitLocation(location: string): { city: string; country: string } {
   const parts = location.split(',').map((p) => p.trim());
   return {
@@ -135,6 +135,7 @@ function mapRawToAccommodation(item: RawAccommodationDto, index: number): Accomm
     type: item.accommodationType || 'Hotel',
     description: item.description || '',
     image: item.imageUrl && item.imageUrl.trim() ? item.imageUrl : NO_PHOTO_PLACEHOLDER,
+    operatorId: item.operatorId,
     stars: item.stars,
     hasPool: item.hasPool,
     hasRoomService: item.hasRoomService,
@@ -149,8 +150,6 @@ function mapRawToAccommodation(item: RawAccommodationDto, index: number): Accomm
   };
 }
 
-// Input numeric mic, reutilizat in sectiunile specifice de tip - pastreaza '' cat timp
-// campul e gol, ca sa nu forteze 0 inainte ca userul sa apuce sa scrie ceva.
 function NumberField({
   label,
   value,
@@ -204,6 +203,8 @@ export default function ManageAccommodationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
+  const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string } | null>(null);
 
   // Form state - campuri comune
   const [title, setTitle] = useState('');
@@ -245,7 +246,12 @@ export default function ManageAccommodationsPage() {
       const userRole = (profile.role || profile.Role || '').toLowerCase();
       if (userRole !== 'manager' && userRole !== 'operator' && userRole !== 'admin') {
         router.push('/');
+        return;
       }
+      setCurrentUser({
+        id: profile.id || profile.Id,
+        role: userRole,
+      });
     } catch {
       router.push('/login');
     }
@@ -269,7 +275,7 @@ export default function ManageAccommodationsPage() {
         return;
       }
     } catch {
-      // ignore - eroarea reala se vede la operatiile de scriere (formError)
+      // ignore
     }
 
     setAccommodations([]);
@@ -290,6 +296,15 @@ export default function ManageAccommodationsPage() {
       window.removeEventListener('api-key-change', handleKeyChange);
     };
   }, [fetchAccommodations]);
+
+  const displayedAccommodations = useMemo(() => {
+    if (activeTab === 'mine' && currentUser?.id && currentUser.role !== 'admin') {
+      return accommodations.filter(
+        (a) => a.operatorId && a.operatorId.toLowerCase() === currentUser.id?.toLowerCase()
+      );
+    }
+    return accommodations;
+  }, [accommodations, activeTab, currentUser]);
 
   const resetTypeSpecificFields = () => {
     setStars('');
@@ -319,14 +334,21 @@ export default function ManageAccommodationsPage() {
   };
 
   const handleEdit = (item: Accommodation) => {
+    // Verificare frontend permisiune proprietar
+    const isOwner =
+      currentUser?.role === 'admin' ||
+      (item.operatorId && currentUser?.id && item.operatorId.toLowerCase() === currentUser.id.toLowerCase());
+
+    if (!isOwner) {
+      alert(lang === 'RO' ? 'Nu poți modifica o cazare care aparține altui manager.' : 'You cannot edit an accommodation owned by another manager.');
+      return;
+    }
+
     setEditingId(item.id);
     setFormError(null);
     setTitle(item.title);
     setLocation(item.location);
     setPrice(item.price);
-    // ATENTIE: presupunem ca accommodationType stocat e mereu unul din cele 3 valori canonice.
-    // Daca in DB exista valori vechi/diferite (ex. "Hotel Boutique" din formularul anterior),
-    // cad pe fallback 'Hotel' - trebuie curatate manual acele randuri sau extins mapping-ul aici.
     setType((['Hotel', 'Apartment', 'Hostel'] as const).includes(item.type as AccommodationTypeOption)
       ? (item.type as AccommodationTypeOption)
       : 'Hotel');
@@ -348,8 +370,16 @@ export default function ManageAccommodationsPage() {
     setIsModalOpen(true);
   };
 
-  // FIX: trimite DELETE catre backend, nu doar filtreaza local.
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, operatorId?: string) => {
+    const isOwner =
+      currentUser?.role === 'admin' ||
+      (operatorId && currentUser?.id && operatorId.toLowerCase() === currentUser.id.toLowerCase());
+
+    if (!isOwner) {
+      alert(lang === 'RO' ? 'Nu poți șterge o cazare care aparține altui manager.' : 'You cannot delete an accommodation owned by another manager.');
+      return;
+    }
+
     const confirmed = window.confirm(
       lang === 'RO' ? 'Sigur doriți să ștergeți această cazare?' : 'Are you sure you want to delete this accommodation?'
     );
@@ -375,8 +405,6 @@ export default function ManageAccommodationsPage() {
     }
   };
 
-  // FIX: trimite POST/PUT catre backend, cu payload aliniat exact la CreateAccommodationDto,
-  // inclusiv campurile specifice de tip (Hotel/Apartment/Hostel) si imageUrl.
   const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title || !location) return;
@@ -466,70 +494,124 @@ export default function ManageAccommodationsPage() {
           </button>
         </div>
 
+        {/* Tab Filters: Cazările Mele vs Toate Cazările */}
+        <div className="flex items-center gap-2 mb-6 border-b border-neutral-200 dark:border-neutral-800 pb-3">
+          <button
+            onClick={() => setActiveTab('mine')}
+            className={`px-4 py-2 font-mono text-xs uppercase tracking-wider rounded-xl transition ${
+              activeTab === 'mine'
+                ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-bold'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
+            }`}
+          >
+            {lang === 'RO' ? 'Cazările Mele' : 'My Accommodations'}
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 font-mono text-xs uppercase tracking-wider rounded-xl transition ${
+              activeTab === 'all'
+                ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-bold'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
+            }`}
+          >
+            {lang === 'RO' ? 'Toate Cazările' : 'All Accommodations'}
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="text-center py-20 text-neutral-500 font-mono text-sm">
             {lang === 'RO' ? 'Se încarcă...' : 'Loading...'}
           </div>
-        ) : accommodations.length === 0 ? (
+        ) : displayedAccommodations.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-2xl">
             <Building2 className="w-12 h-12 mx-auto text-neutral-400 mb-3" />
             <p className="font-mono text-sm text-neutral-500">
-              {lang === 'RO' ? 'Nu există cazări adăugate momentan.' : 'No accommodations added yet.'}
+              {activeTab === 'mine'
+                ? (lang === 'RO' ? 'Nu ai adăugat încă nicio cazare în contul tău.' : 'You have not added any accommodations yet.')
+                : (lang === 'RO' ? 'Nu există cazări în sistem momentan.' : 'No accommodations in the system yet.')}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {accommodations.map((item) => (
-              <div
-                key={item.id}
-                className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden bg-white dark:bg-[#121418] flex flex-col shadow-xs transition-all hover:border-neutral-400 dark:hover:border-neutral-700"
-              >
-                <div className="h-48 overflow-hidden relative">
-                  <Image src={item.image} alt={item.title} fill className="object-cover" />
-                  <span className="absolute top-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-widest rounded-lg">
-                    {item.type}
-                  </span>
-                </div>
-                <div className="p-5 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-serif text-xl font-medium mb-1">{item.title}</h3>
-                    <p className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 font-mono mb-3">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {item.location}
-                    </p>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2 mb-4">
-                      {item.description}
-                    </p>
-                  </div>
+            {displayedAccommodations.map((item) => {
+              const isOwner =
+                currentUser?.role === 'admin' ||
+                (item.operatorId && currentUser?.id && item.operatorId.toLowerCase() === currentUser.id.toLowerCase());
 
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                    <div className="flex items-center gap-1 font-serif font-semibold text-lg">
-                      <Euro className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <span>{item.price}</span>
-                      <span className="text-xs font-mono text-neutral-400 font-normal">
-                        {lang === 'RO' ? '/ noapte' : '/ night'}
-                      </span>
+              return (
+                <div
+                  key={item.id}
+                  className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden bg-white dark:bg-[#121418] flex flex-col shadow-xs transition-all hover:border-neutral-400 dark:hover:border-neutral-700"
+                >
+                  <div className="h-48 overflow-hidden relative">
+                    <Image src={item.image} alt={item.title} fill className="object-cover" />
+                    <span className="absolute top-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-widest rounded-lg">
+                      {item.type}
+                    </span>
+                    <div className="absolute top-3 right-3">
+                      {isOwner ? (
+                        <span className="px-2.5 py-1 bg-emerald-600/90 text-white text-[10px] font-mono uppercase tracking-wider rounded-lg shadow-sm">
+                          ✓ {lang === 'RO' ? 'Proprietatea Ta' : 'Your Property'}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-black/60 text-neutral-300 text-[10px] font-mono uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          <span>{lang === 'RO' ? 'Alt Manager' : 'Other Manager'}</span>
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-                        title={lang === 'RO' ? 'Editează' : 'Edit'}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => void handleDelete(item.id)}
-                        className="p-2 border border-red-200 dark:border-red-900/40 text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                        title={lang === 'RO' ? 'Șterge' : 'Delete'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-serif text-xl font-medium mb-1">{item.title}</h3>
+                      <p className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 font-mono mb-3">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {item.location}
+                      </p>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2 mb-4">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                      <div className="flex items-center gap-1 font-serif font-semibold text-lg">
+                        <Euro className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span>{item.price}</span>
+                        <span className="text-xs font-mono text-neutral-400 font-normal">
+                          {lang === 'RO' ? '/ noapte' : '/ night'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          disabled={!isOwner}
+                          className={`p-2 border rounded-lg transition ${
+                            isOwner
+                              ? 'border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-neutral-900 dark:text-white'
+                              : 'border-neutral-200 dark:border-neutral-800 opacity-30 cursor-not-allowed text-neutral-400'
+                          }`}
+                          title={isOwner ? (lang === 'RO' ? 'Editează' : 'Edit') : (lang === 'RO' ? 'Aparține altui manager (doar vizualizare)' : 'Owned by another manager')}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => void handleDelete(item.id, item.operatorId)}
+                          disabled={!isOwner}
+                          className={`p-2 border rounded-lg transition ${
+                            isOwner
+                              ? 'border-red-200 dark:border-red-900/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
+                              : 'border-neutral-200 dark:border-neutral-800 opacity-30 cursor-not-allowed text-neutral-400'
+                          }`}
+                          title={isOwner ? (lang === 'RO' ? 'Șterge' : 'Delete') : (lang === 'RO' ? 'Aparține altui manager' : 'Owned by another manager')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -605,30 +687,37 @@ export default function ManageAccommodationsPage() {
                   </label>
                   <select
                     value={type}
-                    onChange={(e) => setType(e.target.value as AccommodationTypeOption)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+                    onChange={(e) => {
+                      setType(e.target.value as AccommodationTypeOption);
+                      resetTypeSpecificFields();
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   >
-                    <option value="Hotel">{lang === 'RO' ? 'Hotel' : 'Hotel'}</option>
-                    <option value="Apartment">{lang === 'RO' ? 'Apartament' : 'Apartment'}</option>
-                    <option value="Hostel">{lang === 'RO' ? 'Hostel' : 'Hostel'}</option>
+                    <option value="Hotel" className="bg-white dark:bg-[#121418]">Hotel</option>
+                    <option value="Apartment" className="bg-white dark:bg-[#121418]">{lang === 'RO' ? 'Apartament' : 'Apartment'}</option>
+                    <option value="Hostel" className="bg-white dark:bg-[#121418]">Hostel</option>
                   </select>
                 </div>
 
-                {/* Campuri specifice, afisate in functie de tipul selectat */}
+                {/* Sectiune specifica: Hotel */}
                 {type === 'Hotel' && (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-3">
-                    <p className="text-[11px] font-mono uppercase text-neutral-500">
-                      {lang === 'RO' ? 'Detalii Hotel' : 'Hotel Details'}
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <p className="text-xs font-mono font-semibold uppercase text-amber-600 dark:text-amber-400">
+                      {lang === 'RO' ? 'Opțiuni Specifice Hotel' : 'Hotel Specific Options'}
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <NumberField label={lang === 'RO' ? 'Stele' : 'Stars'} value={stars} onChange={setStars} />
+                    <div className="grid grid-cols-2 gap-3">
                       <NumberField
-                        label={lang === 'RO' ? 'Total Camere' : 'Total Rooms'}
+                        label={lang === 'RO' ? 'Stele (1-5)' : 'Stars (1-5)'}
+                        value={stars}
+                        onChange={setStars}
+                      />
+                      <NumberField
+                        label={lang === 'RO' ? 'Camere Totale' : 'Total Rooms'}
                         value={totalRooms}
                         onChange={setTotalRooms}
                       />
                     </div>
-                    <div className="flex gap-6">
+                    <div className="flex gap-6 pt-1">
                       <CheckboxField
                         label={lang === 'RO' ? 'Are Piscină' : 'Has Pool'}
                         checked={hasPool}
@@ -643,24 +732,25 @@ export default function ManageAccommodationsPage() {
                   </div>
                 )}
 
+                {/* Sectiune specifica: Apartment */}
                 {type === 'Apartment' && (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-3">
-                    <p className="text-[11px] font-mono uppercase text-neutral-500">
-                      {lang === 'RO' ? 'Detalii Apartament' : 'Apartment Details'}
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <p className="text-xs font-mono font-semibold uppercase text-amber-600 dark:text-amber-400">
+                      {lang === 'RO' ? 'Opțiuni Specifice Apartament' : 'Apartment Specific Options'}
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <NumberField
+                        label={lang === 'RO' ? 'Număr Camere' : 'Number of Rooms'}
+                        value={numberOfRooms}
+                        onChange={setNumberOfRooms}
+                      />
                       <NumberField
                         label={lang === 'RO' ? 'Etaj' : 'Floor Number'}
                         value={floorNumber}
                         onChange={setFloorNumber}
                       />
-                      <NumberField
-                        label={lang === 'RO' ? 'Nr. Camere' : 'Number of Rooms'}
-                        value={numberOfRooms}
-                        onChange={setNumberOfRooms}
-                      />
                     </div>
-                    <div className="flex gap-6">
+                    <div className="flex gap-6 pt-1">
                       <CheckboxField
                         label={lang === 'RO' ? 'Are Lift' : 'Has Elevator'}
                         checked={hasElevator}
@@ -675,40 +765,43 @@ export default function ManageAccommodationsPage() {
                   </div>
                 )}
 
+                {/* Sectiune specifica: Hostel */}
                 {type === 'Hostel' && (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-3">
-                    <p className="text-[11px] font-mono uppercase text-neutral-500">
-                      {lang === 'RO' ? 'Detalii Hostel' : 'Hostel Details'}
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <p className="text-xs font-mono font-semibold uppercase text-amber-600 dark:text-amber-400">
+                      {lang === 'RO' ? 'Opțiuni Specifice Hostel' : 'Hostel Specific Options'}
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <NumberField
-                        label={lang === 'RO' ? 'Preț / Pat în Cameră Comună (€)' : 'Bed in Shared Room Price (€)'}
-                        value={bedInSharedRoomPrice}
-                        onChange={setBedInSharedRoomPrice}
-                      />
-                      <NumberField
-                        label={lang === 'RO' ? 'Total Paturi' : 'Total Beds'}
+                        label={lang === 'RO' ? 'Paturi Totale' : 'Total Beds'}
                         value={totalBeds}
                         onChange={setTotalBeds}
                       />
+                      <NumberField
+                        label={lang === 'RO' ? 'Preț Pat Dormitor Comun (€)' : 'Bed Price in Shared Room (€)'}
+                        value={bedInSharedRoomPrice}
+                        onChange={setBedInSharedRoomPrice}
+                      />
                     </div>
-                    <CheckboxField
-                      label={lang === 'RO' ? 'Bucătărie Comună' : 'Shared Kitchen'}
-                      checked={hasSharedKitchen}
-                      onChange={setHasSharedKitchen}
-                    />
+                    <div className="pt-1">
+                      <CheckboxField
+                        label={lang === 'RO' ? 'Bucătărie Comună' : 'Shared Kitchen'}
+                        checked={hasSharedKitchen}
+                        onChange={setHasSharedKitchen}
+                      />
+                    </div>
                   </div>
                 )}
 
                 <div>
                   <label className="block text-xs font-mono uppercase text-neutral-500 mb-1">
-                    {lang === 'RO' ? 'URL Imagine' : 'Image URL'}
+                    {lang === 'RO' ? 'URL Imagine (Opțional)' : 'Image URL (Optional)'}
                   </label>
                   <input
                     type="url"
                     value={image}
                     onChange={(e) => setImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://..."
                     className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -721,29 +814,26 @@ export default function ManageAccommodationsPage() {
                     rows={3}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder={lang === 'RO' ? 'Detalii despre proprietate...' : 'Property details...'}
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500 resize-none"
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-transparent text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-5 py-2.5 text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                    className="px-4 py-2 text-xs font-mono uppercase tracking-wider text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition"
                   >
                     {lang === 'RO' ? 'Anulează' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-5 py-2.5 text-xs font-mono font-semibold uppercase tracking-widest bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-amber-300 transition-all rounded-xl shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 text-xs font-mono uppercase tracking-wider bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl transition cursor-pointer disabled:opacity-50"
                   >
                     {isSaving
                       ? (lang === 'RO' ? 'Se salvează...' : 'Saving...')
-                      : editingId
-                      ? (lang === 'RO' ? 'Salvează Modificările' : 'Save Changes')
-                      : (lang === 'RO' ? 'Adaugă Cazare' : 'Add Stay')}
+                      : (lang === 'RO' ? 'Salvează' : 'Save')}
                   </button>
                 </div>
               </form>

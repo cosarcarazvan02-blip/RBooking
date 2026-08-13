@@ -14,7 +14,7 @@ public class AccommodationCsvImportService : IAccommodationCsvImportService
         _accommodationRepository = accommodationRepository;
     }
 
-    public async Task<AccommodationCsvImportResultDto> ImportCsvAsync(Stream csvStream, string? defaultOperatorId = null)
+    public async Task<AccommodationCsvImportResultDto> ImportCsvAsync(Stream csvStream, Guid? defaultOperatorId = null)
     {
         using var reader = new StreamReader(csvStream, Encoding.UTF8);
         var lines = new List<string>();
@@ -72,12 +72,8 @@ public class AccommodationCsvImportService : IAccommodationCsvImportService
             string country = GetVal("Country");
             string accommodationType = GetVal("AccommodationType");
             string priceStr = GetVal("PricePerNight");
-            string operatorId = GetVal("OperatorId");
-
-            if (string.IsNullOrWhiteSpace(operatorId))
-            {
-                operatorId = defaultOperatorId ?? string.Empty;
-            }
+            string operatorIdStr = GetVal("OperatorId");
+            Guid? operatorId = Guid.TryParse(operatorIdStr, out var parsedOpId) ? parsedOpId : defaultOperatorId;
 
             if (string.IsNullOrWhiteSpace(name))
             {

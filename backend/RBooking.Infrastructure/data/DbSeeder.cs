@@ -88,7 +88,7 @@ public static class DbSeeder
         await SeedUsersAsync(context);
 
         var operatorUser = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Operator);
-        var opId = operatorUser?.Id.ToString() ?? Guid.NewGuid().ToString();
+        var opId = operatorUser?.Id ?? Guid.Parse("00000000-0000-0000-0000-000000000002");
 
         var accommodations = new List<Accommodation>
         {

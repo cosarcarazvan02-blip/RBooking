@@ -35,7 +35,7 @@ Sunny Apartment,Beach,Constanța,Romania,200,Apartment,,";
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.ImportCsvAsync(stream, "operator-123");
+        var result = await _service.ImportCsvAsync(stream, Guid.NewGuid());
 
         // Assert
         Assert.Equal(2, result.SuccessfulInsertCount);
@@ -58,7 +58,7 @@ Hotel Valid,Center,Bucharest,Romania,150,Hotel,3";
             .ReturnsAsync(new HashSet<string>());
 
         // Act
-        var result = await _service.ImportCsvAsync(stream, "operator-123");
+        var result = await _service.ImportCsvAsync(stream, Guid.NewGuid());
 
         // Assert
         Assert.Equal(1, result.SuccessfulInsertCount);
@@ -118,7 +118,7 @@ Hotel Sunset,Beach,Mamaia,Romania,400,Hotel,https://example.com/img1.jpg;https:/
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.ImportCsvAsync(stream, "operator-123");
+        var result = await _service.ImportCsvAsync(stream, Guid.NewGuid());
 
         // Assert
         Assert.Equal(1, result.SuccessfulInsertCount);

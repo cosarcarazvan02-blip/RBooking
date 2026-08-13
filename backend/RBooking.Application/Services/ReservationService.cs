@@ -169,7 +169,7 @@ public class ReservationService : IReservationService
         else if (currentUserRole == UserRole.Operator)
         {
             var accommodation = await _accommodationRepository.GetByIdAsync(reservation.AccommodationId);
-            if (accommodation == null || accommodation.OperatorId != currentUserId.ToString())
+            if (accommodation == null || accommodation.OperatorId != currentUserId)
             {
                 throw new UnauthorizedAccessException("Poți șterge rezervări doar pentru propriile hoteluri.");
             }

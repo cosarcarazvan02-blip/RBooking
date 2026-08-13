@@ -14,7 +14,7 @@ public class AccommodationDto
     public decimal PricePerNight { get; set; }
     public decimal BasePricePerNight => PricePerNight;
     public string Description { get; set; } = string.Empty;
-    public string OperatorId { get; set; } = string.Empty;
+    public Guid? OperatorId { get; set; }
     public string AccommodationType { get; set; } = string.Empty;
     public double AverageRating { get; set; }
     public int TotalReviewsCount { get; set; }
