@@ -103,7 +103,7 @@ export default function HotelDetailsPage() {
   const [guests, setGuests] = useState<number>(2);
   const [isBookingLoading, setIsBookingLoading] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
-  const [bookingError, setBookingError] = useState<string>('');
+  const [bookingError, setBookingError] = useState<{ ro: string; en: string } | null>(null);
 
   // Review Form State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
@@ -111,7 +111,7 @@ export default function HotelDetailsPage() {
   const [reviewComment, setReviewComment] = useState<string>('');
   const [reviewReservationId, setReviewReservationId] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
-  const [reviewStatusMessage, setReviewStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [reviewStatusMessage, setReviewStatusMessage] = useState<{ type: 'success' | 'error'; ro: string; en: string } | null>(null);
 
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -328,7 +328,7 @@ export default function HotelDetailsPage() {
   // Handle Booking
   const handleBookingSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setBookingError('');
+    setBookingError(null);
 
     if (!isLoggedIn) {
       router.push('/login');
@@ -390,7 +390,10 @@ export default function HotelDetailsPage() {
         router.push('/reservations');
       }, 1500);
     } catch {
-      setBookingError(lang === 'RO' ? 'Eroare la procesarea rezervării. Vă rugăm reîncercați.' : 'Error processing reservation. Please try again.');
+      setBookingError({
+        ro: 'Eroare la procesarea rezervării. Vă rugăm reîncercați.',
+        en: 'Error processing reservation. Please try again.'
+      });
     } finally {
       setIsBookingLoading(false);
     }
@@ -427,9 +430,8 @@ export default function HotelDetailsPage() {
     if (hasReviewedStay && unreviewedReservations.length === 0) {
       setReviewStatusMessage({
         type: 'error',
-        text: lang === 'RO'
-          ? 'Ai adăugat deja o recenzie pentru acest sejur. Nu poți adăuga mai multe recenzii pentru aceeași rezervare.'
-          : 'You have already submitted a review for this stay. You cannot add multiple reviews for the same reservation.'
+        ro: 'Ai adăugat deja o recenzie pentru acest sejur. Nu poți adăuga mai multe recenzii pentru aceeași rezervare.',
+        en: 'You have already submitted a review for this stay. You cannot add multiple reviews for the same reservation.'
       });
       setIsSubmittingReview(false);
       return;
@@ -454,9 +456,8 @@ export default function HotelDetailsPage() {
       if (res.ok) {
         setReviewStatusMessage({
           type: 'success',
-          text: lang === 'RO'
-            ? '✓ Recenzie publicată cu succes! Webhook-ul a fost trimis către API B.'
-            : '✓ Review submitted successfully! Webhook dispatched to API B.'
+          ro: '✓ Recenzie publicată cu succes! Webhook-ul a fost trimis către API B.',
+          en: '✓ Review submitted successfully! Webhook dispatched to API B.'
         });
 
         // Adăugăm recenzia local instant
@@ -516,40 +517,38 @@ export default function HotelDetailsPage() {
           // Response is not JSON
         }
 
-        let translatedError = '';
         const lowerErr = errorMessage.toLowerCase();
+        let roMsg = '';
+        let enMsg = '';
 
         if (lowerErr.includes('deja') || lowerErr.includes('already') || lowerErr.includes('recenzie asociată') || lowerErr.includes('toate rezervările') || (status === 400 && !errorMessage)) {
-          translatedError = lang === 'RO'
-            ? 'Există deja o recenzie asociată acestei rezervări. Fiecare rezervare permite o singură recenzie.'
-            : 'You have already submitted a review for this reservation. Each reservation allows only one review.';
+          roMsg = 'Există deja o recenzie asociată acestei rezervări. Fiecare rezervare permite o singură recenzie.';
+          enMsg = 'You have already submitted a review for this reservation. Each reservation allows only one review.';
         } else if (lowerErr.includes('trebuie să ai') || lowerErr.includes('must have') || lowerErr.includes('fără recenzie') || lowerErr.includes('nu a fost găsită')) {
-          translatedError = lang === 'RO'
-            ? 'Trebuie să ai o rezervare la această cazare pentru a putea lăsa o recenzie.'
-            : 'You must have a reservation for this accommodation to leave a review.';
+          roMsg = 'Trebuie să ai o rezervare la această cazare pentru a putea lăsa o recenzie.';
+          enMsg = 'You must have a reservation for this accommodation to leave a review.';
         } else if (status === 403 || lowerErr.includes('altui utilizator') || lowerErr.includes('permisiunea') || lowerErr.includes('another user')) {
-          translatedError = lang === 'RO'
-            ? 'Nu poți adăuga o recenzie pentru rezervarea altui utilizator.'
-            : 'You cannot add a review for another user\'s reservation.';
+          roMsg = 'Nu poți adăuga o recenzie pentru rezervarea altui utilizator.';
+          enMsg = 'You cannot add a review for another user\'s reservation.';
         } else if (status === 401 || lowerErr.includes('unauthorized') || lowerErr.includes('autentificat') || lowerErr.includes('sesiunea')) {
-          translatedError = lang === 'RO'
-            ? 'Sesiunea a expirat sau nu ești autentificat. Te rugăm să te conectezi din nou.'
-            : 'Session expired or not logged in. Please log in again.';
+          roMsg = 'Sesiunea a expirat sau nu ești autentificat. Te rugăm să te conectezi din nou.';
+          enMsg = 'Session expired or not logged in. Please log in again.';
         } else {
-          translatedError = errorMessage || (lang === 'RO'
-            ? 'Nu s-a putut publica recenzia. Fiecare rezervare permite o singură recenzie.'
-            : 'Could not submit review. Each reservation allows only one review.');
+          roMsg = errorMessage || 'Nu s-a putut publica recenzia. Fiecare rezervare permite o singură recenzie.';
+          enMsg = errorMessage ? `Error: ${errorMessage}` : 'Could not submit review. Each reservation allows only one review.';
         }
 
         setReviewStatusMessage({
           type: 'error',
-          text: translatedError
+          ro: roMsg,
+          en: enMsg
         });
       }
     } catch {
       setReviewStatusMessage({
         type: 'error',
-        text: lang === 'RO' ? 'Eroare de rețea la publicarea recenziei.' : 'Network error submitting review.'
+        ro: 'Eroare de rețea la publicarea recenziei.',
+        en: 'Network error submitting review.'
       });
     } finally {
       setIsSubmittingReview(false);
@@ -988,7 +987,7 @@ export default function HotelDetailsPage() {
 
                 {bookingError && (
                   <div className="p-3 text-xs font-mono bg-red-50 text-red-800 border border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 rounded">
-                    {bookingError}
+                    {lang === 'RO' ? bookingError.ro : bookingError.en}
                   </div>
                 )}
 
@@ -1147,7 +1146,7 @@ export default function HotelDetailsPage() {
                       : 'bg-red-50 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
                   }`}
                 >
-                  {reviewStatusMessage.text}
+                  {lang === 'RO' ? reviewStatusMessage.ro : reviewStatusMessage.en}
                 </div>
               )}
 
