@@ -16,6 +16,7 @@ public class ReservationService : IReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAccommodationRepository _accommodationRepository;
+    private readonly IEmailSender _emailSender;
 
     private static readonly HashSet<string> AllowedColumns = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,11 +27,13 @@ public class ReservationService : IReservationService
     public ReservationService(
         IReservationRepository reservationRepository,
         IUserRepository userRepository,
-        IAccommodationRepository accommodationRepository)
+        IAccommodationRepository accommodationRepository,
+        IEmailSender emailSender)
     {
         _reservationRepository = reservationRepository;
         _userRepository = userRepository;
         _accommodationRepository = accommodationRepository;
+        _emailSender = emailSender;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -129,6 +132,15 @@ public class ReservationService : IReservationService
         };
 
         var created = await _reservationRepository.AddAsync(reservation);
+
+        await _emailSender.SendAsync(
+            user.Email,
+            $"Rezervare confirmată la {accommodation.Name}",
+            $"Salut {user.FirstName},\n\n" +
+            $"În data de {created.CreatedAt:dd.MM.yyyy} ai făcut o rezervare la {accommodation.Name} ({accommodation.City}), " +
+            $"pentru perioada {checkInUtc:dd.MM.yyyy} - {checkOutUtc:dd.MM.yyyy}, {createReservationDto.NumberOfGuests} persoane, preț total {totalPrice} RON.\n\n" +
+            "Echipa RBooking.");
+
         return MapToDto(created);
     }
 

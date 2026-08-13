@@ -21,6 +21,16 @@
   "Webhooks": {
     "_comment": "Trebuie sa coincida EXACT cu Webhooks:Secret din RBooking.WebhookAPI/appsettings.json - e cheia HMAC folosita ca sa semnezi/verifici webhook-ul de accommodation-updated.",
     "AccommodationUpdatedUrl": "http://localhost:5310/api/webhooks/accommodation-updated",
+    "ApiBReviewWebhookUrl": "http://localhost:5294/api/webhooks/reviews",
     "Secret": "CHANGE_ME_acelasi_secret_ca_in_WebhookAPI"
+  },
+  "Smtp": {
+    "_comment": "Optional - daca Host ramane gol, email-urile (ex: confirmare rezervare) nu se trimit efectiv, doar se loghează în consolă.",
+    "Host": "",
+    "Port": "587",
+    "User": "",
+    "Password": "",
+    "From": "",
+    "EnableSsl": "true"
   }
 }
