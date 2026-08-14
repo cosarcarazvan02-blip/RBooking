@@ -324,7 +324,8 @@ export default function LoginForm() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
         const userObj = data.user || {};
         const warning = data.warningMessage || (data.remainingCodes <= 2
           ? (lang === "RO"
@@ -334,59 +335,27 @@ export default function LoginForm() {
 
         saveAuthSession(data.token, userObj, userObj.role || "User", warning);
       } else {
-        const errData = await response.json().catch(() => null);
+        const text = await response.text().catch(() => "");
+        let errData: any = null;
+        try {
+          if (text) errData = JSON.parse(text);
+        } catch {}
+
         const serverError =
+          translateApiError(errData?.message, lang) ||
           errData?.message ||
           (lang === "RO"
-            ? "Codul de recuperare este invalid sau a fost deja utilizat."
-            : "Recovery code is invalid or has already been used.");
-
-        // Fallback for demo recovery codes in localStorage
-        const storedLocal = localStorage.getItem("rbooking_recovery_codes");
-        if (storedLocal) {
-          try {
-            const list: string[] = JSON.parse(storedLocal);
-            const cleanInput = recoveryCode.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-            const idx = list.findIndex(
-              (c) => c.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() === cleanInput
-            );
-
-            if (idx !== -1) {
-              list.splice(idx, 1);
-              localStorage.setItem("rbooking_recovery_codes", JSON.stringify(list));
-
-              const mockUser = {
-                id: "demo-recovery-user",
-                firstName: email.split("@")[0] || "User",
-                lastName: "Recovery",
-                email: email.trim(),
-                role: "User",
-              };
-
-              const warning = lang === "RO"
-                ? `Cod consumat cu succes. Mai aveți ${list.length} coduri.`
-                : `Code consumed successfully. ${list.length} codes remaining.`;
-
-              saveAuthSession("demo-recovery-token", mockUser, "User", warning);
-              return;
-            }
-          } catch {
-            // ignore
-          }
-        }
+            ? "Codul de recuperare este invalid pentru acest cont sau a fost deja utilizat."
+            : "Recovery code is invalid for this account or has already been used.");
 
         setErrorMessage(serverError);
       }
     } catch {
-      // Local fallback
-      const mockUser = {
-        id: "offline-recovery-user",
-        firstName: email.split("@")[0] || "User",
-        lastName: "Recovery",
-        email: email.trim(),
-        role: "User",
-      };
-      saveAuthSession("offline-recovery-token", mockUser, "User");
+      setErrorMessage(
+        lang === "RO"
+          ? "Eroare de conexiune la server. Vă rugăm să verificați conexiunea."
+          : "Connection error to server. Please check your connection."
+      );
     } finally {
       setIsLoading(false);
     }
