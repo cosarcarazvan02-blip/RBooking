@@ -11,4 +11,7 @@ public class LoginRequestDto
     [Required(ErrorMessage = "Parola este obligatorie.")]
     [MinLength(6, ErrorMessage = "Parola trebuie să conțină cel puțin 6 caractere.")]
     public string Password { get; set; } = string.Empty;
+
+    public string? RecoveryCode { get; set; }
+    public string? TwoFactorCode { get; set; }
 }

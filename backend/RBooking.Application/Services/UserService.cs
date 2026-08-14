@@ -101,6 +101,7 @@ public class UserService : IUserService
             Email = user.Email,
             ProfileImagePath = user.ProfileImagePath,
             Role = user.Role.ToString(),
+            TwoFactorEnabled = user.TwoFactorEnabled,
             CreatedAt = user.CreatedAt
         };
     }

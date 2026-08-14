@@ -8,7 +8,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-000000?style=for-the-badge&logo=next.js&logoColor=white)](#-frontend-tehnologii)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.0-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](#-baza-de-date)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?style=for-the-badge&logo=tailwind-css&logoColor=white)](#-frontend-tehnologii)
-[![Tests Passing](https://img.shields.io/badge/Unit_Tests-69_Passed-2ea44f?style=for-the-badge&logo=githubactions&logoColor=white)](#-testare-automată)
+[![Tests Passing](https://img.shields.io/badge/Unit_Tests-101_Passed-2ea44f?style=for-the-badge&logo=githubactions&logoColor=white)](#-testare-automată)
 
 **RBooking** este o platformă modernă, completă și sigură pentru explorarea, rezervarea și administrarea cazărilor turistice (Hoteluri, Apartamente, Hosteluri). Arhitectura este bazată pe **Clean Architecture** în backend (.NET 10) și **Next.js 16 (App Router & Turbopack)** în frontend, oferind performanță excepțională, securitate ridicată și o experiență de utilizare impecabilă.
 
@@ -28,10 +28,24 @@
 * 📅 **Rezervări Fără Duplicate:** Prevenirea automată a rezervărilor active suprapuse la aceeași cazare.
 * ❤️ **Wishlist / Favorite Sincronizat în Baza de Date:** 
   * Salvare în tabelul dedicat `Wishlist` din PostgreSQL la nivel de utilizator.
-  * Sincronizare automată asincronă cu fallback local pentru ochi instantaneu.
+  * Sincronizare automată asincronă cu fallback local pentru viteză instantanee.
 * 🌐 **Bilingv Reactiv (Română & Engleză):** Comutare instantă fără reîncărcarea paginii.
 * 🌗 **Dark / Light Mode:** Tranziții fluide de temă vizuală cu persistență automată.
-* 👤 **Panoul Contului Meu (`/account`):** Vizualizare profil, administrare chei API (`X-Api-Key`) cu utilitar live de testare și lista personalizată de favorite.
+* 👤 **Panoul Contului Meu (`/account`):** 
+  * Vizualizare și editare profil.
+  * Administrare chei API (`X-Api-Key`) cu utilitar live de testare.
+  * Gestionarea aplicațiilor pentru statutul de gazdă/operator.
+  * **Securitate Cont & Coduri de Recuperare (Recovery Codes)**: Generare set de 10 coduri de rezervă, copiere în clipboard și export `.txt`.
+
+### 🔐 Sistem de Autentificare & Coduri de Recuperare (2FA Backup)
+* 🛡️ **Coduri de Recuperare de Urgență:**
+  * Generare criptografică securizată de 10 coduri alfanumerice unice (ex: `7K2M-9P4X`).
+  * Normalizare tolerantă la input (insensibilă la format, cratime, spații și litere mari/mici) cu stocare SHA-256 hash în PostgreSQL.
+  * **Single-use:** Fiecare cod folosit este invalidat automat și ireversibil.
+  * Contorizare live a codurilor rămase cu avertizări proactive când numărul devine scăzut ($\le 2$).
+* 📱 **Autentificare fără telefon la îndemână:**
+  * Opțiune directă în formularul de logare (`/login`): *„Autentificare cu Cod de Recuperare (fără telefon)”*.
+  * Permite conectarea instantanee chiar și în absența accesului la telefon sau la aplicația 2FA (TOTP).
 
 ### 🏢 Pentru Manageri & Operatori
 * 🔐 **Izolare Strictă a Proprietăților:** 
@@ -40,10 +54,12 @@
 * 🏷️ **Panou Dedicat de Management (`/manager/accommodation`):** 
   * Tab-uri comutabile: `Cazările Mele` vs. `Toate Cazările`.
   * Formular dinamic adaptiv în funcție de tipul de cazare (ex: *Stele, Piscină, Room Service* pentru Hoteluri; *Etaj, Lift, Camere* pentru Apartamente; *Preț pat dormitor comun, Bucătărie comună* pentru Hosteluri).
+* 💰 **Gestiune Câștiguri & Comisioane (`/manager/earnings`):** Calcul transparent al sumelor brute, comisionului platformei și plăților nete către operator.
 * 📊 **Import Masiv prin CSV:** Încărcare automată a zeci de cazări dintr-un singur fișier CSV.
 
 ### 🛡️ Pentru Administratori
-* 🔑 **Gestiune Discounturi & Clienți de Serviciu:** Modele TPH de discounturi (*Procentual, Valoare Fixă, Loialitate*).
+* 🔑 **Gestiune Cereri Gazdă (Host Applications):** Aprobare și respingere cereri utilizatori pentru a deveni operatori.
+* 🏷️ **Gestiune Discounturi & Clienți de Serviciu:** Modele TPH de discounturi (*Procentual, Valoare Fixă, Loialitate*).
 * 📈 **Rapoarte & Export:** Filtrare avansată și generare de statistici detaliate.
 
 ---
@@ -56,31 +72,31 @@ Proiectul respectă principiile **Clean Architecture** și **Domain-Driven Desig
 RBooking/
 ├── backend/
 │   ├── RBooking.Domain/           # Entități de domeniu, Enums, Concepte de bază
-│   │   ├── Entities/              # Accommodation (Hotel, Apartment, Hostel), User, Reservation, Review, WishlistItem, Discount
-│   │   └── Enums/                 # UserRole, ReservationStatus, DiscountType
+│   │   ├── Entities/              # Accommodation (Hotel, Apartment, Hostel), User, RecoveryCode, Reservation, Review, WishlistItem, HostApplication, Discount
+│   │   └── Enums/                 # UserRole, ReservationStatus, HostApplicationStatus, DiscountType
 │   │
 │   ├── RBooking.Application/      # Logica de business, DTOs, Interfețe de servicii
-│   │   ├── DTOs/                  # AccommodationDto, ReservationDto, ReviewDto, WishlistItemDto, etc.
-│   │   ├── Interfaces/            # IAccommodationService, IWishlistService, IReviewService, etc.
-│   │   └── Services/              # Servicii concrete de business logic
+│   │   ├── DTOs/                  # GeneratedRecoveryCodesDto, RecoveryCodeStatusDto, VerifyRecoveryCodeRequestDto, AccommodationDto, etc.
+│   │   ├── Interfaces/            # IRecoveryCodeService, IAccommodationService, IWishlistService, IReviewService, etc.
+│   │   └── Services/              # RecoveryCodeService, ReservationService, AccommodationService, etc.
 │   │
 │   ├── RBooking.Infrastructure/   # Acces la date, PostgreSQL EF Core, Migrări, Repository-uri
 │   │   ├── data/                  # AppDbContext, DbSeeder
-│   │   ├── Migrations/            # EF Core Migrations
-│   │   └── Repositories/          # AccommodationRepository, WishlistRepository, etc.
+│   │   ├── Migrations/            # EF Core Migrations (inclusiv AddRecoveryCodesAndTwoFactor)
+│   │   └── Repositories/          # RecoveryCodeRepository, AccommodationRepository, WishlistRepository, etc.
 │   │
 │   ├── RBooking.API/              # ASP.NET Core Web API (Controllers, Middleware, Swagger)
-│   │   ├── Controllers/           # AccommodationsController, WishlistController, ReviewsController, etc.
+│   │   ├── Controllers/           # AuthController, AccommodationsController, HostApplicationsController, WishlistController, etc.
 │   │   ├── Middleware/            # ApiKeyMiddleware, GlobalExceptionHandler
 │   │   └── Program.cs             # Configurare Kestrel, DI, Rate Limiting, JWT & CORS
 │   │
-│   └── RBooking.Tests/            # Teste automate unitare (xUnit, Moq) - 69 teste
+│   └── RBooking.Tests/            # Teste automate unitare (xUnit, Moq) - 101 teste
 │
 ├── frontend/                      # Next.js 16 (App Router, Turbopack, Tailwind CSS)
-│   ├── app/                       # Pagini: / (Home), /hotels/[id], /reservations, /account, /manager/accommodation, /admin
-│   ├── components/                # Navbar, Accommodations, StarRating, ThemeToggle, Footer
+│   ├── app/                       # Pagini: / (Home), /hotels/[id], /reservations, /account, /manager/accommodation, /manager/earnings, /admin, /login, /register
+│   ├── components/                # LoginForm (cu suport Cod Recuperare), Navbar, Accommodations, StarRating, ThemeToggle, Footer
 │   ├── context/                   # LanguageContext (RO/EN)
-│   └── lib/                       # userStorage.ts (Wishlist & Reservations Sync), apiKey.ts
+│   └── lib/                       # userStorage.ts (Wishlist & Sync), apiKey.ts, translateApiError.ts
 │
 └── run-dev.sh                     # Script de pornire simultană Backend & Frontend
 ```
@@ -96,10 +112,11 @@ RBooking/
 | **Entity Framework Core 10** | ORM cu suport TPH (*Table-Per-Hierarchy*) și migrări automate |
 | **PostgreSQL & Npgsql** | Bază de date relațională robustă |
 | **JWT Authentication** | Autentificare pe bază de Bearer tokens cu suport dual (*User* & *Service Client*) |
+| **Recovery Codes Engine** | Generare securizată, hashing SHA-256 și consum single-use pentru 2FA backup |
 | **API Key Middleware** | Protecție granulară pe fiecare endpoint prin header `X-Api-Key` |
 | **Rate Limiting** | Protecție anti-DDoS și brute-force prin `TokenBucketRateLimiter` |
 | **Swagger / OpenAPI** | Documentație interactivă a tuturor rutelor API |
-| **xUnit & Moq** | Suită completă de teste unitare |
+| **xUnit & Moq** | Suită completă de 101 teste unitare |
 
 ### 🌐 Frontend (Next.js 16)
 | Tehnologie | Rol / Utilizare |
@@ -173,6 +190,12 @@ Documentația interactivă Swagger este accesibilă la:
 
 | Metodă | Rută API | Rol / Descriere | Acces / Roluri |
 | :--- | :--- | :--- | :--- |
+| `POST` | `/api/Auth/login` | Autentificare utilizator & generare token JWT | Public |
+| `POST` | `/api/Auth/register` | Înregistrare cont nou cu validare parolă | Public |
+| `POST` | `/api/Auth/recovery-codes/generate` | Generare set nou de 10 coduri de recuperare | Autentificat |
+| `GET` | `/api/Auth/recovery-codes/status` | Verificare număr coduri rămase & stare 2FA | Autentificat |
+| `POST` | `/api/Auth/recovery-codes/verify` | Autentificare de urgență prin cod de recuperare | Public |
+| `POST` | `/api/Auth/two-factor/toggle` | Activare/dezactivare autentificare în 2 pași | Autentificat |
 | `GET` | `/api/Accommodations` | Listă cazări paginată cu filtrare completă | Public |
 | `GET` | `/api/Accommodations/{id}` | Detalii complete cazare + statistici recenzii | Public |
 | `POST` | `/api/Accommodations` | Creare cazare nouă (asociere automată cu `OperatorId`) | Manager, Admin |
@@ -183,11 +206,12 @@ Documentația interactivă Swagger este accesibilă la:
 | `POST` | `/api/Wishlist` | Adaugă o cazare în wishlist (`{ accommodationId }`) | Autentificat |
 | `DELETE` | `/api/Wishlist/{accommodationId}` | Șterge cazarea din wishlist | Autentificat |
 | `GET` | `/api/Reservations/my` | Rezervările utilizatorului autentificat | Autentificat |
+| `GET` | `/api/Reservations/earnings` | Calcul câștiguri și comisioane operator | Operator, Admin |
 | `POST` | `/api/Reservations` | Creare rezervare (verificare rezervare activă) | Client, Admin |
 | `DELETE` | `/api/Reservations/{id}` | Anulare/ștergere rezervare | Client, Admin |
+| `POST` | `/api/host-applications` | Trimitere cerere pentru statutul de gazdă | Client |
+| `GET` | `/api/host-applications/mine` | Verificare stare cerere gazdă proprie | Client |
 | `POST` | `/api/Reviews` | Adăugare recenzie (max 1 recenzie per cazare) | Client |
-| `POST` | `/api/Auth/login` | Autentificare utilizator & generare token JWT | Public |
-| `POST` | `/api/Auth/register` | Înregistrare cont nou | Public |
 
 ---
 
@@ -199,14 +223,17 @@ Documentația interactivă Swagger este accesibilă la:
 2. **Dual-Scheme JWT Bearer:**
    * `UserBearer`: Generat la autentificarea utilizatorilor obișnuiți și managerilor.
    * `ServiceBearer`: Generat pentru servicii externe / integrări automate B2B.
-3. **Controlul Accesului la Date (Ownership Protection):**
-   * Logica de business din [`AccommodationService.cs`](file:///home/reeea/Documents/RBooking/RBooking/backend/RBooking.Application/Services/AccommodationService.cs) validează `accommodation.OperatorId == currentUserId` la orice modificare sau ștergere.
+3. **Mecanism de Siguranță 2FA & Recovery:**
+   * Codurile de recuperare sunt stocate exclusiv ca hash-uri SHA-256.
+   * Fiecare cod poate fi consumat o singură dată.
+4. **Controlul Accesului la Date (Ownership Protection):**
+   * Logica de business validează `accommodation.OperatorId == currentUserId` la orice modificare sau ștergere.
 
 ---
 
 ## 🧪 Testare Automată
 
-Backend-ul conține **69 de teste automate unitare** ce acoperă serviciile de cazări, rezervări, recenzii, wishlist, import CSV și raportare.
+Backend-ul conține **101 teste automate unitare** ce acoperă serviciile de coduri de recuperare, cazări, rezervări, recenzii, wishlist, import CSV, cereri gazdă și calcul comisioane.
 
 Pentru rularea testelor:
 ```bash
@@ -214,7 +241,7 @@ dotnet test backend
 ```
 
 ```
-Passed!  - Failed: 0, Passed: 69, Skipped: 0, Total: 69 - RBooking.Tests.dll (net10.0)
+Passed!  - Failed: 0, Passed: 101, Skipped: 0, Total: 101 - RBooking.Tests.dll (net10.0)
 ```
 
 ---
