@@ -55,6 +55,7 @@ builder.Services.AddSingleton(blockedIps);
 builder.Services.AddSingleton<RequestMetrics>();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
+builder.Services.AddDataProtection();
 
 // Configurare CORS unică și corectă pentru frontend (Next.js pe portul 3000)
 builder.Services.AddCors(options =>
@@ -129,6 +130,7 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 builder.Services.AddScoped<IWishlistService, WishlistService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 builder.Services.AddScoped<IRecoveryCodeRepository, RecoveryCodeRepository>();
 builder.Services.AddScoped<IRecoveryCodeService, RecoveryCodeService>();
 

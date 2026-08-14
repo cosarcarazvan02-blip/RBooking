@@ -23,6 +23,15 @@ import { getActiveApiKey } from "@/lib/apiKey";
 import { translateApiError } from "@/lib/translateApiError";
 import { useLanguage } from "@/context/LanguageContext";
 
+interface LoginUserData {
+  id?: string;
+  Id?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  Role?: string;
+}
+
 export default function LoginForm() {
   const { lang } = useLanguage();
   const router = useRouter();
@@ -109,7 +118,7 @@ export default function LoginForm() {
   };
 
   const handleRecoveryCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.toUpperCase();
+    const val = e.target.value.toUpperCase();
     setRecoveryCode(val);
     if (touched.recoveryCode) {
       setRecoveryCodeError(validateRecoveryCode(val));
@@ -137,7 +146,7 @@ export default function LoginForm() {
     setErrorMessage(null);
   };
 
-  const saveAuthSession = (token: string, userObj: Record<string, any>, roleFallback: string, warningMessage?: string | null) => {
+  const saveAuthSession = (token: string, userObj: LoginUserData, roleFallback: string, warningMessage?: string | null) => {
     const profileToSave = {
       id: userObj.id || userObj.Id || "user-id",
       name: `${userObj.firstName || ""} ${userObj.lastName || ""}`.trim() || email.split("@")[0],
@@ -199,13 +208,20 @@ export default function LoginForm() {
       const apiUrl = "http://localhost:5293/api";
       const apiKey = getActiveApiKey();
 
+      // Al doilea pas al login-ului (cand contul are 2FA activ) retrimite acest request
+      // cu twoFactorCode completat, pe langa email + parola deja validate.
+      const requestBody: Record<string, string> = { email: email.trim(), password };
+      if (twoFactorChallenge && totpCode.trim()) {
+        requestBody.twoFactorCode = totpCode.trim();
+      }
+
       const response = await fetch(`${apiUrl}/Auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Api-Key": apiKey,
         },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -230,6 +246,13 @@ export default function LoginForm() {
         const serverError =
           translateApiError(errorData?.message, lang) ||
           (lang === "RO" ? "Email sau parolă incorectă." : "Invalid email or password.");
+
+        // Odată intrat în pasul 2FA, un cod greșit NU trebuie să cadă pe fallback-ul
+        // demo/offline de mai jos - altfel am ocoli complet autentificarea în doi pași.
+        if (twoFactorChallenge) {
+          setErrorMessage(serverError);
+          return;
+        }
 
         // Demo fallback
         const isDemo =
@@ -260,6 +283,12 @@ export default function LoginForm() {
         }
       }
     } catch {
+      // La fel ca mai sus - in pasul 2FA nu oferim un fallback offline care ar ocoli codul.
+      if (twoFactorChallenge) {
+        setErrorMessage(lang === "RO" ? "Eroare de conexiune la server." : "Connection error.");
+        return;
+      }
+
       let detectedRole = "User";
       if (email.toLowerCase().includes("admin")) detectedRole = "Admin";
       else if (
@@ -336,10 +365,12 @@ export default function LoginForm() {
         saveAuthSession(data.token, userObj, userObj.role || "User", warning);
       } else {
         const text = await response.text().catch(() => "");
-        let errData: any = null;
+        let errData: { message?: string } | null = null;
         try {
           if (text) errData = JSON.parse(text);
-        } catch {}
+        } catch {
+          // ignore - raspuns fara body JSON valid
+        }
 
         const serverError =
           translateApiError(errData?.message, lang) ||
@@ -486,6 +517,7 @@ export default function LoginForm() {
                   <input
                     type="text"
                     maxLength={6}
+                    autoFocus
                     value={totpCode}
                     onChange={(e) => setTotpCode(e.target.value.replace(/[^0-9]/g, ""))}
                     placeholder="123456"

@@ -33,6 +33,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
 import { getUserFavorites, removeUserFavorite, syncUserWishlistFromDb, FavoriteItem } from '@/lib/userStorage';
+import TwoFactorAuthCard from '@/components/account/TwoFactorAuthCard';
 
 interface UserProfile {
   name: string;
@@ -289,10 +290,12 @@ export default function AccountPage() {
         });
       } else {
         const text = await res.text().catch(() => '');
-        let errData: any = null;
+        let errData: { message?: string } | null = null;
         try {
           if (text) errData = JSON.parse(text);
-        } catch {}
+        } catch {
+          // ignore - raspuns fara body JSON valid
+        }
 
         if (res.status === 401) {
           setSecurityStatusMessage({
@@ -416,10 +419,21 @@ export default function AccountPage() {
           type: 'info',
         });
       } else {
-        setTwoFactorEnabled(targetState);
+        // Nu presupunem succes pe eșec - backend-ul refuză activarea daca nu exista deja
+        // un secret TOTP configurat (secțiunea "Autentificare în Doi Pași" de mai sus).
+        const data = await res.json().catch(() => null);
+        setSecurityStatusMessage({
+          ro: data?.message || '✕ Nu am putut actualiza starea 2FA.',
+          en: data?.message || '✕ Could not update 2FA state.',
+          type: 'error',
+        });
       }
     } catch {
-      setTwoFactorEnabled(targetState);
+      setSecurityStatusMessage({
+        ro: '✕ Eroare de conexiune la server.',
+        en: '✕ Connection error.',
+        type: 'error',
+      });
     } finally {
       setIsToggling2Fa(false);
     }
@@ -977,6 +991,9 @@ export default function AccountPage() {
           </div>
         )}
       </div>
+
+      {/* Secțiune Autentificare în Doi Pași (2FA) */}
+      {isLoggedIn && <TwoFactorAuthCard />}
 
       {/* 3. Secțiune Configurare Cheie API (Securitate & Integrare Backend) */}
       <div className="bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-sm space-y-5">

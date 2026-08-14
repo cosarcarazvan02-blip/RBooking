@@ -17,18 +17,21 @@ public class AuthController : ControllerBase
     private readonly IServiceClientService _serviceClientService;
     private readonly IEmailSender _emailSender;
     private readonly IRecoveryCodeService _recoveryCodeService;
+    private readonly ITwoFactorService _twoFactorService;
 
     public AuthController(
         IUserRepository userRepository,
         IJwtTokenGenerator jwtTokenGenerator,
         IServiceClientService serviceClientService,
         IEmailSender emailSender,
-        IRecoveryCodeService recoveryCodeService)
+        IRecoveryCodeService recoveryCodeService,
+        ITwoFactorService twoFactorService)
     {
         _userRepository = userRepository;
         _jwtTokenGenerator = jwtTokenGenerator;
         _serviceClientService = serviceClientService;
         _recoveryCodeService = recoveryCodeService;
+        _twoFactorService = twoFactorService;
         _emailSender = emailSender;
     }
 
@@ -193,14 +196,25 @@ public class AuthController : ControllerBase
             });
         }
 
-        // Dacă autentificarea 2FA este activată pentru cont și nu s-a trimis cod de recuperare sau 2FA
-        if (user.TwoFactorEnabled && string.IsNullOrWhiteSpace(request.TwoFactorCode))
+        if (user.TwoFactorEnabled)
         {
-            return Ok(new AuthResponseDto
+            // Parola e corectă, dar contul are 2FA activ. Dacă nu a venit încă un cod TOTP,
+            // semnalăm asta fără să emitem tokenul - frontend-ul retrimite acest request
+            // cu TwoFactorCode completat (sau folosește un cod de recuperare, mai sus).
+            if (string.IsNullOrWhiteSpace(request.TwoFactorCode))
             {
-                RequiresTwoFactor = true,
-                Message = "Autentificarea în doi pași este activată. Introduceți codul TOTP sau un cod de recuperare."
-            });
+                return Ok(new AuthResponseDto
+                {
+                    RequiresTwoFactor = true,
+                    Message = "Autentificarea în doi pași este activată. Introduceți codul TOTP sau un cod de recuperare."
+                });
+            }
+
+            var isValidTotpCode = await _twoFactorService.ValidateCodeAsync(user.Id, request.TwoFactorCode);
+            if (!isValidTotpCode)
+            {
+                return BadRequest(new { message = "Codul introdus este invalid sau a expirat." });
+            }
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user);
@@ -299,7 +313,10 @@ public class AuthController : ControllerBase
         var success = await _recoveryCodeService.ToggleTwoFactorAsync(userId.Value, request.Enabled);
         if (!success)
         {
-            return NotFound(new { message = "Utilizatorul nu a fost găsit." });
+            var message = request.Enabled
+                ? "Nu poți activa 2FA fără să configurezi mai întâi un cod QR (secțiunea Autentificare în Doi Pași)."
+                : "Utilizatorul nu a fost găsit.";
+            return BadRequest(new { message });
         }
 
         return Ok(new

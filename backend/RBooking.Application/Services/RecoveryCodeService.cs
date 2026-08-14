@@ -132,6 +132,13 @@ public class RecoveryCodeService : IRecoveryCodeService
             return false;
         }
 
+        // Nu putem activa 2FA fara un secret TOTP deja confirmat (vezi TwoFactorController.Setup/Verify) -
+        // altfel userul ar ramane blocat la urmatorul login, fara niciun cod valid de introdus.
+        if (enabled && string.IsNullOrWhiteSpace(user.TwoFactorSecret))
+        {
+            return false;
+        }
+
         user.TwoFactorEnabled = enabled;
         await _userRepository.UpdateAsync(user);
         return true;

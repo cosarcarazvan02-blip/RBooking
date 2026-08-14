@@ -184,9 +184,9 @@ public class RecoveryCodeServiceTests
     [Fact]
     public async Task ToggleTwoFactorAsync_UpdatesUserState()
     {
-        // Arrange
+        // Arrange - un secret TOTP deja confirmat trebuie sa existe pentru a putea activa 2FA
         var userId = Guid.NewGuid();
-        var user = new User { Id = userId, Email = "user@example.com", TwoFactorEnabled = false };
+        var user = new User { Id = userId, Email = "user@example.com", TwoFactorEnabled = false, TwoFactorSecret = "protected-secret" };
         _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
         _userRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<User>())).Returns(Task.CompletedTask);
 
@@ -197,6 +197,23 @@ public class RecoveryCodeServiceTests
         Assert.True(result);
         Assert.True(user.TwoFactorEnabled);
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.Is<User>(u => u.TwoFactorEnabled == true)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ToggleTwoFactorAsync_WithoutConfirmedSecret_FailsInsteadOfLockingUserOut()
+    {
+        // Arrange - fara un secret TOTP, activarea 2FA ar bloca userul la urmatorul login
+        var userId = Guid.NewGuid();
+        var user = new User { Id = userId, Email = "user@example.com", TwoFactorEnabled = false, TwoFactorSecret = null };
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+
+        // Act
+        var result = await _service.ToggleTwoFactorAsync(userId, true);
+
+        // Assert
+        Assert.False(result);
+        Assert.False(user.TwoFactorEnabled);
+        _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
     [Theory]
