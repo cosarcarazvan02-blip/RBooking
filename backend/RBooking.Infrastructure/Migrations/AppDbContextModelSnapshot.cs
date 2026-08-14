@@ -61,7 +61,7 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Accommodations");
+                    b.ToTable("Accommodations", (string)null);
 
                     b.HasDiscriminator<string>("AccommodationType").HasValue("Accommodation");
 
@@ -90,7 +90,7 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasIndex("AccommodationId");
 
-                    b.ToTable("AccommodationImages");
+                    b.ToTable("AccommodationImages", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.Discount", b =>
@@ -123,35 +123,30 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Discounts");
+                    b.ToTable("Discounts", (string)null);
 
                     b.HasDiscriminator<string>("DiscountDiscriminator").HasValue("Discount");
 
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("RBooking.Domain.Entities.HostApplication", b =>
+            modelBuilder.Entity("RBooking.Domain.Entities.RecoveryCode", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Message")
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ReviewedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid");
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("SubmittedAt")
+                    b.Property<DateTime?>("UsedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UserId")
@@ -159,9 +154,11 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "CodeHash");
 
-                    b.ToTable("HostApplications");
+                    b.HasIndex("UserId", "IsUsed");
+
+                    b.ToTable("RecoveryCodes", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.Reservation", b =>
@@ -185,18 +182,6 @@ namespace RBooking.Infrastructure.Migrations
                     b.Property<int>("NumberOfGuests")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("OperatorPayoutAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("PlatformFeeAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("PlatformFeeRate")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -212,7 +197,7 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Reservations");
+                    b.ToTable("Reservations", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.Review", b =>
@@ -240,7 +225,7 @@ namespace RBooking.Infrastructure.Migrations
                     b.HasIndex("ReservationId")
                         .IsUnique();
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.ServiceClient", b =>
@@ -273,7 +258,7 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ServiceClients");
+                    b.ToTable("ServiceClients", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.User", b =>
@@ -308,7 +293,7 @@ namespace RBooking.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.WishlistItem", b =>
@@ -420,7 +405,7 @@ namespace RBooking.Infrastructure.Migrations
                     b.Property<decimal>("Percentage")
                         .HasColumnType("numeric");
 
-                    b.ToTable("Discounts", t =>
+                    b.ToTable("Discounts", null, t =>
                         {
                             t.Property("Percentage")
                                 .HasColumnName("PercentageDiscount_Percentage");
