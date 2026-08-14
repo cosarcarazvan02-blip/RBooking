@@ -33,6 +33,7 @@ public class RecoveryCodeServiceTests
         var userId = Guid.NewGuid();
         var user = new User { Id = userId, Email = "user@example.com" };
         _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        _recoveryCodeRepositoryMock.Setup(r => r.GetTotalCountByUserIdAsync(userId)).ReturnsAsync(0);
 
         IEnumerable<string>? capturedHashes = null;
         _recoveryCodeRepositoryMock
@@ -54,6 +55,20 @@ public class RecoveryCodeServiceTests
         _recoveryCodeRepositoryMock.Verify(r => r.SaveCodesAsync(userId, It.IsAny<IEnumerable<string>>()), Times.Once);
         Assert.NotNull(capturedHashes);
         Assert.Equal(10, capturedHashes.Count());
+    }
+
+    [Fact]
+    public async Task GenerateCodesAsync_WhenCodesAlreadyExist_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var user = new User { Id = userId, Email = "user@example.com" };
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        _recoveryCodeRepositoryMock.Setup(r => r.GetTotalCountByUserIdAsync(userId)).ReturnsAsync(10);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.GenerateCodesAsync(userId, 10));
+        Assert.Contains("deja generate", ex.Message);
     }
 
     [Fact]

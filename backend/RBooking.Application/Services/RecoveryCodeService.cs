@@ -33,6 +33,12 @@ public class RecoveryCodeService : IRecoveryCodeService
             throw new KeyNotFoundException($"Utilizatorul cu ID-ul {userId} nu a fost găsit.");
         }
 
+        var totalExisting = await _recoveryCodeRepository.GetTotalCountByUserIdAsync(userId);
+        if (totalExisting > 0)
+        {
+            throw new InvalidOperationException("Codurile de recuperare au fost deja generate pentru acest cont. Generarea este permisă o singură dată.");
+        }
+
         var codes = new HashSet<string>();
         while (codes.Count < count)
         {

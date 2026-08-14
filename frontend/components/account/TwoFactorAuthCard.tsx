@@ -570,27 +570,32 @@ export default function TwoFactorAuthCard() {
                   </h3>
                   <p className="text-[11px] text-neutral-500">
                     {lang === 'RO'
-                      ? 'Folosește un cod de rezervă dacă nu ai acces la telefon sau la aplicația Authenticator.'
-                      : 'Use a backup code if you lose access to your phone or Authenticator app.'}
+                      ? 'Fiecare cont are dreptul la un singur set de 10 coduri generate o singură dată.'
+                      : 'Each account is entitled to a single set of 10 codes generated once.'}
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleGenerateRecoveryCodes}
-                disabled={isGeneratingCodes}
-                className="px-4 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider font-semibold transition flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingCodes ? 'animate-spin' : ''}`} />
-                <span>
-                  {isGeneratingCodes
-                    ? (lang === 'RO' ? 'Se generează...' : 'Generating...')
-                    : hasRecoveryCodes
-                    ? (lang === 'RO' ? 'Regenerează Setul de 10 Coduri' : 'Regenerate 10 Codes')
-                    : (lang === 'RO' ? 'Generează 10 Coduri de Recuperare' : 'Generate 10 Recovery Codes')}
+              {!hasRecoveryCodes && totalCodes === 0 ? (
+                <button
+                  type="button"
+                  onClick={handleGenerateRecoveryCodes}
+                  disabled={isGeneratingCodes}
+                  className="px-4 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider font-semibold transition flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingCodes ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isGeneratingCodes
+                      ? (lang === 'RO' ? 'Se generează...' : 'Generating...')
+                      : (lang === 'RO' ? 'Generează 10 Coduri de Recuperare' : 'Generate 10 Recovery Codes')}
+                  </span>
+                </button>
+              ) : (
+                <span className="px-3 py-1 text-[11px] font-mono rounded-lg bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 shrink-0">
+                  <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>{lang === 'RO' ? 'Set Generat (Generat o singură dată)' : 'Batch Generated (One-Time)'}</span>
                 </span>
-              </button>
+              )}
             </div>
 
             {/* Dacă avem coduri proaspăt generate -> afișăm grila */}
@@ -600,7 +605,7 @@ export default function TwoFactorAuthCard() {
                   <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-amber-900 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>
-                      {lang === 'RO' ? 'Salvează aceste coduri acum!' : 'Save these codes now!'}
+                      {lang === 'RO' ? 'Salvează aceste coduri acum (Generare unică)!' : 'Save these codes now (One-time generation)!'}
                     </span>
                   </div>
                   <span className="text-[11px] font-mono text-neutral-500">
