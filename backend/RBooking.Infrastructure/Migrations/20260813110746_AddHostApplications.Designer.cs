@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RBooking.Infrastructure.Data;
@@ -11,9 +12,11 @@ using RBooking.Infrastructure.Data;
 namespace RBooking.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813110746_AddHostApplications")]
+    partial class AddHostApplications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,8 +56,9 @@ namespace RBooking.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("OperatorId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("OperatorId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<decimal>("PricePerNight")
                         .HasColumnType("numeric");
@@ -303,37 +307,9 @@ namespace RBooking.Infrastructure.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("boolean");
-
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("RBooking.Domain.Entities.WishlistItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AccommodationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccommodationId");
-
-                    b.HasIndex("UserId", "AccommodationId")
-                        .IsUnique();
-
-                    b.ToTable("Wishlist", (string)null);
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.Apartment", b =>
@@ -440,7 +416,7 @@ namespace RBooking.Infrastructure.Migrations
                     b.Navigation("Accommodation");
                 });
 
-            modelBuilder.Entity("RBooking.Domain.Entities.RecoveryCode", b =>
+            modelBuilder.Entity("RBooking.Domain.Entities.HostApplication", b =>
                 {
                     b.HasOne("RBooking.Domain.Entities.User", "User")
                         .WithMany()
@@ -479,25 +455,6 @@ namespace RBooking.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Reservation");
-                });
-
-            modelBuilder.Entity("RBooking.Domain.Entities.WishlistItem", b =>
-                {
-                    b.HasOne("RBooking.Domain.Entities.Accommodation", "Accommodation")
-                        .WithMany()
-                        .HasForeignKey("AccommodationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RBooking.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Accommodation");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("RBooking.Domain.Entities.Accommodation", b =>

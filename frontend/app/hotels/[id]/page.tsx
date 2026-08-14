@@ -27,7 +27,6 @@ import {
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey } from '@/lib/apiKey';
 import {
-  getUserFavorites,
   toggleUserFavorite,
   isAccommodationFavorited,
   getUserReservations,
@@ -143,11 +142,13 @@ export default function HotelDetailsPage() {
       const logged = localStorage.getItem('rbooking_logged_in') === 'true' || Boolean(token);
       setIsLoggedIn(logged);
 
+      let userId = '';
       if (profile) {
         try {
           const parsed = JSON.parse(profile);
-          if (parsed.id || parsed.Id) {
-            setCurrentUserId(parsed.id || parsed.Id);
+          userId = parsed.id || parsed.Id || '';
+          if (userId) {
+            setCurrentUserId(userId);
           }
           if (parsed.email || parsed.Email) {
             setCurrentUserEmail(parsed.email || parsed.Email);
@@ -394,11 +395,13 @@ export default function HotelDetailsPage() {
         body: JSON.stringify(payload),
       });
 
-      let createdReservationId = `res-${Date.now()}`;
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.id) createdReservationId = data.id;
+      if (!res.ok) {
+        throw new Error('Reservation request failed');
       }
+
+      let createdReservationId = `res-${Date.now()}`;
+      const resData = await res.json().catch(() => null);
+      if (resData && resData.id) createdReservationId = resData.id;
 
       // Save locally per-user
       const targetAccId = hotel?.id || hotelId;

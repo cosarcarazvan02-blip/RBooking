@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Moq;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
@@ -13,6 +14,9 @@ public class ReservationServiceTests
     private readonly Mock<IReservationRepository> _reservationRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IAccommodationRepository> _accommodationRepositoryMock;
+    private readonly Mock<IEmailSender> _emailSenderMock;
+    private readonly Mock<IConfiguration> _configurationMock;
+    private readonly Mock<IWebhookSender> _webhookSenderMock;
     private readonly ReservationService _reservationService;
 
     public ReservationServiceTests()
@@ -20,11 +24,18 @@ public class ReservationServiceTests
         _reservationRepositoryMock = new Mock<IReservationRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _accommodationRepositoryMock = new Mock<IAccommodationRepository>();
+        _emailSenderMock = new Mock<IEmailSender>();
+        _configurationMock = new Mock<IConfiguration>();
+        _configurationMock.Setup(c => c["Platform:CommissionRate"]).Returns("0.10");
+        _webhookSenderMock = new Mock<IWebhookSender>();
 
         _reservationService = new ReservationService(
             _reservationRepositoryMock.Object,
             _userRepositoryMock.Object,
-            _accommodationRepositoryMock.Object);
+            _accommodationRepositoryMock.Object,
+            _emailSenderMock.Object,
+            _configurationMock.Object,
+            _webhookSenderMock.Object);
     }
 
     [Fact]
@@ -142,6 +153,9 @@ public class ReservationServiceTests
             res.UserId == userId &&
             res.AccommodationId == accommodationId &&
             res.TotalPrice == 360m &&
+            res.PlatformFeeRate == 0.10m &&
+            res.PlatformFeeAmount == 36.00m &&
+            res.OperatorPayoutAmount == 324.00m &&
             res.CheckInDate.Kind == DateTimeKind.Utc &&
             res.CheckOutDate.Kind == DateTimeKind.Utc
         )), Times.Once);
@@ -313,5 +327,91 @@ public class ReservationServiceTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _reservationService.CreateReservationAsync(createDto));
         Assert.Contains("Ai deja o rezervare activă", ex.Message);
         _reservationRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Reservation>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetOperatorEarningsAsync_ClientRole_ThrowsUnauthorizedAccessException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _reservationService.GetOperatorEarningsAsync(Guid.NewGuid(), UserRole.Client, null, null, null));
+        _accommodationRepositoryMock.Verify(r => r.GetAllAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetOperatorEarningsAsync_OperatorRequestsOtherOperatorsAccommodation_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var currentOperatorId = Guid.NewGuid();
+        var otherOperatorAccommodationId = Guid.NewGuid();
+        var otherAccommodation = new Hotel
+        {
+            Id = otherOperatorAccommodationId,
+            Name = "Not Mine",
+            OperatorId = Guid.NewGuid()
+        };
+
+        _accommodationRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Accommodation> { otherAccommodation });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _reservationService.GetOperatorEarningsAsync(currentOperatorId, UserRole.Operator, null, null, otherOperatorAccommodationId));
+    }
+
+    [Fact]
+    public async Task GetOperatorEarningsAsync_OperatorOwnAccommodations_SumsOnlyOwnReservations()
+    {
+        // Arrange
+        var operatorId = Guid.NewGuid();
+        var myAccommodationId = Guid.NewGuid();
+        var otherOperatorAccommodationId = Guid.NewGuid();
+
+        var myAccommodation = new Hotel { Id = myAccommodationId, Name = "Mine", OperatorId = operatorId };
+        var otherAccommodation = new Hotel { Id = otherOperatorAccommodationId, Name = "Not Mine", OperatorId = Guid.NewGuid() };
+
+        var myReservation = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            AccommodationId = myAccommodationId,
+            CheckInDate = DateTime.UtcNow.AddDays(1),
+            Status = ReservationStatus.Confirmed,
+            TotalPrice = 200m,
+            PlatformFeeAmount = 20m,
+            OperatorPayoutAmount = 180m
+        };
+        var otherReservation = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            AccommodationId = otherOperatorAccommodationId,
+            CheckInDate = DateTime.UtcNow.AddDays(1),
+            Status = ReservationStatus.Confirmed,
+            TotalPrice = 999m,
+            PlatformFeeAmount = 99.90m,
+            OperatorPayoutAmount = 899.10m
+        };
+        var cancelledReservation = new Reservation
+        {
+            Id = Guid.NewGuid(),
+            AccommodationId = myAccommodationId,
+            CheckInDate = DateTime.UtcNow.AddDays(1),
+            Status = ReservationStatus.Cancelled,
+            TotalPrice = 500m,
+            PlatformFeeAmount = 50m,
+            OperatorPayoutAmount = 450m
+        };
+
+        _accommodationRepositoryMock.Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<Accommodation> { myAccommodation, otherAccommodation });
+        _reservationRepositoryMock.Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<Reservation> { myReservation, otherReservation, cancelledReservation });
+
+        // Act
+        var result = await _reservationService.GetOperatorEarningsAsync(operatorId, UserRole.Operator, null, null, null);
+
+        // Assert - doar rezervarea proprie, ne-anulată, e inclusă
+        Assert.Equal(200m, result.TotalCollected);
+        Assert.Equal(20m, result.TotalCommission);
+        Assert.Equal(180m, result.TotalNet);
+        Assert.Equal(1, result.ReservationsCount);
     }
 }

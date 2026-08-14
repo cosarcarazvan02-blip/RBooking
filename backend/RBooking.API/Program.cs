@@ -115,8 +115,11 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IServiceClientRepository, ServiceClientRepository>();
 builder.Services.AddScoped<IServiceClientService, ServiceClientService>();
+builder.Services.AddScoped<IHostApplicationRepository, HostApplicationRepository>();
+builder.Services.AddScoped<IHostApplicationService, HostApplicationService>();
 builder.Services.AddHttpClient<IWebhookSender, WebhookSender>();
 builder.Services.AddHttpClient<IWebhookSenderService, WebhookSenderService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddScoped<IAccommodationRepository, AccommodationRepository>();
 builder.Services.AddScoped<IAccommodationService, AccommodationService>();

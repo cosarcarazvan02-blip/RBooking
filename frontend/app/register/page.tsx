@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
+import { getActiveApiKey } from '@/lib/apiKey';
+import { translateApiError } from '@/lib/translateApiError';
 
 export default function RegisterPage() {
   const { lang } = useLanguage();
@@ -13,8 +15,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRegister = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -23,15 +26,6 @@ export default function RegisterPage() {
         lang === 'RO'
           ? 'Te rugăm să completezi toate câmpurile.'
           : 'Please complete all fields.'
-      );
-      return;
-    }
-
-    if (password.length < 6) {
-      setError(
-        lang === 'RO'
-          ? 'Parola trebuie să aibă cel puțin 6 caractere.'
-          : 'Password must be at least 6 characters.'
       );
       return;
     }
@@ -45,16 +39,54 @@ export default function RegisterPage() {
       return;
     }
 
-    const newUserProfile = {
-      name: name,
-      email: email,
-      phone: '+40 700 000 000',
-      role: 'User',
-    };
+    setIsSubmitting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const apiKey = getActiveApiKey();
+      const response = await fetch(`${apiUrl}/Auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey,
+        },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-    localStorage.setItem('rbooking_user_profile', JSON.stringify(newUserProfile));
-    localStorage.setItem('currentUser', JSON.stringify(newUserProfile));
-    router.push('/login');
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(
+          translateApiError(data?.message, lang) ||
+            (lang === 'RO' ? 'Înregistrarea a eșuat. Încearcă din nou.' : 'Registration failed. Please try again.')
+        );
+        return;
+      }
+
+      const userProfile = {
+        id: data.user.id,
+        name: name || data.user.firstName,
+        email: data.user.email,
+        role: data.user.role,
+      };
+
+      localStorage.setItem('rbooking_token', data.token);
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      localStorage.setItem('rbooking_user_profile', JSON.stringify(userProfile));
+      localStorage.setItem('rbooking_logged_in', 'true');
+      window.dispatchEvent(new Event('rbooking_auth_change'));
+      window.dispatchEvent(new Event('auth-state-change'));
+
+      router.push('/');
+    } catch {
+      setError(
+        lang === 'RO'
+          ? 'Eroare de conexiune la server. Verifică dacă API-ul rulează.'
+          : 'Connection error. Please check that the API is running.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -117,6 +149,11 @@ export default function RegisterPage() {
               required
               className="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-neutral-800 p-3 rounded-xl text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-400 text-sm transition"
             />
+            <p className="text-[10px] text-neutral-500 dark:text-neutral-500 mt-1.5 font-mono">
+              {lang === 'RO'
+                ? 'Minim 8 caractere, cu literă mare, literă mică și o cifră.'
+                : 'At least 8 characters, with an uppercase letter, a lowercase letter, and a digit.'}
+            </p>
           </div>
 
           <div>
@@ -133,11 +170,14 @@ export default function RegisterPage() {
             />
           </div>
 
-          <button 
-            type="submit" 
-            className="w-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 py-3 rounded-xl font-medium hover:bg-neutral-800 dark:hover:bg-amber-300 transition text-xs tracking-[0.15em] uppercase mt-3 shadow-md cursor-pointer font-mono"
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 py-3 rounded-xl font-medium hover:bg-neutral-800 dark:hover:bg-amber-300 transition text-xs tracking-[0.15em] uppercase mt-3 shadow-md cursor-pointer font-mono disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {lang === 'RO' ? 'Finalizare Înregistrare' : 'Complete Registration'}
+            {isSubmitting
+              ? (lang === 'RO' ? 'Se creează contul...' : 'Creating account...')
+              : (lang === 'RO' ? 'Finalizare Înregistrare' : 'Complete Registration')}
           </button>
         </form>
 

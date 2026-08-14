@@ -12,7 +12,6 @@ import {
   setUserReservations,
   ReservationItem,
   getCurrentUserProfile,
-  getCurrentUserStorageKey,
 } from '@/lib/userStorage';
 
 const NO_PHOTO_PLACEHOLDER = 'https://www.tez-tour.ro/static/images/nophoto-hotel.png';
@@ -23,7 +22,7 @@ export default function ReservationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { lang } = useLanguage();
 
-  // 1. Fetch live accommodations from backend to resolve IDs dynamically
+  // 1. Fetch live accommodations from backend (used to resolve links + display info)
   useEffect(() => {
     let ignore = false;
     const fetchAccommodations = async () => {
@@ -41,10 +40,12 @@ export default function ReservationsPage() {
               items.map((acc: { id: string; name: string }) => ({ id: acc.id, name: acc.name }))
             );
           }
+          return items as Array<{ id: string; name: string; city?: string; location?: string; imageUrl?: string }>;
         }
       } catch (e) {
         console.error(e);
       }
+      return [];
     };
 
     fetchAccommodations();
@@ -136,7 +137,9 @@ export default function ReservationsPage() {
   }, [lang]);
 
   useEffect(() => {
-    loadUserReservations();
+    queueMicrotask(() => {
+      loadUserReservations();
+    });
 
     window.addEventListener('rbooking_reservations_change', loadUserReservations);
     window.addEventListener('rbooking_auth_change', loadUserReservations);

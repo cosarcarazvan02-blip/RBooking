@@ -64,6 +64,24 @@ interface ApiErrorBody {
   message?: string;
 }
 
+const HOST_APPLICATION_STATUS_LABELS: Record<number, 'Pending' | 'Approved' | 'Rejected'> = {
+  0: 'Pending',
+  1: 'Approved',
+  2: 'Rejected',
+};
+
+interface HostApplicationItem {
+  id: string;
+  userId: string;
+  userFirstName: string;
+  userLastName: string;
+  userEmail: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  message?: string | null;
+  submittedAt: string;
+  rejectionReason?: string | null;
+}
+
 function isRawUserArray(value: unknown): value is RawUser[] {
   return Array.isArray(value);
 }
@@ -115,8 +133,9 @@ async function extractErrorMessage(res: Response, fallback: string): Promise<str
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { lang } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'users' | 'accommodations' | 'system'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'accommodations' | 'system' | 'hostApplications'>('users');
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [hostApplications, setHostApplications] = useState<HostApplicationItem[]>([]);
 
   const [accommodations] = useState<AccommodationItem[]>([
     { id: 'acc-1', title: 'Grand Hotel Continental', location: 'București', price: 450, type: 'Hotel' },
@@ -229,6 +248,87 @@ export default function AdminDashboardPage() {
       void fetchUsersFromApi();
     });
   }, [fetchUsersFromApi]);
+
+  const fetchHostApplications = useCallback(async (): Promise<void> => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const res = await fetch(`${apiUrl}/host-applications`, {
+        method: 'GET',
+        headers: buildAuthHeaders(),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as Array<Omit<HostApplicationItem, 'status'> & { status: number }>;
+        setHostApplications(
+          data.map((a) => ({ ...a, status: HOST_APPLICATION_STATUS_LABELS[a.status] ?? 'Pending' }))
+        );
+      }
+    } catch (error) {
+      console.error('Eroare de rețea la fetchHostApplications:', error);
+    }
+  }, [buildAuthHeaders]);
+
+  useEffect(() => {
+    if (activeTab === 'hostApplications') {
+      queueMicrotask(() => {
+        void fetchHostApplications();
+      });
+    }
+  }, [activeTab, fetchHostApplications]);
+
+  const handleApproveHostApplication = async (id: string): Promise<void> => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const res = await fetch(`${apiUrl}/host-applications/${id}/approve`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+      });
+
+      if (res.ok) {
+        await fetchHostApplications();
+        setSuccessMessage(lang === 'RO' ? 'Cererea a fost aprobată.' : 'Application approved.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const message = await extractErrorMessage(
+          res,
+          lang === 'RO' ? 'Eroare la aprobarea cererii.' : 'Error approving application.'
+        );
+        alert(message);
+      }
+    } catch (error) {
+      console.error('Eroare de rețea:', error);
+    }
+  };
+
+  const handleRejectHostApplication = async (id: string): Promise<void> => {
+    const reason = window.prompt(
+      lang === 'RO' ? 'Motivul respingerii (obligatoriu):' : 'Rejection reason (required):'
+    );
+    if (!reason || !reason.trim()) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const res = await fetch(`${apiUrl}/host-applications/${id}/reject`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+
+      if (res.ok) {
+        await fetchHostApplications();
+        setSuccessMessage(lang === 'RO' ? 'Cererea a fost respinsă.' : 'Application rejected.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const message = await extractErrorMessage(
+          res,
+          lang === 'RO' ? 'Eroare la respingerea cererii.' : 'Error rejecting application.'
+        );
+        alert(message);
+      }
+    } catch (error) {
+      console.error('Eroare de rețea:', error);
+    }
+  };
 
   const handleChangeRole = (userId: string, newRole: Role): void => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
@@ -378,6 +478,21 @@ export default function AdminDashboardPage() {
           >
             {lang === 'RO' ? 'Cazări Înregistrate' : 'Accommodations Catalog'}
           </button>
+          <button
+            onClick={() => setActiveTab('hostApplications')}
+            className={`px-4 py-2.5 text-xs font-mono uppercase tracking-wider font-semibold rounded-lg transition ${
+              activeTab === 'hostApplications'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+            }`}
+          >
+            {lang === 'RO' ? 'Cereri Operator' : 'Host Applications'}
+            {hostApplications.filter((a) => a.status === 'Pending').length > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px]">
+                {hostApplications.filter((a) => a.status === 'Pending').length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Tab 1: Management Utilizatori & Roluri */}
@@ -494,6 +609,93 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Cereri de a deveni Operator */}
+        {activeTab === 'hostApplications' && (
+          <div className="bg-white dark:bg-[#121418] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-xs">
+            <h2 className="font-serif text-xl font-medium mb-6">
+              {lang === 'RO' ? 'Cereri de a deveni Operator' : 'Requests to become an Operator'}
+            </h2>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 text-xs font-mono text-neutral-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">{lang === 'RO' ? 'Utilizator' : 'User'}</th>
+                    <th className="py-3 px-4">{lang === 'RO' ? 'Mesaj' : 'Message'}</th>
+                    <th className="py-3 px-4">{lang === 'RO' ? 'Trimisă' : 'Submitted'}</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">{lang === 'RO' ? 'Acțiuni' : 'Actions'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 text-xs font-mono">
+                  {hostApplications.length > 0 ? (
+                    hostApplications.map((app) => (
+                      <tr key={app.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition">
+                        <td className="py-3.5 px-4 font-sans text-sm">
+                          <div className="font-medium text-neutral-900 dark:text-neutral-100">
+                            {app.userFirstName} {app.userLastName}
+                          </div>
+                          <div className="text-neutral-500">{app.userEmail}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-neutral-600 dark:text-neutral-400 max-w-xs truncate">
+                          {app.message || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-neutral-500">
+                          {new Date(app.submittedAt).toLocaleDateString(lang === 'RO' ? 'ro-RO' : 'en-US')}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider ${
+                              app.status === 'Approved'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                                : app.status === 'Rejected'
+                                ? 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800'
+                                : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                            }`}
+                          >
+                            {app.status === 'Pending'
+                              ? (lang === 'RO' ? 'În așteptare' : 'Pending')
+                              : app.status === 'Approved'
+                              ? (lang === 'RO' ? 'Aprobată' : 'Approved')
+                              : (lang === 'RO' ? 'Respinsă' : 'Rejected')}
+                          </span>
+                          {app.status === 'Rejected' && app.rejectionReason && (
+                            <div className="text-neutral-500 mt-1 normal-case">{app.rejectionReason}</div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {app.status === 'Pending' && (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => void handleApproveHostApplication(app.id)}
+                                className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition cursor-pointer"
+                              >
+                                {lang === 'RO' ? 'Aprobă' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => void handleRejectHostApplication(app.id)}
+                                className="px-2.5 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer"
+                              >
+                                {lang === 'RO' ? 'Respinge' : 'Reject'}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-neutral-500 font-mono text-xs">
+                        {lang === 'RO' ? 'Nicio cerere înregistrată.' : 'No applications found.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

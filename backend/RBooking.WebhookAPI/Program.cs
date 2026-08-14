@@ -14,6 +14,7 @@ builder.Services.AddDbContext<WebhookDbContext>(options =>
 builder.Services.AddScoped<IWebhookSignatureVerifier, WebhookSignatureVerifier>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AccommodationUpdateProcessor>();
+builder.Services.AddScoped<ReservationCreatedProcessor>();
 
 // Registered as a plain named HttpClient (not AddHttpClient<TClient,TImpl>, which defaults
 // to a transient client type) so ApiAServiceClient can be a singleton and its in-memory

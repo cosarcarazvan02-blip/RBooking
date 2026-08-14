@@ -9,4 +9,11 @@ public interface IWebhookSender
     /// webhook delivery failures must not fail the accommodation update request itself.
     /// </summary>
     Task SendAccommodationUpdatedAsync(AccommodationUpdatedWebhookDto payload);
+
+    /// <summary>
+    /// Same target/scheme as SendAccommodationUpdatedAsync, different event - notifies
+    /// WebhookAPI that a new reservation was made, so it can email the operator. Must
+    /// never throw - reservation creation must not fail because of this.
+    /// </summary>
+    Task SendReservationCreatedAsync(ReservationCreatedWebhookDto payload);
 }

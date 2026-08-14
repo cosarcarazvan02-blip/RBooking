@@ -11,6 +11,6 @@ public class ApiAReservationDto
     public DateTime CheckOutDate { get; set; }
     public int NumberOfGuests { get; set; }
     public decimal TotalPrice { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public int Status { get; set; }
     public DateTime CreatedAt { get; set; }
 }

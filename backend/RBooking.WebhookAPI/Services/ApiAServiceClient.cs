@@ -54,6 +54,34 @@ public class ApiAServiceClient : IApiAServiceClient
         return _httpClient.SendAsync(request);
     }
 
+    public async Task<ReservationNotificationDetailsDto?> GetReservationNotificationDetailsAsync(Guid reservationId)
+    {
+        var token = await GetValidTokenAsync();
+        var response = await SendNotificationDetailsRequestAsync(token, reservationId);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            token = await GetValidTokenAsync(forceRefresh: true);
+            response = await SendNotificationDetailsRequestAsync(token, reservationId);
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ReservationNotificationDetailsDto>();
+    }
+
+    private Task<HttpResponseMessage> SendNotificationDetailsRequestAsync(string token, Guid reservationId)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/reservations/{reservationId}/notification-details");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        AddApiKeyHeader(request);
+        return _httpClient.SendAsync(request);
+    }
+
     private void AddApiKeyHeader(HttpRequestMessage request)
     {
         var apiKey = _configuration["ApiA:ApiKey"];

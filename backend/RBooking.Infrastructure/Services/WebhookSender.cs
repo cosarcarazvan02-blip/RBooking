@@ -21,14 +21,24 @@ public class WebhookSender : IWebhookSender
         _logger = logger;
     }
 
-    public async Task SendAccommodationUpdatedAsync(AccommodationUpdatedWebhookDto payload)
+    public Task SendAccommodationUpdatedAsync(AccommodationUpdatedWebhookDto payload)
     {
-        var url = _configuration["Webhooks:AccommodationUpdatedUrl"];
+        return SendSignedAsync("Webhooks:AccommodationUpdatedUrl", "accommodation-updated", payload, payload.AccommodationId);
+    }
+
+    public Task SendReservationCreatedAsync(ReservationCreatedWebhookDto payload)
+    {
+        return SendSignedAsync("Webhooks:ReservationCreatedUrl", "reservation-created", payload, payload.ReservationId);
+    }
+
+    private async Task SendSignedAsync(string urlConfigKey, string eventName, object payload, Guid correlationId)
+    {
+        var url = _configuration[urlConfigKey];
         var secret = _configuration["Webhooks:Secret"];
 
         if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(secret))
         {
-            _logger.LogWarning("Webhooks:AccommodationUpdatedUrl sau Webhooks:Secret nu sunt configurate - webhook-ul nu a fost trimis.");
+            _logger.LogWarning("{ConfigKey} sau Webhooks:Secret nu sunt configurate - webhook-ul {Event} nu a fost trimis.", urlConfigKey, eventName);
             return;
         }
 
@@ -57,15 +67,15 @@ public class WebhookSender : IWebhookSender
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    "Webhook accommodation-updated a eșuat cu status {StatusCode} pentru AccommodationId {AccommodationId}.",
-                    response.StatusCode, payload.AccommodationId);
+                    "Webhook {Event} a eșuat cu status {StatusCode} pentru {CorrelationId}.",
+                    eventName, response.StatusCode, correlationId);
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex,
-                "Nu s-a putut trimite webhook-ul accommodation-updated pentru AccommodationId {AccommodationId}.",
-                payload.AccommodationId);
+                "Nu s-a putut trimite webhook-ul {Event} pentru {CorrelationId}.",
+                eventName, correlationId);
         }
     }
 }

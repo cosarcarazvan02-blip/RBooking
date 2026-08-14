@@ -15,4 +15,10 @@ public class Reservation
     public decimal TotalPrice { get; set; }
     public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Instantaneu al comisionului platformei la momentul rezervării - dacă rata din
+    // config se schimbă ulterior, rezervările vechi rămân cu rata cu care au fost create.
+    public decimal PlatformFeeRate { get; set; }
+    public decimal PlatformFeeAmount { get; set; }
+    public decimal OperatorPayoutAmount { get; set; }
 }
