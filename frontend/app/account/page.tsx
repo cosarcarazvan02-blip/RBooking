@@ -632,6 +632,190 @@ export default function AccountPage() {
         )}
       </div>
 
+      {/* 2. Secțiune Securitate Cont & Coduri de Recuperare (2FA) */}
+      <div className="bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-amber-700 dark:text-amber-300">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-serif">
+                {lang === 'RO' ? 'Securitate Cont & Coduri de Recuperare' : 'Account Security & Recovery Codes'}
+              </h2>
+              <p className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+                [ {lang === 'RO' ? 'Autentificare 2FA de Urgență' : 'Emergency 2FA Authentication'} ]
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasRecoveryCodes ? (
+              <span className={`px-3 py-1 text-xs font-mono rounded-lg flex items-center gap-1.5 ${
+                remainingCodes <= 2
+                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
+              }`}>
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>
+                  {remainingCodes} {lang === 'RO' ? 'coduri disponibile' : 'codes available'}
+                </span>
+              </span>
+            ) : (
+              <span className="px-3 py-1 text-xs font-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-lg flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                <span>{lang === 'RO' ? 'Fără coduri active' : 'No active codes'}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Informative description banner */}
+        <div className="p-4 bg-neutral-50 dark:bg-[#16181e] border border-neutral-200 dark:border-neutral-800/80 rounded-xl space-y-2">
+          <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-neutral-800 dark:text-neutral-200 tracking-wider">
+            <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>{lang === 'RO' ? 'Cum funcționează codurile de recuperare?' : 'How do recovery codes work?'}</span>
+          </div>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            {lang === 'RO'
+              ? 'Dacă nu ai telefonul la îndemână, nu ai semnal sau ai pierdut aplicația de autentificare 2FA, poți folosi oricare dintre aceste coduri pentru a te conecta direct. Fiecare cod este de unică folosință și devine inactiv imediat după autentificare.'
+              : 'If you don\'t have your phone with you, have no signal, or lost your 2FA authenticator app, you can use any of these backup codes to sign in directly. Each code is single-use and expires immediately after login.'}
+          </p>
+        </div>
+
+        {/* Security Status feedback message */}
+        {securityStatusMessage && (
+          <div
+            className={`p-3.5 text-xs font-mono flex items-center gap-2.5 rounded-xl border ${
+              securityStatusMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800'
+                : securityStatusMessage.type === 'error'
+                ? 'bg-red-50 text-red-900 border-red-300 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800'
+                : 'bg-blue-50 text-blue-900 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
+            }`}
+          >
+            {securityStatusMessage.type === 'success' && <Check className="w-4 h-4 shrink-0 text-emerald-600" />}
+            {securityStatusMessage.type === 'error' && <X className="w-4 h-4 shrink-0 text-red-600" />}
+            {securityStatusMessage.type === 'info' && <Shield className="w-4 h-4 shrink-0 text-blue-600" />}
+            <span>{lang === 'RO' ? securityStatusMessage.ro : securityStatusMessage.en}</span>
+          </div>
+        )}
+
+        {/* Generate / Regenerate Action */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+          <div>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+              {hasRecoveryCodes
+                ? (lang === 'RO' ? 'Regenerare Set de Coduri' : 'Regenerate Code Set')
+                : (lang === 'RO' ? 'Generare Coduri de Recuperare' : 'Generate Recovery Codes')}
+            </h3>
+            <p className="text-xs text-neutral-500">
+              {lang === 'RO'
+                ? 'Generarea unui set nou va invalida automat toate codurile anterioare.'
+                : 'Generating a new set will automatically invalidate all previous codes.'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGenerateRecoveryCodes}
+            disabled={isGeneratingCodes}
+            className="px-5 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider font-semibold transition flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingCodes ? 'animate-spin' : ''}`} />
+            <span>
+              {isGeneratingCodes
+                ? (lang === 'RO' ? 'Se generează...' : 'Generating...')
+                : hasRecoveryCodes
+                ? (lang === 'RO' ? 'Regenerează 10 Coduri Noi' : 'Regenerate 10 New Codes')
+                : (lang === 'RO' ? 'Generează 10 Coduri' : 'Generate 10 Codes')}
+            </span>
+          </button>
+        </div>
+
+        {/* Display Generated Codes Grid when generated */}
+        {generatedCodes.length > 0 && (
+          <div className="mt-4 p-5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+              <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-amber-900 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {lang === 'RO'
+                    ? 'Important: Salvează aceste coduri acum!'
+                    : 'Important: Save these codes now!'}
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-neutral-500">
+                {generatedCodes.length} {lang === 'RO' ? 'coduri generate' : 'codes generated'}
+              </span>
+            </div>
+
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              {lang === 'RO'
+                ? 'Din motive de securitate, aceste coduri sunt afișate o singură dată. Dacă părăsești această pagină, nu le vei mai putea vizualiza în clar, ci doar genera un set nou.'
+                : 'For security reasons, these codes are shown only once. If you navigate away, you will not be able to view them in plain text again, but you can generate a new set.'}
+            </p>
+
+            {/* Grid of 10 codes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {generatedCodes.map((code, idx) => (
+                <div
+                  key={idx}
+                  className="p-2.5 bg-white dark:bg-[#13151a] border border-neutral-200 dark:border-neutral-800 rounded-xl flex items-center justify-between font-mono text-xs shadow-2xs group hover:border-amber-500/50 transition"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-400 text-[10px] w-5">{(idx + 1).toString().padStart(2, '0')}.</span>
+                    <span className="font-semibold tracking-wider text-neutral-900 dark:text-neutral-100">{code}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopySingleCode(code, idx)}
+                    className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition cursor-pointer"
+                    title={lang === 'RO' ? 'Copiază codul' : 'Copy code'}
+                  >
+                    {copiedIndex === idx ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions for All Codes: Copy All & Download TXT */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-amber-500/20">
+              <button
+                type="button"
+                onClick={handleCopyAllCodes}
+                className="flex-1 py-2.5 px-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 text-xs font-mono uppercase tracking-widest font-semibold rounded-xl hover:bg-neutral-800 dark:hover:bg-amber-300 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                {copiedAll ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span>{lang === 'RO' ? 'Copiate în Clipboard!' : 'Copied to Clipboard!'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>{lang === 'RO' ? 'Copiază Toate Codurile' : 'Copy All Codes'}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadCodesTxt}
+                className="py-2.5 px-4 bg-white dark:bg-[#181a20] border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-mono uppercase tracking-widest font-semibold rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                <Download className="w-4 h-4" />
+                <span>{lang === 'RO' ? 'Descarcă .txt' : 'Download .txt'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Devino Operator */}
       {isLoggedIn && profile.role === 'Client' && (
         <div>
