@@ -3,10 +3,19 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, Shield, User, Hotel, Check, AlertCircle } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, Shield, User, Hotel, Check, AlertCircle, ArrowLeft, KeyRound } from "lucide-react";
 import { getActiveApiKey } from "@/lib/apiKey";
 import { translateApiError } from "@/lib/translateApiError";
 import { useLanguage } from "@/context/LanguageContext";
+
+interface LoginUser {
+  id?: string;
+  Id?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  Role?: string;
+}
 
 export default function LoginForm() {
   const { lang } = useLanguage();
@@ -15,6 +24,12 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pasul 2 al autentificării, cand contul are 2FA activ
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [isVerifyingTwoFactor, setIsVerifyingTwoFactor] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
 
   // Field validation states
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -86,6 +101,79 @@ export default function LoginForm() {
     setErrorMessage(null);
   };
 
+  const completeLogin = (data: { token: string; user: LoginUser }, fallbackEmail: string) => {
+    const userObj = data.user || {};
+    const profileToSave = {
+      id: userObj.id || userObj.Id || "user-id",
+      name: `${userObj.firstName || ""} ${userObj.lastName || ""}`.trim() || fallbackEmail.split("@")[0],
+      email: fallbackEmail,
+      phone: "+40 700 000 000",
+      role: userObj.role || userObj.Role || "User",
+    };
+
+    localStorage.setItem("authToken", data.token);
+    localStorage.setItem("rbooking_token", data.token);
+    localStorage.setItem("currentUser", JSON.stringify(data.user));
+    localStorage.setItem("rbooking_user_profile", JSON.stringify(profileToSave));
+    localStorage.setItem("rbooking_logged_in", "true");
+    window.dispatchEvent(new Event("auth-state-change"));
+    window.dispatchEvent(new Event("rbooking_auth_change"));
+    window.dispatchEvent(new Event("storage"));
+
+    setSuccessMessage(
+      lang === "RO"
+        ? `Acces autorizat — Bun venit, ${userObj.firstName || "Utilizator"}`
+        : `Access authorized — Welcome, ${userObj.firstName || "User"}`
+    );
+    setTimeout(() => {
+      const r = (profileToSave.role || "").toLowerCase();
+      if (r === "operator" || r === "manager") {
+        router.push("/manager/accommodation");
+      } else {
+        router.push("/");
+      }
+    }, 1000);
+  };
+
+  const handleVerifyTwoFactor = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!pendingToken) return;
+    setTwoFactorError(null);
+    setIsVerifyingTwoFactor(true);
+    try {
+      const apiUrl = "http://localhost:5293/api";
+      const apiKey = getActiveApiKey();
+      const response = await fetch(`${apiUrl}/TwoFactor/login-verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey,
+          Authorization: `Bearer ${pendingToken}`,
+        },
+        body: JSON.stringify({ code: twoFactorCode }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setTwoFactorError(
+          data?.message ||
+            (lang === "RO" ? "Cod invalid. Încearcă din nou." : "Invalid code. Please try again.")
+        );
+        return;
+      }
+      completeLogin(data, email.trim());
+    } catch {
+      setTwoFactorError(lang === "RO" ? "Eroare de conexiune la server." : "Connection error.");
+    } finally {
+      setIsVerifyingTwoFactor(false);
+    }
+  };
+
+  const handleCancelTwoFactor = () => {
+    setPendingToken(null);
+    setTwoFactorCode("");
+    setTwoFactorError(null);
+  };
+
   const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -126,37 +214,13 @@ export default function LoginForm() {
 
       if (response.ok) {
         const data = await response.json();
-        const userObj = data.user || {};
-        const profileToSave = {
-          id: userObj.id || userObj.Id || "user-id",
-          name: `${userObj.firstName || ""} ${userObj.lastName || ""}`.trim() || email.split("@")[0],
-          email: email.trim(),
-          phone: "+40 700 000 000",
-          role: userObj.role || userObj.Role || "User",
-        };
 
-        localStorage.setItem("authToken", data.token);
-        localStorage.setItem("rbooking_token", data.token);
-        localStorage.setItem("currentUser", JSON.stringify(data.user));
-        localStorage.setItem("rbooking_user_profile", JSON.stringify(profileToSave));
-        localStorage.setItem("rbooking_logged_in", "true");
-        window.dispatchEvent(new Event("auth-state-change"));
-        window.dispatchEvent(new Event("rbooking_auth_change"));
-        window.dispatchEvent(new Event("storage"));
+        if (data.requiresTwoFactor) {
+          setPendingToken(data.pendingToken);
+          return;
+        }
 
-        setSuccessMessage(
-          lang === "RO"
-            ? `Acces autorizat — Bun venit, ${userObj.firstName || "Utilizator"}`
-            : `Access authorized — Welcome, ${userObj.firstName || "User"}`
-        );
-        setTimeout(() => {
-          const r = (profileToSave.role || "").toLowerCase();
-          if (r === "operator" || r === "manager") {
-            router.push("/manager/accommodation");
-          } else {
-            router.push("/");
-          }
-        }, 1000);
+        completeLogin(data, email.trim());
       } else {
         const errorData = await response.json().catch(() => null);
         const serverError =
@@ -285,6 +349,79 @@ export default function LoginForm() {
           </div>
         )}
 
+        {pendingToken ? (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-amber-700 dark:text-amber-300 shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-serif text-neutral-900 dark:text-neutral-100">
+                  {lang === "RO" ? "Verificare în Doi Pași" : "Two-Factor Verification"}
+                </p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {lang === "RO"
+                    ? "Introdu codul din aplicația de authenticator."
+                    : "Enter the code from your authenticator app."}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyTwoFactor} className="space-y-5">
+              <div>
+                <label
+                  htmlFor="two-factor-code"
+                  className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 mb-2"
+                >
+                  {lang === "RO" ? "Cod de 6 cifre" : "6-digit code"}
+                </label>
+                <input
+                  id="two-factor-code"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="123456"
+                  className="w-full px-4 py-3 bg-neutral-50 dark:bg-[#181a20] text-sm font-mono tracking-[0.3em] text-center text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none border border-neutral-200 dark:border-neutral-800 focus:border-neutral-900 dark:focus:border-white focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white"
+                />
+              </div>
+
+              {twoFactorError && (
+                <div className="p-4 bg-red-50 text-red-900 dark:bg-red-950/40 dark:text-red-200 text-xs flex items-center gap-3 border border-red-300 dark:border-red-800">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
+                  <span className="font-mono">{twoFactorError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isVerifyingTwoFactor || twoFactorCode.length !== 6}
+                className="w-full py-3.5 px-6 bg-neutral-950 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-950 text-xs font-mono font-semibold tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-2 border border-neutral-950 dark:border-white disabled:opacity-50 cursor-pointer shadow-sm active:scale-[0.99]"
+              >
+                {isVerifyingTwoFactor ? (
+                  <span className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                ) : (
+                  <>
+                    <span>{lang === "RO" ? "Confirmă" : "Confirm"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancelTwoFactor}
+                className="w-full flex items-center justify-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition tracking-wider cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{lang === "RO" ? "Înapoi" : "Back"}</span>
+              </button>
+            </form>
+          </div>
+        ) : (
+        <>
         {/* Form Fields cu validare */}
         <form onSubmit={handleLogin} noValidate className="space-y-5">
           {/* Email Field */}
@@ -468,6 +605,8 @@ export default function LoginForm() {
             </Link>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

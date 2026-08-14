@@ -348,7 +348,7 @@ public class ReservationServiceTests
         {
             Id = otherOperatorAccommodationId,
             Name = "Not Mine",
-            OperatorId = Guid.NewGuid().ToString()
+            OperatorId = Guid.NewGuid()
         };
 
         _accommodationRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Accommodation> { otherAccommodation });
@@ -366,8 +366,8 @@ public class ReservationServiceTests
         var myAccommodationId = Guid.NewGuid();
         var otherOperatorAccommodationId = Guid.NewGuid();
 
-        var myAccommodation = new Hotel { Id = myAccommodationId, Name = "Mine", OperatorId = operatorId.ToString() };
-        var otherAccommodation = new Hotel { Id = otherOperatorAccommodationId, Name = "Not Mine", OperatorId = Guid.NewGuid().ToString() };
+        var myAccommodation = new Hotel { Id = myAccommodationId, Name = "Mine", OperatorId = operatorId };
+        var otherAccommodation = new Hotel { Id = otherOperatorAccommodationId, Name = "Not Mine", OperatorId = Guid.NewGuid() };
 
         var myReservation = new Reservation
         {

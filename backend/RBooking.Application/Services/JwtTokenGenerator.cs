@@ -56,6 +56,36 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    public string GeneratePendingTwoFactorToken(User user)
+    {
+        var secretKey = _configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
+        var issuer = _configuration["Jwt:Issuer"]
+            ?? throw new InvalidOperationException("JWT Issuer is not configured.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // Audience distincta ("RBookingClient.TwoFactorPending") - token-ul asta nu valideaza
+        // pe schema normala "UserBearer" (care cere audience "RBookingClient"), deci nu poate
+        // fi folosit pe niciun endpoint protejat normal cat timp codul TOTP nu a fost confirmat.
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: TwoFactorAuthConstants.PendingAudience,
+            claims: claims,
+            expires: DateTime.UtcNow.Add(TwoFactorAuthConstants.PendingTokenLifetime),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
     public string GenerateServiceToken(ServiceClient client)
     {
         var secretKey = _configuration["Jwt:Key"]

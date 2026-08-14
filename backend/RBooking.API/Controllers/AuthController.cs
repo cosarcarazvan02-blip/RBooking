@@ -169,6 +169,15 @@ public class AuthController : ControllerBase
         // Actualizăm rolul utilizatorului existent dacă emailul dictează un rol superior
         user.Role = RoleFromEmail(emailTrimmed);
 
+        if (user.TwoFactorEnabled)
+        {
+            // Parola e corectă, dar contul are 2FA activ - nu emitem tokenul complet încă.
+            // Frontend-ul trebuie să trimită codul din aplicația de authenticator la
+            // POST /api/TwoFactor/login-verify, folosind acest token temporar (valabil 5 minute).
+            var pendingToken = _jwtTokenGenerator.GeneratePendingTwoFactorToken(user);
+            return Ok(new { requiresTwoFactor = true, pendingToken });
+        }
+
         var token = _jwtTokenGenerator.GenerateToken(user);
         return Ok(BuildAuthResponse(user, token));
     }

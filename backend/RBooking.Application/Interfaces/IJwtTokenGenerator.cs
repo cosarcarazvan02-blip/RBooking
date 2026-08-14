@@ -6,4 +6,5 @@ public interface IJwtTokenGenerator
 {
     string GenerateToken(User user);
     string GenerateServiceToken(ServiceClient client);
+    string GeneratePendingTwoFactorToken(User user);
 }

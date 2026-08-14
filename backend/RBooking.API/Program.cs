@@ -55,6 +55,7 @@ builder.Services.AddSingleton(blockedIps);
 builder.Services.AddSingleton<RequestMetrics>();
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
+builder.Services.AddDataProtection();
 
 // Configurare CORS unică și corectă pentru frontend (Next.js pe portul 3000)
 builder.Services.AddCors(options =>
@@ -129,6 +130,7 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 builder.Services.AddScoped<IWishlistService, WishlistService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -199,6 +201,20 @@ var tokenValidationParams = new TokenValidationParameters
     ClockSkew = TimeSpan.FromMinutes(1)
 };
 
+// Aceeasi cheie/emitent, dar audience distincta - un token "pending" (emis dupa parola,
+// inainte de codul TOTP) nu valideaza aici, deci nu poate fi folosit ca sesiune completa.
+var pendingTwoFactorTokenValidationParams = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidIssuer = jwtIssuer,
+    ValidateAudience = true,
+    ValidAudience = TwoFactorAuthConstants.PendingAudience,
+    ValidateLifetime = true,
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+    ClockSkew = TimeSpan.FromMinutes(1)
+};
+
 var jwtBearerEvents = new JwtBearerEvents
 {
     OnMessageReceived = context =>
@@ -249,6 +265,11 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.TokenValidationParameters = tokenValidationParams;
+    options.Events = jwtBearerEvents;
+})
+.AddJwtBearer(TwoFactorAuthConstants.PendingSchemeName, options =>
+{
+    options.TokenValidationParameters = pendingTwoFactorTokenValidationParams;
     options.Events = jwtBearerEvents;
 });
 

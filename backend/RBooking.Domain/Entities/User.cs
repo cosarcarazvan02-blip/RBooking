@@ -11,5 +11,10 @@ public class User
     public string? ProfileImagePath { get; set; }
     public UserRole Role { get; set; } = UserRole.Client;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Secretul TOTP e criptat (Data Protection) inainte de a fi salvat aici - niciodata in clar.
+    public string? TwoFactorSecret { get; set; }
+    public bool TwoFactorEnabled { get; set; } = false;
+    public DateTime? TwoFactorEnabledAt { get; set; }
 }
 

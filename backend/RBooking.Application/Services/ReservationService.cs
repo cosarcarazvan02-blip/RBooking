@@ -208,9 +208,9 @@ public class ReservationService : IReservationService
         }
 
         User? operatorUser = null;
-        if (Guid.TryParse(reservation.Accommodation.OperatorId, out var operatorId))
+        if (reservation.Accommodation.OperatorId.HasValue)
         {
-            operatorUser = await _userRepository.GetByIdAsync(operatorId);
+            operatorUser = await _userRepository.GetByIdAsync(reservation.Accommodation.OperatorId.Value);
         }
 
         return new ReservationNotificationDetailsDto
@@ -245,11 +245,10 @@ public class ReservationService : IReservationService
         }
 
         var allAccommodations = await _accommodationRepository.GetAllAsync();
-        var currentUserIdString = currentUserId.ToString();
 
         IEnumerable<Accommodation> targetAccommodations = currentUserRole == UserRole.Admin
             ? allAccommodations
-            : allAccommodations.Where(a => a.OperatorId == currentUserIdString);
+            : allAccommodations.Where(a => a.OperatorId == currentUserId);
 
         if (accommodationId.HasValue)
         {
