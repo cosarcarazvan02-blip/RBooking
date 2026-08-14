@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<WishlistItem> Wishlist => Set<WishlistItem>();
+    public DbSet<RecoveryCode> RecoveryCodes => Set<RecoveryCode>();
     public DbSet<LoyaltyDiscount> LoyaltyDiscounts => Set<LoyaltyDiscount>();
     public DbSet<AbsoluteValueDiscount> AbsoluteValueDiscounts => Set<AbsoluteValueDiscount>();
     public DbSet<PercentageDiscount> PercentageDiscounts => Set<PercentageDiscount>();
@@ -73,5 +74,18 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(w => w.AccommodationId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // RecoveryCodes configuration
+        modelBuilder.Entity<RecoveryCode>(entity =>
+        {
+            entity.ToTable("RecoveryCodes");
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => new { r.UserId, r.IsUsed });
+            entity.HasIndex(r => new { r.UserId, r.CodeHash });
+            entity.HasOne(r => r.User)
+                  .WithMany()
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }

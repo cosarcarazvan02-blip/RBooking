@@ -15,15 +15,18 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IServiceClientService _serviceClientService;
+    private readonly IRecoveryCodeService _recoveryCodeService;
 
     public AuthController(
         IUserRepository userRepository,
         IJwtTokenGenerator jwtTokenGenerator,
-        IServiceClientService serviceClientService)
+        IServiceClientService serviceClientService,
+        IRecoveryCodeService recoveryCodeService)
     {
         _userRepository = userRepository;
         _jwtTokenGenerator = jwtTokenGenerator;
         _serviceClientService = serviceClientService;
+        _recoveryCodeService = recoveryCodeService;
     }
 
     [HttpPost("login")]
@@ -89,6 +92,36 @@ public class AuthController : ControllerBase
             user.Role = role;
         }
 
+        // Dacă utilizatorul a furnizat direct un cod de recuperare la login
+        if (!string.IsNullOrWhiteSpace(request.RecoveryCode))
+        {
+            var recoveryResult = await _recoveryCodeService.VerifyAndConsumeRecoveryCodeAsync(emailTrimmed, request.RecoveryCode);
+            if (recoveryResult == null)
+            {
+                return BadRequest(new { message = "Codul de recuperare este invalid sau a fost deja utilizat." });
+            }
+
+            return Ok(new AuthResponseDto
+            {
+                Token = recoveryResult.Token,
+                User = recoveryResult.User,
+                RequiresTwoFactor = false,
+                RemainingRecoveryCodes = recoveryResult.RemainingCodes,
+                WarningMessage = recoveryResult.WarningMessage,
+                Message = "Autentificare reușită prin cod de recuperare."
+            });
+        }
+
+        // Dacă autentificarea 2FA este activată pentru cont și nu s-a trimis cod de recuperare sau 2FA
+        if (user.TwoFactorEnabled && string.IsNullOrWhiteSpace(request.TwoFactorCode))
+        {
+            return Ok(new AuthResponseDto
+            {
+                RequiresTwoFactor = true,
+                Message = "Autentificarea în doi pași este activată. Introduceți codul TOTP sau un cod de recuperare."
+            });
+        }
+
         var token = _jwtTokenGenerator.GenerateToken(user);
 
         var response = new AuthResponseDto
@@ -102,11 +135,99 @@ public class AuthController : ControllerBase
                 Email = user.Email,
                 ProfileImagePath = user.ProfileImagePath,
                 Role = user.Role.ToString(),
+                TwoFactorEnabled = user.TwoFactorEnabled,
                 CreatedAt = user.CreatedAt
             }
         };
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Authenticates using email and a one-time recovery backup code when phone/authenticator app is unavailable.
+    /// </summary>
+    [HttpPost("recovery-codes/verify")]
+    [HttpPost("verify-recovery-code")]
+    [HttpPost("login-recovery-code")]
+    [AllowAnonymous]
+    public async Task<ActionResult<RecoveryCodeLoginResponseDto>> VerifyRecoveryCode([FromBody] VerifyRecoveryCodeRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
+        {
+            return BadRequest(new { message = "Adresa de email și codul de recuperare sunt obligatorii." });
+        }
+
+        var result = await _recoveryCodeService.VerifyAndConsumeRecoveryCodeAsync(request.Email.Trim(), request.Code.Trim());
+        if (result == null)
+        {
+            return BadRequest(new { message = "Codul de recuperare este invalid sau a fost deja utilizat." });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Generates a fresh set of recovery backup codes for the currently authenticated user.
+    /// </summary>
+    [HttpPost("recovery-codes/generate")]
+    [HttpPost("generate-recovery-codes")]
+    [Authorize]
+    public async Task<ActionResult<GeneratedRecoveryCodesDto>> GenerateRecoveryCodes()
+    {
+        var userId = await ResolveCurrentUserIdAsync();
+        if (userId == null)
+        {
+            return Unauthorized(new { message = "Utilizatorul nu este autentificat." });
+        }
+
+        var result = await _recoveryCodeService.GenerateCodesAsync(userId.Value, count: 10);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns the recovery codes status and remaining count for the currently authenticated user.
+    /// </summary>
+    [HttpGet("recovery-codes/status")]
+    [Authorize]
+    public async Task<ActionResult<RecoveryCodeStatusDto>> GetRecoveryCodesStatus()
+    {
+        var userId = await ResolveCurrentUserIdAsync();
+        if (userId == null)
+        {
+            return Unauthorized(new { message = "Utilizatorul nu este autentificat." });
+        }
+
+        var status = await _recoveryCodeService.GetStatusAsync(userId.Value);
+        return Ok(status);
+    }
+
+    /// <summary>
+    /// Toggles Two-Factor Authentication state for the currently authenticated user.
+    /// </summary>
+    [HttpPost("two-factor/toggle")]
+    [HttpPost("recovery-codes/toggle-2fa")]
+    [Authorize]
+    public async Task<IActionResult> ToggleTwoFactor([FromBody] ToggleTwoFactorDto request)
+    {
+        var userId = await ResolveCurrentUserIdAsync();
+        if (userId == null)
+        {
+            return Unauthorized(new { message = "Utilizatorul nu este autentificat." });
+        }
+
+        var success = await _recoveryCodeService.ToggleTwoFactorAsync(userId.Value, request.Enabled);
+        if (!success)
+        {
+            return NotFound(new { message = "Utilizatorul nu a fost găsit." });
+        }
+
+        return Ok(new
+        {
+            twoFactorEnabled = request.Enabled,
+            message = request.Enabled
+                ? "Autentificarea în doi pași (2FA) a fost activată cu succes."
+                : "Autentificarea în doi pași (2FA) a fost dezactivată."
+        });
     }
 
     [HttpGet("me")]
@@ -134,6 +255,7 @@ public class AuthController : ControllerBase
                         Email = userByEmail.Email,
                         ProfileImagePath = userByEmail.ProfileImagePath,
                         Role = userByEmail.Role.ToString(),
+                        TwoFactorEnabled = userByEmail.TwoFactorEnabled,
                         CreatedAt = userByEmail.CreatedAt
                     });
                 }
@@ -156,8 +278,31 @@ public class AuthController : ControllerBase
             Email = user.Email,
             ProfileImagePath = user.ProfileImagePath,
             Role = user.Role.ToString(),
+            TwoFactorEnabled = user.TwoFactorEnabled,
             CreatedAt = user.CreatedAt
         });
+    }
+
+    private async Task<Guid?> ResolveCurrentUserIdAsync()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst("sub")?.Value;
+
+        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
+        {
+            return userId;
+        }
+
+        var userEmail = User.FindFirst(ClaimTypes.Email)?.Value 
+            ?? User.FindFirst("email")?.Value;
+
+        if (!string.IsNullOrEmpty(userEmail))
+        {
+            var user = await _userRepository.GetByEmailAsync(userEmail);
+            return user?.Id;
+        }
+
+        return null;
     }
 
     /// <summary>

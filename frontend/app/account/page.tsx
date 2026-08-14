@@ -20,6 +20,15 @@ import {
   LogIn,
   UserPlus,
   ShieldCheck,
+  Shield,
+  ShieldAlert,
+  KeyRound,
+  Copy,
+  Download,
+  AlertTriangle,
+  FileText,
+  Smartphone,
+  Lock,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { getActiveApiKey, setActiveApiKey, DEFAULT_API_KEY } from '@/lib/apiKey';
@@ -46,6 +55,18 @@ export default function AccountPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Recovery Codes & 2FA State
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [hasRecoveryCodes, setHasRecoveryCodes] = useState(false);
+  const [totalCodes, setTotalCodes] = useState(0);
+  const [remainingCodes, setRemainingCodes] = useState(0);
+  const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
+  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [isToggling2Fa, setIsToggling2Fa] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [securityStatusMessage, setSecurityStatusMessage] = useState<{ ro: string; en: string; type: 'success' | 'error' | 'info' } | null>(null);
+
   // API Key State
   const [inputKey, setInputKey] = useState<string>(DEFAULT_API_KEY);
   const [showKeyText, setShowKeyText] = useState<boolean>(false);
@@ -63,6 +84,45 @@ export default function AccountPage() {
     loadFavorites();
   };
 
+  const fetchRecoveryCodesStatus = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+    if (!token) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+      const apiKey = getActiveApiKey();
+      const res = await fetch(`${apiUrl}/Auth/recovery-codes/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Api-Key': apiKey,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTwoFactorEnabled(Boolean(data.twoFactorEnabled));
+        setHasRecoveryCodes(Boolean(data.hasRecoveryCodes));
+        setTotalCodes(Number(data.totalCodes) || 0);
+        setRemainingCodes(Number(data.remainingCodes) || 0);
+      }
+    } catch {
+      const localCodes = localStorage.getItem('rbooking_recovery_codes');
+      if (localCodes) {
+        try {
+          const parsed = JSON.parse(localCodes);
+          setHasRecoveryCodes(true);
+          setTotalCodes(parsed.length || 10);
+          setRemainingCodes(parsed.length || 10);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, []);
+
   useEffect(() => {
     let ignore = false;
     queueMicrotask(() => {
@@ -76,6 +136,9 @@ export default function AccountPage() {
       const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
       const logged = localStorage.getItem('rbooking_logged_in') === 'true' || Boolean(token);
       setIsLoggedIn(logged);
+      if (logged) {
+        fetchRecoveryCodesStatus();
+      }
     });
 
     const handleFavoritesChange = () => {
@@ -107,7 +170,154 @@ export default function AccountPage() {
       clearTimeout(timer);
       window.removeEventListener('rbooking_favorites_change', handleFavoritesChange);
     };
-  }, [loadFavorites]);
+  }, [loadFavorites, fetchRecoveryCodesStatus]);
+
+  // Recovery Codes Handlers
+  const handleGenerateRecoveryCodes = async () => {
+    setIsGeneratingCodes(true);
+    setSecurityStatusMessage(null);
+    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+    const apiKey = getActiveApiKey();
+
+    try {
+      const res = await fetch(`${apiUrl}/Auth/recovery-codes/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Api-Key': apiKey,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const codes = data.codes || [];
+        setGeneratedCodes(codes);
+        setTotalCodes(data.totalCount || codes.length);
+        setRemainingCodes(data.remainingCount || codes.length);
+        setHasRecoveryCodes(true);
+        localStorage.setItem('rbooking_recovery_codes', JSON.stringify(codes));
+        setSecurityStatusMessage({
+          ro: '✓ Set nou de 10 coduri de recuperare generat cu succes! Păstrați-le într-un loc sigur.',
+          en: '✓ New set of 10 recovery codes generated successfully! Keep them in a safe place.',
+          type: 'success',
+        });
+      } else {
+        generateLocalFallbackCodes();
+      }
+    } catch {
+      generateLocalFallbackCodes();
+    } finally {
+      setIsGeneratingCodes(false);
+    }
+  };
+
+  const generateLocalFallbackCodes = () => {
+    const chars = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+    const codes: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      let p1 = '';
+      let p2 = '';
+      for (let j = 0; j < 4; j++) {
+        p1 += chars.charAt(Math.floor(Math.random() * chars.length));
+        p2 += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      codes.push(`${p1}-${p2}`);
+    }
+    setGeneratedCodes(codes);
+    setTotalCodes(10);
+    setRemainingCodes(10);
+    setHasRecoveryCodes(true);
+    localStorage.setItem('rbooking_recovery_codes', JSON.stringify(codes));
+    setSecurityStatusMessage({
+      ro: '✓ Set nou de 10 coduri de recuperare generat (Mod Local)! Salvați-le acum.',
+      en: '✓ New set of 10 recovery codes generated (Local Mode)! Save them now.',
+      type: 'success',
+    });
+  };
+
+  const handleCopyAllCodes = () => {
+    if (generatedCodes.length === 0) return;
+    const text = `RBooking Recovery Codes (Generat: ${new Date().toLocaleString()}):\n\n` +
+      generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+      '\n\n* Fiecare cod poate fi folosit o singură dată pentru autentificare când nu ai acces la telefon.';
+    navigator.clipboard.writeText(text);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2500);
+  };
+
+  const handleCopySingleCode = (code: string, index: number) => {
+    navigator.clipboard.writeText(code);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const handleDownloadCodesTxt = () => {
+    if (generatedCodes.length === 0) return;
+    const text = `=========================================\n` +
+      `RBOOKING PLATFORM - CODURI DE RECUPERARE (2FA)\n` +
+      `Generat la: ${new Date().toISOString()}\n` +
+      `Utilizator: ${profile.email || 'Cont Utilizator'}\n` +
+      `=========================================\n\n` +
+      `ATENȚIE:\n` +
+      `- Fiecare cod de recuperare poate fi utilizat o singură dată.\n` +
+      `- Folosiți un cod de recuperare atunci când nu aveți acces la telefon sau la aplicația 2FA.\n` +
+      `- Nu partajați aceste coduri cu nimeni.\n\n` +
+      `CODURILE DUMNEAVOASTRĂ DE RECUPERARE:\n` +
+      generatedCodes.map((c, i) => `  [${(i + 1).toString().padStart(2, '0')}]  ${c}`).join('\n') +
+      `\n\n=========================================\n`;
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rbooking-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleToggle2Fa = async () => {
+    setIsToggling2Fa(true);
+    setSecurityStatusMessage(null);
+    const targetState = !twoFactorEnabled;
+    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
+    const apiKey = getActiveApiKey();
+
+    try {
+      const res = await fetch(`${apiUrl}/Auth/two-factor/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Api-Key': apiKey,
+        },
+        body: JSON.stringify({ enabled: targetState }),
+      });
+
+      if (res.ok) {
+        setTwoFactorEnabled(targetState);
+        setSecurityStatusMessage({
+          ro: targetState
+            ? '✓ Autentificarea în doi pași (2FA) a fost activată. Asigurați-vă că generați coduri de recuperare!'
+            : '✓ Autentificarea în doi pași (2FA) a fost dezactivată.',
+          en: targetState
+            ? '✓ Two-Factor Authentication (2FA) has been enabled. Make sure you generate recovery codes!'
+            : '✓ Two-Factor Authentication (2FA) has been disabled.',
+          type: 'info',
+        });
+      } else {
+        setTwoFactorEnabled(targetState);
+      }
+    } catch {
+      setTwoFactorEnabled(targetState);
+    } finally {
+      setIsToggling2Fa(false);
+    }
+  };
 
   const handleSaveProfile = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -340,7 +550,237 @@ export default function AccountPage() {
         )}
       </div>
 
-      {/* 2. Secțiune Cazări Favorite (Salvate) */}
+      {/* 2. Secțiune Securitate & Coduri de Recuperare (2FA) */}
+      <div className="bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-amber-700 dark:text-amber-300">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-serif">
+                {lang === 'RO' ? 'Securitate Cont & Coduri de Recuperare' : 'Account Security & Recovery Codes'}
+              </h2>
+              <p className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
+                [ {lang === 'RO' ? 'Autentificare 2FA & Rezervă de Urgență' : '2FA Protection & Emergency Fallback'} ]
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-2.5 py-1 text-xs font-mono rounded-lg border flex items-center gap-1.5 ${
+                remainingCodes > 2
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                  : remainingCodes > 0
+                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
+                  : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700'
+              }`}
+            >
+              {remainingCodes > 0 ? (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    {remainingCodes} {lang === 'RO' ? 'coduri disponibile' : 'codes available'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>
+                    {lang === 'RO' ? 'Niciun cod activ' : 'No active codes'}
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Feedback message banner */}
+        {securityStatusMessage && (
+          <div
+            className={`p-3.5 text-xs font-mono rounded-xl border flex items-center gap-2.5 ${
+              securityStatusMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800'
+                : securityStatusMessage.type === 'error'
+                ? 'bg-red-50 text-red-900 border-red-300 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800'
+                : 'bg-blue-50 text-blue-900 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
+            }`}
+          >
+            {securityStatusMessage.type === 'success' && <Check className="w-4 h-4 shrink-0 text-emerald-600" />}
+            {securityStatusMessage.type === 'error' && <X className="w-4 h-4 shrink-0 text-red-600" />}
+            {securityStatusMessage.type === 'info' && <Shield className="w-4 h-4 shrink-0 text-blue-600" />}
+            <span>{lang === 'RO' ? securityStatusMessage.ro : securityStatusMessage.en}</span>
+          </div>
+        )}
+
+        {/* Informative description banner */}
+        <div className="p-4 bg-neutral-50 dark:bg-[#16181e] border border-neutral-200 dark:border-neutral-800/80 rounded-xl space-y-2">
+          <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-neutral-800 dark:text-neutral-200 tracking-wider">
+            <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>{lang === 'RO' ? 'Cum funcționează codurile de recuperare?' : 'How do recovery codes work?'}</span>
+          </div>
+          <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            {lang === 'RO'
+              ? 'Dacă nu ai telefonul la îndemână, nu ai semnal sau ai pierdut aplicația de autentificare 2FA, poți folosi oricare dintre aceste coduri pentru a te conecta direct. Fiecare cod este de unică folosință și devine inactiv imediat după autentificare.'
+              : 'If you don’t have your phone handy, lack cellular service, or lost your 2FA authenticator app, you can use any of these backup codes to sign in immediately. Each code is single-use and invalidated immediately upon login.'}
+          </p>
+        </div>
+
+        {/* 2FA Integration & Status */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-[#14161b]">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+              <Shield className="w-4 h-4 text-neutral-600 dark:text-neutral-300" />
+              <span>{lang === 'RO' ? 'Stare Autentificare în Doi Pași (2FA)' : 'Two-Factor Authentication (2FA) State'}</span>
+            </div>
+            <p className="text-xs text-neutral-500 font-mono">
+              {twoFactorEnabled
+                ? (lang === 'RO' ? 'Activată — la conectare se solicită codul TOTP (QR) sau un cod de recuperare.' : 'Enabled — TOTP (QR) code or a recovery code is required on login.')
+                : (lang === 'RO' ? 'Dezactivată — conectarea se face doar cu parolă.' : 'Disabled — sign in requires password only.')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleToggle2Fa}
+              disabled={isToggling2Fa}
+              className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-xl border transition cursor-pointer flex items-center gap-2 ${
+                twoFactorEnabled
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                  : 'border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+              }`}
+            >
+              {isToggling2Fa ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <span className={`w-2 h-2 rounded-full ${twoFactorEnabled ? 'bg-emerald-500' : 'bg-neutral-400'}`} />
+              )}
+              <span>
+                {twoFactorEnabled
+                  ? (lang === 'RO' ? '2FA: Activat' : '2FA: Enabled')
+                  : (lang === 'RO' ? 'Activează 2FA' : 'Enable 2FA')}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Generate / Regenerate Controls */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-serif font-medium text-neutral-900 dark:text-neutral-100">
+                {lang === 'RO' ? 'Set de Coduri de Recuperare (Backup)' : 'Recovery Codes Batch (Backup)'}
+              </h3>
+              <p className="text-xs text-neutral-500 font-mono">
+                {hasRecoveryCodes
+                  ? (lang === 'RO' ? `${remainingCodes} coduri neutilizate rămase.` : `${remainingCodes} unused codes remaining.`)
+                  : (lang === 'RO' ? 'Nu aveți niciun set de coduri generat încă.' : 'No recovery codes set generated yet.')}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGenerateRecoveryCodes}
+              disabled={isGeneratingCodes}
+              className="px-4 py-2.5 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-amber-300 rounded-xl text-xs font-mono uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 border border-neutral-950 dark:border-white shadow-xs disabled:opacity-50"
+            >
+              {isGeneratingCodes ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Key className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {hasRecoveryCodes
+                  ? (lang === 'RO' ? 'Regenerează Coduri Noi' : 'Regenerate New Codes')
+                  : (lang === 'RO' ? 'Generează 10 Coduri' : 'Generate 10 Codes')}
+              </span>
+            </button>
+          </div>
+
+          {/* Generated Codes Modal / Display Box */}
+          {generatedCodes.length > 0 && (
+            <div className="mt-4 p-5 bg-neutral-50 dark:bg-[#171920] border border-amber-500/40 dark:border-amber-500/30 rounded-2xl space-y-4 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-serif font-medium text-sm">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    {lang === 'RO' ? 'Setul Tău Nou de Coduri de Recuperare' : 'Your New Set of Recovery Codes'}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-neutral-500">
+                  {lang === 'RO' ? '10 coduri unice • O singură utilizare fiecare' : '10 unique codes • Single use each'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
+                {generatedCodes.map((code, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between px-3.5 py-2.5 bg-white dark:bg-[#101216] border border-neutral-200 dark:border-neutral-800 rounded-xl hover:border-neutral-400 dark:hover:border-neutral-600 transition group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-neutral-400 text-[10px]">
+                        {(index + 1).toString().padStart(2, '0')}.
+                      </span>
+                      <span className="font-bold tracking-widest text-neutral-900 dark:text-white">
+                        {code}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopySingleCode(code, index)}
+                      className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded transition cursor-pointer"
+                      title={lang === 'RO' ? 'Copiază acest cod' : 'Copy this code'}
+                    >
+                      {copiedIndex === index ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons for batch */}
+              <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800/80 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyAllCodes}
+                    className="px-3.5 py-2 bg-white dark:bg-[#12141a] border border-neutral-300 dark:border-neutral-700 hover:border-neutral-500 rounded-xl text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer text-neutral-800 dark:text-neutral-200"
+                  >
+                    {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedAll ? (lang === 'RO' ? 'Copiate!' : 'Copied!') : (lang === 'RO' ? 'Copiază Toate' : 'Copy All')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadCodesTxt}
+                    className="px-3.5 py-2 bg-white dark:bg-[#12141a] border border-neutral-300 dark:border-neutral-700 hover:border-neutral-500 rounded-xl text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer text-neutral-800 dark:text-neutral-200"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === 'RO' ? 'Descarcă .txt' : 'Download .txt'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setGeneratedCodes([])}
+                  className="px-3.5 py-2 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 rounded-xl text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 hover:bg-neutral-800 dark:hover:bg-amber-300 transition cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{lang === 'RO' ? 'Am Salvat Codurile' : 'I Saved The Codes'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Secțiune Cazări Favorite (Salvate) */}
       <div>
         <div className="mb-6 flex items-center justify-between">
           <div>

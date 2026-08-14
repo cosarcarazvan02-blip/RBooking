@@ -126,6 +126,8 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 builder.Services.AddScoped<IWishlistService, WishlistService>();
+builder.Services.AddScoped<IRecoveryCodeRepository, RecoveryCodeRepository>();
+builder.Services.AddScoped<IRecoveryCodeService, RecoveryCodeService>();
 
 builder.Services.AddSwaggerGen(options =>
 {
