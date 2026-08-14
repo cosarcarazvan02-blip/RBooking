@@ -396,7 +396,24 @@ export default function HotelDetailsPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Reservation request failed');
+        const text = await res.text().catch(() => '');
+        let errData: any = null;
+        try {
+          if (text) errData = JSON.parse(text);
+        } catch {}
+
+        const serverError =
+          errData?.message ||
+          (lang === 'RO'
+            ? 'Eroare la procesarea rezervării. Vă rugăm reîncercați.'
+            : 'Error processing reservation. Please try again.');
+
+        setBookingError({
+          ro: serverError,
+          en: serverError,
+        });
+        setIsBookingLoading(false);
+        return;
       }
 
       let createdReservationId = `res-${Date.now()}`;
@@ -430,8 +447,8 @@ export default function HotelDetailsPage() {
       }, 1500);
     } catch {
       setBookingError({
-        ro: 'Eroare la procesarea rezervării. Vă rugăm reîncercați.',
-        en: 'Error processing reservation. Please try again.'
+        ro: 'Eroare de conexiune la server. Vă rugăm reîncercați.',
+        en: 'Server connection error. Please try again.'
       });
     } finally {
       setIsBookingLoading(false);

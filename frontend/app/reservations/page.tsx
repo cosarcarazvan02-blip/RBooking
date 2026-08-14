@@ -68,8 +68,16 @@ export default function ReservationsPage() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
         const apiKey = getActiveApiKey();
+        const rawToken = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+        const token = rawToken ? rawToken.replace(/^"|"$/g, '').replace(/^Bearer\s+/i, '').trim() : '';
+
+        const headers: Record<string, string> = { 'X-Api-Key': apiKey };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`${apiUrl}/Reservations/user/${userId}?PageNumber=1&PageSize=50`, {
-          headers: { 'X-Api-Key': apiKey },
+          headers,
         });
 
         if (res.ok) {
@@ -164,7 +172,8 @@ export default function ReservationsPage() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
         const apiKey = getActiveApiKey();
-        const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+        const rawToken = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
+        const token = rawToken ? rawToken.replace(/^"|"$/g, '').replace(/^Bearer\s+/i, '').trim() : '';
         const headers: Record<string, string> = {
           'X-Api-Key': apiKey,
         };
