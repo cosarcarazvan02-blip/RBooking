@@ -145,7 +145,7 @@ cd RBooking
 Verifică setările de conexiune din [`backend/RBooking.API/appsettings.json`](file:///home/reeea/Documents/RBooking/RBooking/backend/RBooking.API/appsettings.json):
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Host=localhost;Port=5432;Database=rbooking;Username=postgres;Password=postgres"
+  "DefaultConnection": "Host=localhost;Port=5433;Database=RBooking;Username=postgres;Password=1234"
 }
 ```
 
@@ -223,9 +223,10 @@ Documentația interactivă Swagger este accesibilă la:
 2. **Dual-Scheme JWT Bearer:**
    * `UserBearer`: Generat la autentificarea utilizatorilor obișnuiți și managerilor.
    * `ServiceBearer`: Generat pentru servicii externe / integrări automate B2B.
-3. **Mecanism de Siguranță 2FA & Recovery:**
-   * Codurile de recuperare sunt stocate exclusiv ca hash-uri SHA-256.
-   * Fiecare cod poate fi consumat o singură dată.
+3. **Mecanism de Siguranță 2FA & Izolare Strictă a Codurilor de Recuperare:**
+   * **Stocare Securizată:** Codurile sunt stocate exclusiv ca hash-uri SHA-256 în tabela `RecoveryCodes`, nefiind niciodată păstrate în clar în baza de date.
+   * **Izolare per Utilizator:** Fiecare cod este asociat unic cu `UserId`. Un cod generat de un utilizator nu poate fi folosit sub nicio formă pentru alt cont.
+   * **Consum de Unică Folosință (Single-Use):** La fiecare autentificare reușită cu un cod de recuperare, acesta este invalidat automat și ireversibil (`IsUsed = true`, `UsedAt = NOW()`).
 4. **Controlul Accesului la Date (Ownership Protection):**
    * Logica de business validează `accommodation.OperatorId == currentUserId` la orice modificare sau ștergere.
 

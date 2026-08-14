@@ -353,7 +353,8 @@ export default function LoginForm() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
         const userObj = data.user || {};
         const warning = data.warningMessage || (data.remainingCodes <= 2
           ? (lang === "RO"
@@ -363,17 +364,29 @@ export default function LoginForm() {
 
         saveAuthSession(data.token, userObj, userObj.role || "User", warning);
       } else {
-        const errData = await response.json().catch(() => null);
+        const text = await response.text().catch(() => "");
+        let errData: { message?: string } | null = null;
+        try {
+          if (text) errData = JSON.parse(text);
+        } catch {
+          // ignore - raspuns fara body JSON valid
+        }
+
         const serverError =
+          translateApiError(errData?.message, lang) ||
           errData?.message ||
           (lang === "RO"
-            ? "Codul de recuperare este invalid sau a fost deja utilizat."
-            : "Recovery code is invalid or has already been used.");
+            ? "Codul de recuperare este invalid pentru acest cont sau a fost deja utilizat."
+            : "Recovery code is invalid for this account or has already been used.");
 
         setErrorMessage(serverError);
       }
     } catch {
-      setErrorMessage(lang === "RO" ? "Eroare de conexiune la server." : "Connection error.");
+      setErrorMessage(
+        lang === "RO"
+          ? "Eroare de conexiune la server. Vă rugăm să verificați conexiunea."
+          : "Connection error to server. Please check your connection."
+      );
     } finally {
       setIsLoading(false);
     }

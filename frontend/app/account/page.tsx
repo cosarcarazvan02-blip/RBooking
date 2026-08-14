@@ -124,22 +124,20 @@ export default function AccountPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
-      const apiKey = getActiveApiKey();
       const res = await fetch(`${apiUrl}/Auth/recovery-codes/status`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Api-Key': apiKey,
-        },
+        headers: buildAuthHeaders(),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setTwoFactorEnabled(Boolean(data.twoFactorEnabled));
-        setHasRecoveryCodes(Boolean(data.hasRecoveryCodes));
-        setTotalCodes(Number(data.totalCodes) || 0);
-        setRemainingCodes(Number(data.remainingCodes) || 0);
+      if (res.ok && res.status !== 204) {
+        const text = await res.text();
+        if (text && text.trim()) {
+          const data = JSON.parse(text);
+          setTwoFactorEnabled(Boolean(data.twoFactorEnabled));
+          setHasRecoveryCodes(Boolean(data.hasRecoveryCodes));
+          setTotalCodes(Number(data.totalCodes) || 0);
+          setRemainingCodes(Number(data.remainingCodes) || 0);
+        }
       }
     } catch {
       const localCodes = localStorage.getItem('rbooking_recovery_codes');
@@ -164,7 +162,12 @@ export default function AccountPage() {
         setHostApplication(null);
         return;
       }
-      const data = await res.json();
+      const text = await res.text();
+      if (!text || !text.trim()) {
+        setHostApplication(null);
+        return;
+      }
+      const data = JSON.parse(text);
       if (!data) {
         setHostApplication(null);
         return;
@@ -175,6 +178,7 @@ export default function AccountPage() {
       });
     } catch (e) {
       console.error(e);
+      setHostApplication(null);
     }
   }, []);
 
@@ -262,22 +266,17 @@ export default function AccountPage() {
   const handleGenerateRecoveryCodes = async () => {
     setIsGeneratingCodes(true);
     setSecurityStatusMessage(null);
-    const token = localStorage.getItem('rbooking_token') || localStorage.getItem('authToken');
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
-    const apiKey = getActiveApiKey();
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5293/api';
       const res = await fetch(`${apiUrl}/Auth/recovery-codes/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Api-Key': apiKey,
-        },
+        headers: buildAuthHeaders(),
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         const codes = data.codes || [];
         setGeneratedCodes(codes);
         setTotalCodes(data.totalCount || codes.length);
@@ -285,15 +284,39 @@ export default function AccountPage() {
         setHasRecoveryCodes(true);
         localStorage.setItem('rbooking_recovery_codes', JSON.stringify(codes));
         setSecurityStatusMessage({
-          ro: '✓ Set nou de 10 coduri de recuperare generat cu succes! Păstrați-le într-un loc sigur.',
-          en: '✓ New set of 10 recovery codes generated successfully! Keep them in a safe place.',
+          ro: '✓ Set nou de 10 coduri de recuperare generat și salvat în baza de date! Salvați-le într-un loc sigur.',
+          en: '✓ New set of 10 recovery codes generated and saved to database! Keep them in a safe place.',
           type: 'success',
         });
       } else {
-        generateLocalFallbackCodes();
+        const text = await res.text().catch(() => '');
+        let errData: { message?: string } | null = null;
+        try {
+          if (text) errData = JSON.parse(text);
+        } catch {
+          // ignore - raspuns fara body JSON valid
+        }
+
+        if (res.status === 401) {
+          setSecurityStatusMessage({
+            ro: 'Sesiunea de autentificare a expirat sau este invalidă. Vă rugăm să vă autentificați din nou din pagina de Login.',
+            en: 'Your session has expired or is invalid. Please log in again from the Login page.',
+            type: 'error',
+          });
+        } else {
+          setSecurityStatusMessage({
+            ro: errData?.message || 'Eroare la generarea codurilor pe server.',
+            en: errData?.message || 'Error generating codes on server.',
+            type: 'error',
+          });
+        }
       }
     } catch {
-      generateLocalFallbackCodes();
+      setSecurityStatusMessage({
+        ro: 'Eroare de conexiune la serverul API backend (http://localhost:5293).',
+        en: 'Connection error to backend API server (http://localhost:5293).',
+        type: 'error',
+      });
     } finally {
       setIsGeneratingCodes(false);
     }
