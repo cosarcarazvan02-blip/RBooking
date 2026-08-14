@@ -396,10 +396,21 @@ export default function AccountPage() {
           type: 'info',
         });
       } else {
-        setTwoFactorEnabled(targetState);
+        // Nu presupunem succes pe eșec - backend-ul refuză activarea daca nu exista deja
+        // un secret TOTP configurat (secțiunea "Autentificare în Doi Pași" de mai sus).
+        const data = await res.json().catch(() => null);
+        setSecurityStatusMessage({
+          ro: data?.message || '✕ Nu am putut actualiza starea 2FA.',
+          en: data?.message || '✕ Could not update 2FA state.',
+          type: 'error',
+        });
       }
     } catch {
-      setTwoFactorEnabled(targetState);
+      setSecurityStatusMessage({
+        ro: '✕ Eroare de conexiune la server.',
+        en: '✕ Connection error.',
+        type: 'error',
+      });
     } finally {
       setIsToggling2Fa(false);
     }

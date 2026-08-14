@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RBooking.Application.Constants;
 using RBooking.Application.DTOs;
 using RBooking.Application.Interfaces;
-using RBooking.Domain.Entities;
 
 namespace RBooking.API.Controllers;
 
@@ -14,35 +12,10 @@ namespace RBooking.API.Controllers;
 public class TwoFactorController : ControllerBase
 {
     private readonly ITwoFactorService _twoFactorService;
-    private readonly IUserRepository _userRepository;
-    private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
-    public TwoFactorController(
-        ITwoFactorService twoFactorService,
-        IUserRepository userRepository,
-        IJwtTokenGenerator jwtTokenGenerator)
+    public TwoFactorController(ITwoFactorService twoFactorService)
     {
         _twoFactorService = twoFactorService;
-        _userRepository = userRepository;
-        _jwtTokenGenerator = jwtTokenGenerator;
-    }
-
-    private static AuthResponseDto BuildAuthResponse(User user, string token)
-    {
-        return new AuthResponseDto
-        {
-            Token = token,
-            User = new UserDto
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                ProfileImagePath = user.ProfileImagePath,
-                Role = user.Role.ToString(),
-                CreatedAt = user.CreatedAt
-            }
-        };
     }
 
     private bool TryGetUserId(out Guid userId)
@@ -85,36 +58,6 @@ public class TwoFactorController : ControllerBase
         }
 
         return Ok(new { message = "Autentificarea în doi pași a fost activată cu succes." });
-    }
-
-    /// <summary>
-    /// Al doilea pas al login-ului cand contul are 2FA activ: primeste tokenul temporar
-    /// emis de POST /api/Auth/login + codul din aplicatia de authenticator, si emite
-    /// tokenul complet de sesiune daca totul e valid.
-    /// </summary>
-    [HttpPost("login-verify")]
-    [Authorize(AuthenticationSchemes = TwoFactorAuthConstants.PendingSchemeName)]
-    public async Task<ActionResult<AuthResponseDto>> LoginVerify([FromBody] TwoFactorVerifyRequestDto request)
-    {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(new { message = "Tokenul temporar este invalid sau a expirat." });
-        }
-
-        var isValid = await _twoFactorService.ValidateCodeAsync(userId, request.Code);
-        if (!isValid)
-        {
-            return BadRequest(new { message = "Codul introdus este invalid sau a expirat." });
-        }
-
-        var user = await _userRepository.GetByIdAsync(userId);
-        if (user == null)
-        {
-            return Unauthorized(new { message = "Tokenul temporar este invalid sau a expirat." });
-        }
-
-        var token = _jwtTokenGenerator.GenerateToken(user);
-        return Ok(BuildAuthResponse(user, token));
     }
 
     [HttpGet("status")]

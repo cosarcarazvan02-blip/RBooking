@@ -11,13 +11,9 @@ namespace RBooking.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "TwoFactorEnabled",
-                table: "Users",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
+            // "TwoFactorEnabled" e adaugata de migrarea 20260814081512_AddTwoFactorAuthToUser
+            // (impreuna cu TwoFactorSecret / TwoFactorEnabledAt) - nu o mai adaugam si aici,
+            // ca sa nu incercam sa cream aceeasi coloana de doua ori.
             migrationBuilder.CreateTable(
                 name: "RecoveryCodes",
                 columns: table => new
@@ -56,10 +52,6 @@ namespace RBooking.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "RecoveryCodes");
-
-            migrationBuilder.DropColumn(
-                name: "TwoFactorEnabled",
-                table: "Users");
         }
     }
 }
